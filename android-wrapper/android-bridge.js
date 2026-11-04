@@ -1,12 +1,10 @@
+import { Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+
 /* Native Android file export bridge. */
 (() => {
   const cap = window.Capacitor;
   if (!cap || typeof cap.isNativePlatform !== 'function' || !cap.isNativePlatform()) return;
-
-  const plugins = cap.Plugins || {};
-  const filesystem = plugins.Filesystem;
-  const share = plugins.Share;
-  if (!filesystem || !share) return;
 
   async function toBase64(blob) {
     const bytes = new Uint8Array(await blob.arrayBuffer());
@@ -19,13 +17,13 @@
 
   async function exportNative(name, blob) {
     try {
-      const file = await filesystem.writeFile({
+      const file = await Filesystem.writeFile({
         path: name,
         data: await toBase64(blob),
         directory: 'CACHE',
         recursive: true
       });
-      await share.share({
+      await Share.share({
         title: name,
         text: 'ملف صادر من MelkiCAD',
         url: file.uri,
