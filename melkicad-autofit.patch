@@ -1,0 +1,78 @@
+--- a/js/09-render.js
++++ b/js/09-render.js
+@@ -134,15 +134,21 @@
+ 
+ function resize(){dpr=devicePixelRatio||1;const r=$('main').getBoundingClientRect();W=r.width;H=r.height;cv.width=W*dpr;cv.height=H*dpr;draw()}
+ 
+-$('#fit').onclick=()=>{
+-  if(!shapes.length){V={x:24,y:24,s:40}}
+-  else{
+-    const r=shapes.map(bx),x0=Math.min(...r.map(q=>q.x)),y0=Math.min(...r.map(q=>q.y)),x1=Math.max(...r.map(q=>q.X)),y1=Math.max(...r.map(q=>q.Y));
+-    V.s=clamp(Math.min((W-80)/Math.max(x1-x0,.5),(H-80)/Math.max(y1-y0,.5)),6,120);
+-    V.x=(W-(x1-x0)*V.s)/2-x0*V.s;V.y=(H-(y1-y0)*V.s)/2-y0*V.s;
+-  }
+-  save();draw();
+-};
++// ملاءمة العناصر لمساحة العرض دون تغيير أبعادها الحقيقية.
++function fitView(items=shapes){
++  if(!items.length){V={x:24,y:24,s:40};return}
++  const r=items.map(bx);
++  const x0=Math.min(...r.map(q=>q.x)),y0=Math.min(...r.map(q=>q.y));
++  const x1=Math.max(...r.map(q=>q.X)),y1=Math.max(...r.map(q=>q.Y));
++  const pad=Math.max(18,Math.min(36,Math.min(W,H)*.08));
++  const aw=Math.max(1,W-pad*2),ah=Math.max(1,H-pad*2);
++  // الحد الأدنى الصغير يسمح بعرض عناصر بطول مئات أو آلاف الأمتار.
++  V.s=clamp(Math.min(aw/Math.max(x1-x0,.1),ah/Math.max(y1-y0,.1)),.0001,1200);
++  V.x=(W-(x1-x0)*V.s)/2-x0*V.s;
++  V.y=(H-(y1-y0)*V.s)/2-y0*V.s;
++}
++
++$('#fit').onclick=()=>{fitView();save();draw()};
+ 
+ const quickShot=()=>{
+   const s0=sel;sel=[];draw();const u=cv.toDataURL('image/png');sel=s0;draw();
+--- a/js/14-pointer.js
++++ b/js/14-pointer.js
+@@ -11,7 +11,7 @@
+  * ================================================================== */
+ 
+ // ---- اللمس ----
+-function finishPolyline(){if(polyDraft&&polyDraft.p.length>=2&&valid(polyDraft)){snap();shapes.push(polyDraft);sel=[shapes.length-1];polyDraft=null;$('#polybar').style.display='none';save();upd();draw();showDyn(shapes[sel[0]])}else{polyDraft=null;$('#polybar').style.display='none';draw()}}
++function finishPolyline(){if(polyDraft&&polyDraft.p.length>=2&&valid(polyDraft)){snap();shapes.push(polyDraft);sel=[shapes.length-1];if(shapes.length===1&&W<=700)fitView([shapes[0]]);polyDraft=null;$('#polybar').style.display='none';save();upd();draw();showDyn(shapes[sel[0]])}else{polyDraft=null;$('#polybar').style.display='none';draw()}}
+ 
+ $('#polyfinish').onclick=finishPolyline;$('#polycancel').onclick=()=>{polyDraft=null;$('#polybar').style.display='none';draw()};
+ 
+@@ -65,7 +65,7 @@
+   if(g.k==='pinch'){
+     const[a,b]=[...P.values()];if(!b)return;
+     const d=Math.hypot(a[0]-b[0],a[1]-b[1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+-    V.s=clamp(g.s*d/g.d,6,400);V.x=m[0]-g.w[0]*V.s;V.y=m[1]-g.w[1]*V.s;
++    V.s=clamp(g.s*d/g.d,.0001,1200);V.x=m[0]-g.w[0]*V.s;V.y=m[1]-g.w[1]*V.s;
+   }else if(g.k==='pan'){V.x=g.vx+p[0]-g.px;V.y=g.vy+p[1]-g.py}
+   else if(g.k==='move'){
+     const w=s2w(...p),dx=grid(w[0]-g.w0[0]),dy=grid(w[1]-g.w0[1]);
+@@ -96,7 +96,7 @@
+ function endPtr(e){
+   if(!P.has(e.pointerId))return;P.delete(e.pointerId);
+   if(g&&e.type==='pointerup'){
+-    if(g.k==='draw'&&cur&&valid(cur)){hist.push(g.before);if(cur.t==='dim')linkDim(cur);shapes.push(cur);sel=[shapes.length-1];showDyn(cur)}
++    if(g.k==='draw'&&cur&&valid(cur)){hist.push(g.before);if(cur.t==='dim')linkDim(cur);shapes.push(cur);sel=[shapes.length-1];if(shapes.length===1&&W<=700)fitView([cur]);showDyn(cur)}
+     else if(g.k==='move'&&g.numericPlace&&sel.length){showDyn(shapes[sel[0]])}
+     else if(g.k==='box'&&box){
+       sel=boxSel();
+@@ -109,5 +109,5 @@
+ 
+ cv.addEventListener('wheel',e=>{
+   e.preventDefault();const p=pos(e),w=s2w(...p);
+-  V.s=clamp(V.s*(e.deltaY<0?1.1:.9),6,400);V.x=p[0]-w[0]*V.s;V.y=p[1]-w[1]*V.s;draw();
++  V.s=clamp(V.s*(e.deltaY<0?1.1:.9),.0001,1200);V.x=p[0]-w[0]*V.s;V.y=p[1]-w[1]*V.s;draw();
+ },{passive:false});
+--- a/sw.js
++++ b/sw.js
+@@ -1,5 +1,5 @@
+ // عامل الخدمة: يجعل التطبيق يعمل بلا إنترنت بعد أول تحميل ناجح.
+-const VER='plan-v10';
++const VER='plan-v11';
+ const CORE=[
+   './',
+   'index.html',
