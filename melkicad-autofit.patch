@@ -13,7 +13,7 @@
 -  }
 -  save();draw();
 -};
-+// ملاءمة العناصر لمساحة العرض دون تغيير أبعادها الحقيقية.
++// ملاءمة العناصر لمساحة العرض مع الحفاظ على الأبعاد الحقيقية.
 +function fitView(items=shapes){
 +  if(!items.length){V={x:24,y:24,s:40};return}
 +  const r=items.map(bx);
