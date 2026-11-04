@@ -90,10 +90,11 @@
 @@ -18,1 +18,8 @@
 -function diSetOpen(o,focus){diOpen=o;$('#drawInput').classList.toggle('open',o);$('#diKey').classList.toggle('on',o);$('#diKey').setAttribute('aria-pressed',o?'true':'false');if(o&&focus)setTimeout(()=>{const f=drawFlow&&drawFlow.stage==='params'?$('#diExtra input'):$('#diX');if(f)f.focus({preventScroll:true})},30)}
 +function diSetOpen(o,focus){
-+ const key=$('#diKey'),enabled=!!S.dyn;
++ const panel=$('#drawInput'),key=$('#diKey'),enabled=!!S.dyn;
++ panel.style.display=enabled?'':'none';
 + if(key)key.hidden=!enabled;
 + o=!!o&&enabled;diOpen=o;
-+ $('#drawInput').classList.toggle('open',o);
++ panel.classList.toggle('open',o);
 + if(key){key.classList.toggle('on',o);key.setAttribute('aria-pressed',o?'true':'false')}
 + if(o&&focus)setTimeout(()=>{const f=drawFlow&&drawFlow.stage==='params'?$('#diExtra input'):$('#diX');if(f)f.focus({preventScroll:true})},30)
 +}
