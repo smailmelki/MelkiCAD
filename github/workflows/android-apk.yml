@@ -1,0 +1,82 @@
+name: Build MelkiCAD Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android-wrapper/**'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Checkout published website
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: android-wrapper/site
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Prepare bundled web application
+        run: |
+          set -e
+          mkdir -p android-wrapper/www
+          cp -a android-wrapper/site/. android-wrapper/www/
+          rm -rf android-wrapper/site
+          cp android-wrapper/android-bridge.js android-wrapper/www/android-bridge.js
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android-wrapper/www/index.html')
+          s = p.read_text(encoding='utf-8')
+          marker = '</body>'
+          tag = '<script src="android-bridge.js"></script>\n'
+          if marker not in s:
+              raise SystemExit('Could not locate </body> in published app')
+          if 'android-bridge.js' not in s:
+              s = s.replace(marker, tag + marker, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Install Capacitor
+        working-directory: android-wrapper
+        run: npm install
+
+      - name: Generate Android project
+        working-directory: android-wrapper
+        run: npx cap add android
+
+      - name: Sync bundled application
+        working-directory: android-wrapper
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android-wrapper/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MelkiCAD-Android-APK
+          path: android-wrapper/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
