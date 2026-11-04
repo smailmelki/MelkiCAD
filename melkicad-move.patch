@@ -25,8 +25,6 @@
 +      else if(moveArmed)g={k:'move',w0:s2w(...p),o:sel.map(j=>copy(shapes[j])),before:snapStr()};
 +      else g=null;
 +    }else{sel=[];setMoveMode(false);g={k:'box',a:p}}
-@@ -98,0 +102 @@
-+    if(g.k==='move'&&moveArmed)setMoveMode(false);
 --- a/sw.js
 +++ b/sw.js
 @@ -2 +2 @@
