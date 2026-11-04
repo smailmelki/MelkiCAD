@@ -5,6 +5,10 @@
 +  <div id="ctx"><button id="op">خصائص</button><button id="mv" aria-pressed="false">تحريك</button><button id="cp">نسخ</button><button id="ps">لصق</button><button id="rt">تدوير</button><button id="scale">تحجيم</button><button id="del">حذف</button><button id="all">الكل</button></div>
 +  <div id="moveStatus" role="status" aria-live="polite" style="display:none;position:fixed;top:72px;right:12px;z-index:30;padding:8px 14px;border-radius:9px;background:#155e75;color:#fff;font-weight:700;box-shadow:0 2px 10px #0003;pointer-events:none">↔ وضع التحريك مفعّل — اسحب العنصر</div>
 --- a/js/04-selection.js
+@@ -11,1 +11,2 @@
+-function selC(){const b=sel.map(i=>bx(shapes[i]));return[(Math.min(...b.map(q=>q.x))+Math.max(...b.map(q=>q.X)))/2,(Math.min(...b.map(q=>q.y))+Math.max(...b.map(q=>q.Y)))/2]}
++let moveArmed=0;
++function selC(){const b=sel.map(i=>bx(shapes[i]));return[(Math.min(...b.map(q=>q.x))+Math.max(...b.map(q=>q.X)))/2,(Math.min(...b.map(q=>q.y))+Math.max(...b.map(q=>q.Y)))/2]}
 +++ b/js/04-selection.js
 @@ -40,0 +41,8 @@
 +function setMoveMode(on){
