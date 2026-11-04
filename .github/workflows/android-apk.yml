@@ -28,8 +28,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: android-wrapper/package.json
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -37,18 +35,18 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Install dependencies
+        working-directory: android-wrapper
+        run: npm install
+
       - name: Prepare web application
         working-directory: android-wrapper
         run: |
           mkdir -p www
           cp -a site/. www/
           rm -rf site
-          npx --yes esbuild android-bridge.js --bundle --format=iife --outfile=www/android-bridge.bundle.js
-          node -e "const fs=require('fs');const p='www/index.html';let s=fs.readFileSync(p,'utf8');if(!s.includes('android-bridge.bundle.js')){s=s.replace('</body>','<script src=\"android-bridge.bundle.js\"></script>\\n</body>');fs.writeFileSync(p,s)}"
-
-      - name: Install dependencies
-        working-directory: android-wrapper
-        run: npm install
+          npx esbuild android-bridge.js --bundle --format=iife --outfile=www/android-bridge.bundle.js
+          node -e "const fs=require('fs');const p='www/index.html';let s=fs.readFileSync(p,'utf8');if(!s.includes('android-bridge.bundle.js')){s=s.replace('</body>','<script src=\\\"android-bridge.bundle.js\\\"></script>\\n</body>');fs.writeFileSync(p,s)}"
 
       - name: Add Android platform
         working-directory: android-wrapper
