@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'planAotuCAD-full444.zip'
+      - 'melkicad-properties.patch'
   workflow_dispatch:
 
 permissions:
@@ -29,6 +30,9 @@ jobs:
           mkdir -p _site
           unzip -q planAotuCAD-full444.zip -d _site
           if [ -d _site/planAotuCAD ]; then
+            if [ -f melkicad-properties.patch ]; then
+              patch --batch --forward -p1 -d _site/planAotuCAD < melkicad-properties.patch
+            fi
             cp -a _site/planAotuCAD/. _site/
             rm -rf _site/planAotuCAD
           fi
