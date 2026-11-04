@@ -30,5 +30,5 @@
 --- a/sw.js
 +++ b/sw.js
 @@ -2 +2 @@
--const VER='plan-v12';
++const VER='plan-v11';
 +const VER='plan-v13';
