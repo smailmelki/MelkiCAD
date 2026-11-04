@@ -2,28 +2,34 @@
 +++ b/index.html
 @@ -29 +29 @@
 -  <div id="ctx"><button id="op">خصائص</button><button id="cp">نسخ</button><button id="ps">لصق</button><button id="rt">تدوير</button><button id="scale">تحجيم</button><button id="del">حذف</button><button id="all">الكل</button></div>
-+  <div id="ctx"><button id="op">خصائص</button><button id="mv">تحريك</button><button id="cp">نسخ</button><button id="ps">لصق</button><button id="rt">تدوير</button><button id="scale">تحجيم</button><button id="del">حذف</button><button id="all">الكل</button></div>
++  <div id="ctx"><button id="op">خصائص</button><button id="mv" aria-pressed="false">تحريك</button><button id="cp">نسخ</button><button id="ps">لصق</button><button id="rt">تدوير</button><button id="scale">تحجيم</button><button id="del">حذف</button><button id="all">الكل</button></div>
++  <div id="moveStatus" role="status" aria-live="polite" style="display:none;position:fixed;top:72px;right:12px;z-index:30;padding:8px 14px;border-radius:9px;background:#155e75;color:#fff;font-weight:700;box-shadow:0 2px 10px #0003;pointer-events:none">↔ وضع التحريك مفعّل — اسحب العنصر</div>
 --- a/js/04-selection.js
 +++ b/js/04-selection.js
-@@ -40,0 +41,2 @@
-+$('#mv').onclick=()=>{if(!sel.length)return;moveArmed=moveArmed?0:1;$('#mv').classList.toggle('active',!!moveArmed);toast(moveArmed?'وضع التحريك مفعّل: اسحب العنصر المحدد إلى موضعه الجديد':'تم إلغاء وضع التحريك')};
+@@ -40,0 +41,10 @@
++function setMoveMode(on){
++  moveArmed=on?1:0;
++  const b=$('#mv'),s=$('#moveStatus');
++  if(b){b.classList.toggle('active',!!moveArmed);b.setAttribute('aria-pressed',moveArmed?'true':'false');b.textContent=moveArmed?'إلغاء التحريك':'تحريك'}
++  if(s)s.style.display=moveArmed?'block':'none';
++  ['op','cp','ps','rt','scale','del','all'].forEach(id=>{const el=$('#'+id);if(el)el.disabled=!!moveArmed});
++}
++$('#mv').onclick=()=>{if(!sel.length)return;setMoveMode(!moveArmed);toast(moveArmed?'وضع التحريك مفعّل':'تم إلغاء وضع التحريك')};
 +
 --- a/js/14-pointer.js
 +++ b/js/14-pointer.js
-@@ -13,0 +14 @@
-+let moveArmed=0; // يظل العنصر ثابتًا حتى تفعيل أمر التحريك
-@@ -39,2 +40,5 @@
+@@ -39,2 +39,5 @@
 -    if(i>=0){if(!sel.includes(i))sel=[i];g={k:'move',w0:s2w(...p),o:sel.map(j=>copy(shapes[j])),before:snapStr()}}
 -    else{sel=[];g={k:'box',a:p}}
 +    if(i>=0){
-+      if(!sel.includes(i)){sel=[i];moveArmed=0;$('#mv').classList.remove('active');g=null}
++      if(!sel.includes(i)){sel=[i];setMoveMode(false);g=null}
 +      else if(moveArmed)g={k:'move',w0:s2w(...p),o:sel.map(j=>copy(shapes[j])),before:snapStr()};
 +      else g=null;
-+    }else{sel=[];moveArmed=0;$('#mv').classList.remove('active');g={k:'box',a:p}}
-@@ -98,0 +103 @@
-+    if(g.k==='move'&&moveArmed){moveArmed=0;$('#mv').classList.remove('active')}
++    }else{sel=[];setMoveMode(false);g={k:'box',a:p}}
+@@ -98,0 +102 @@
++    if(g.k==='move'&&moveArmed)setMoveMode(false);
 --- a/sw.js
 +++ b/sw.js
 @@ -2 +2 @@
 -const VER='plan-v11';
-+const VER='plan-v12';
++const VER='plan-v13';
