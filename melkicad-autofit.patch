@@ -101,7 +101,7 @@
 +diSetOpen=function(o,focus){o=!!o&&!!S.dyn;diSetOpenBase(o,focus);const key=$('#diKey');key.hidden=!S.dyn};
 --- a/js/21-settings.js
 +++ b/js/21-settings.js
-@@ -1,1 +1,6 @@
+@@ -25,2 +25,6 @@
    pick('cu',v=>{ST.unit=v});pick('cg',v=>{ST.gs=+v});
 +  const dynToggle=$('#dynInputToggle');
 +  const syncDynToggle=()=>dynToggle.classList.toggle('on',!!S.dyn);
