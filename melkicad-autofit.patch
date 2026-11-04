@@ -95,6 +95,7 @@
    $('#showDims').onclick=()=>{ST.showDims=ST.showDims?0:1;save();syncView();draw()};
 --- a/js/13-draw-input.js
 +++ b/js/13-draw-input.js
-@@ -1 +1 @@
--function diSetOpen(o,focus){diOpen=o;$('#drawInput').classList.toggle('open',o);$('#diKey').classList.toggle('on',o);$('#diKey').setAttribute('aria-pressed',o?'true':'false');if(o&&focus)setTimeout(()=>{const f=drawFlow&&drawFlow.stage==='params'?$('#diExtra input'):$('#diX');if(f)f.focus({preventScroll:true})},30)}
-+function diSetOpen(o,focus){o=!!o&&!!S.dyn;diOpen=o;const key=$('#diKey');key.hidden=!S.dyn;$('#drawInput').classList.toggle('open',o);key.classList.toggle('on',o);key.setAttribute('aria-pressed',o?'true':'false');if(o&&focus)setTimeout(()=>{const f=drawFlow&&drawFlow.stage==='params'?$('#diExtra input'):$('#diX');if(f)f.focus({preventScroll:true})},30)}
+@@ -1 +1,3 @@
+ let diOpen=false;
++const diSetOpenBase=diSetOpen;
++diSetOpen=function(o,focus){o=!!o&&!!S.dyn;diSetOpenBase(o,focus);const key=$('#diKey');key.hidden=!S.dyn};
