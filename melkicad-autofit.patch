@@ -79,13 +79,13 @@
 
 --- a/js/21-settings.js
 +++ b/js/21-settings.js
-@@ -13,6 +13,7 @@
+@@ -13,3 +13,4 @@
    sh.innerHTML='<b>الوحدات</b>'+chips('cu',[['m','متر'],['cm','سنتيمتر']],ST.unit)
      +'<b>حجم الشبكة والالتقاط</b>'+chips('cg',[[0,'تلقائي'],[.05,'5 سم'],[.1,'10 سم'],[.25,'25 سم'],[.5,'50 سم'],[1,'1 م']],ST.gs)
 +    +'<b>الخصائص العامة</b><div class="chips"><button class="chip" id="dynInputToggle">الإدخال الرقمي</button></div>'
      +'<b>الإظهار</b><div class="chips" id="ct">'+[['grid','الشبكة'],['axes','المعلم والأصل'],['coord','الإحداثيات']].map(([k,l])=>`<button class="chip${ST[k]?' on':''}" data-k2="${k}">${l}</button>`).join('')+'</div>'
      +'<b>خصائص العرض</b><div class="chips"><button class="chip" id="showDims">إظهار الأبعاد</button><button class="chip" id="showAreas">إظهار المساحات</button></div>'
-@@ -25,6 +26,10 @@
+@@ -25,3 +26,7 @@
    pick('cu',v=>{ST.unit=v});pick('cg',v=>{ST.gs=+v});
 +  const dynToggle=$('#dynInputToggle');
 +  const syncDynToggle=()=>dynToggle.classList.toggle('on',!!S.dyn);
@@ -95,7 +95,7 @@
    $('#showDims').onclick=()=>{ST.showDims=ST.showDims?0:1;save();syncView();draw()};
 --- a/js/13-draw-input.js
 +++ b/js/13-draw-input.js
-@@ -13,7 +13,9 @@
+@@ -13,4 +13,4 @@
  // ---- الإدخال الرقمي الاختياري: الشريط مطويّ افتراضيًا (يعرض الخطوة فقط)، وزر ⌨ يفتح الحقول ----
  const drawNames={line:'خط',wall:'جدار',dim:'بُعد',rect:'مستطيل',circle:'دائرة',arc:'قوس',ellipse:'شكل بيضاوي',tri:'مثلث',polygon:'مضلع',polyline:'متعدد الخطوط',free:'رسم حر',furn:'أثاث',text:'نص',north:'سهم الشمال',door:'باب',win:'نافذة'};
  let diOpen=false; // يبقى مفتوحًا بين الأشكال إذا اختار المستخدم الإدخال الرقمي
