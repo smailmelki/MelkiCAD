@@ -7,6 +7,7 @@ on:
       - 'planAotuCAD-full444.zip'
       - 'melkicad-properties.patch.gz'
       - 'melkicad-autofit.patch'
+      - 'melkicad-move.patch'
   workflow_dispatch:
 
 permissions:
@@ -36,6 +37,9 @@ jobs:
             fi
             if [ -f melkicad-autofit.patch ]; then
               patch --batch --forward -p1 -d _site/planAotuCAD < melkicad-autofit.patch
+            fi
+            if [ -f melkicad-move.patch ]; then
+              patch --batch --forward -p1 -d _site/planAotuCAD < melkicad-move.patch
             fi
             cp -a _site/planAotuCAD/. _site/
             rm -rf _site/planAotuCAD
