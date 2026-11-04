@@ -9,6 +9,7 @@ on:
       - 'melkicad-autofit.patch'
       - 'melkicad-move.patch'
       - 'melkicad-move-ui.patch'
+      - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
 permissions:
