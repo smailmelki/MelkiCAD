@@ -1,0 +1,66 @@
+--- a/index.html
++++ b/index.html
+@@ -26,7 +26,7 @@
+ </header>
+ <main>
+   <canvas id="cv"></canvas>
+-  <div id="ctx"><button id="op">خصائص</button><button id="cp">نسخ</button><button id="ps">لصق</button><button id="rt">تدوير</button><button id="scale">تحجيم</button><button id="del">حذف</button><button id="all">الكل</button></div>
++  <div id="ctx"><button id="op">خصائص</button><button id="mv">تحريك</button><button id="cp">نسخ</button><button id="ps">لصق</button><button id="rt">تدوير</button><button id="scale">تحجيم</button><button id="del">حذف</button><button id="all">الكل</button></div>
+   <div id="sheet"></div>
+   <div id="polybar" style="position:absolute;top:58px;left:50%;transform:translateX(-50%);display:none;gap:6px;background:var(--ui);border:1px solid var(--bd);border-radius:10px;padding:4px;z-index:4"><button id="polyfinish">إنهاء POLYLINE</button><button id="polycancel">إلغاء</button></div>
+   <div id="drawInput" aria-live="polite"><div class="dihead"><span id="diTitle"></span><button id="diFinish" style="display:none">إنهاء</button><button id="diKey" title="إدخال رقمي (اختياري)" aria-label="إدخال رقمي" aria-pressed="false">⌨</button><button id="diClose" title="إلغاء الرسم" aria-label="إلغاء الرسم">✕</button></div><div id="diFields"><div class="dicoords" id="diCoords"><label><input id="diX" type="number" step="any" inputmode="decimal" autocomplete="off" aria-label="X" enterkeyhint="next"></label><label><input id="diY" type="number" step="any" inputmode="decimal" autocomplete="off" aria-label="Y" enterkeyhint="done"></label></div><div class="dicoords" id="diExtra"></div><button id="diSubmit" title="إدخال" aria-label="إدخال">✓</button></div></div>
+--- a/js/04-selection.js
++++ b/js/04-selection.js
+@@ -38,6 +38,8 @@
+   return -1;
+ }
+ 
++$('#mv').onclick=()=>{if(!sel.length)return;moveArmed=moveArmed?0:1;$('#mv').classList.toggle('active',!!moveArmed);toast(moveArmed?'وضع التحريك مفعّل: اسحب العنصر المحدد إلى موضعه الجديد':'تم إلغاء وضع التحريك')};
++
+ $('#cp').onclick=()=>{clip=sel.map(i=>JSON.parse(JSON.stringify(shapes[i])));upd()};
+ 
+ $('#ps').onclick=()=>{
+--- a/js/14-pointer.js
++++ b/js/14-pointer.js
+@@ -11,6 +11,7 @@
+  * ================================================================== */
+ 
+ // ---- اللمس ----
++let moveArmed=0; // لا يُسمح بنقل المحدد إلا بعد تفعيل زر تحريك
+ function finishPolyline(){if(polyDraft&&polyDraft.p.length>=2&&valid(polyDraft)){snap();shapes.push(polyDraft);sel=[shapes.length-1];if(shapes.length===1&&W<=700)fitView([shapes[0]]);polyDraft=null;$('#polybar').style.display='none';save();upd();draw();showDyn(shapes[sel[0]])}else{polyDraft=null;$('#polybar').style.display='none';draw()}}
+ 
+ $('#polyfinish').onclick=finishPolyline;$('#polycancel').onclick=()=>{polyDraft=null;$('#polybar').style.display='none';draw()};
+@@ -36,8 +37,11 @@
+       upd();draw();return;
+     }
+     const i=hit(...p);
+-    if(i>=0){if(!sel.includes(i))sel=[i];g={k:'move',w0:s2w(...p),o:sel.map(j=>copy(shapes[j])),before:snapStr()}}
+-    else{sel=[];g={k:'box',a:p}}
++    if(i>=0){
++      if(!sel.includes(i)){sel=[i];moveArmed=0;$('#mv').classList.remove('active');g=null}
++      else if(moveArmed)g={k:'move',w0:s2w(...p),o:sel.map(j=>copy(shapes[j])),before:snapStr()};
++      else g=null;
++    }else{sel=[];moveArmed=0;$('#mv').classList.remove('active');g={k:'box',a:p}}
+   }else if(tool==='furn'){
+     const a=snapPt(s2w(...p)),d=SYM[furnKind],s={t:'furn',k:furnKind,x:a[0]-d.w/2,y:a[1]-d.h/2,w:d.w,h:d.h,rot:0,ly:cl,col:D.col||undefined};
+     snap();shapes.push(s);sel=[shapes.length-1];g={k:'move',w0:s2w(...p),o:[copy(s)],moved:1,numericPlace:1};mk=null;
+@@ -96,6 +100,7 @@
+ function endPtr(e){
+   if(!P.has(e.pointerId))return;P.delete(e.pointerId);
+   if(g&&e.type==='pointerup'){
+     if(g.k==='move'&&moveArmed){moveArmed=0;$('#mv').classList.remove('active')}
+     if(g.k==='draw'&&cur&&valid(cur)){hist.push(g.before);if(cur.t==='dim')linkDim(cur);shapes.push(cur);sel=[shapes.length-1];if(shapes.length===1&&W<=700)fitView([cur]);showDyn(cur)}
+     else if(g.k==='move'&&g.numericPlace&&sel.length){showDyn(shapes[sel[0]])}
+     else if(g.k==='box'&&box){
+       sel=boxSel();
+     }
+   }
+--- a/sw.js
++++ b/sw.js
+@@ -1,5 +1,5 @@
+ // عامل الخدمة: يجعل التطبيق يعمل بلا إنترنت بعد أول تحميل ناجح.
+-const VER='plan-v11';
++const VER='plan-v12';
+ const CORE=[
+   './',
+   'index.html',
