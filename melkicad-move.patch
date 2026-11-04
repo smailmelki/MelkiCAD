@@ -26,7 +26,7 @@
   * ================================================================== */
  
  // ---- اللمس ----
-+let moveArmed=0; // لا يُسمح بنقل المحدد إلا بعد تفعيل زر تحريك
++let moveArmed=0; // يظل العنصر ثابتًا حتى تفعيل أمر التحريك
  function finishPolyline(){if(polyDraft&&polyDraft.p.length>=2&&valid(polyDraft)){snap();shapes.push(polyDraft);sel=[shapes.length-1];if(shapes.length===1&&W<=700)fitView([shapes[0]]);polyDraft=null;$('#polybar').style.display='none';save();upd();draw();showDyn(shapes[sel[0]])}else{polyDraft=null;$('#polybar').style.display='none';draw()}}
  
  $('#polyfinish').onclick=finishPolyline;$('#polycancel').onclick=()=>{polyDraft=null;$('#polybar').style.display='none';draw()};
