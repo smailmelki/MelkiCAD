@@ -45,7 +45,40 @@ jobs:
             if [ -f melkicad-move-ui.patch ]; then
               patch --batch --forward -p1 -d _site/planAotuCAD < melkicad-move-ui.patch
             fi
-            cp -a _site/planAotuCAD/. _site/
+            # Strip backup UI, persistence hooks, code and cache entries.
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path('_site/planAotuCAD')
+          def edit(path, pairs):
+              p = root / path
+              s = p.read_text(encoding='utf-8')
+              for old, new in pairs:
+                  if old not in s: raise SystemExit(f'Expected target missing in {path}: {old[:70]!r}')
+                  s = s.replace(old, new, 1)
+              p.write_text(s, encoding='utf-8')
+          edit('index.html', [
+              ('  js/20-backup.js         النسخ الاحتياطي\n', ''),
+              ('<script src="js/20-backup.js"></script>\n', ''),
+          ])
+          edit('js/21-settings.js', [
+              (' * الإعدادات: الوحدات، حجم الشبكة، خيارات الإظهار، الاستيراد والتصدير، والنسخ\n * الاحتياطي.\n', ' * الإعدادات: الوحدات، حجم الشبكة، خيارات الإظهار، والاستيراد والتصدير.\n'),
+              (' *            20-backup.js، 22-toolbar.js\n', ' *            22-toolbar.js\n'),
+              ('    +\'<b>النسخ الاحتياطي</b><div class="chips"><button class="chip\'+(ST.cloud?\' on\':\'\')+\'" id="ccl">نسخ سحابي تلقائي</button><button class="chip" id="cnow">احفظ الآن في السحابة</button><button class="chip" id="cres">استعادة من السحابة</button><button class="chip" id="call">كل المشاريع كملف</button></div><div id="cst" style="color:var(--dim);font-size:12px"></div><button id="ok">تم</button>\';', '    +\'<button id="ok">تم</button>\';'),
+              ("  const cst=()=>{$('#cst').textContent=ST.cloud?`النسخ السحابي مفعّل${cloudAt?' · آخر نسخة '+new Date(cloudAt).toISOString().slice(11,16)+' UTC':''}`:ST.bk?`آخر نسخة احتياطية: ${new Date(ST.bk).toISOString().slice(0,10)}`:'لا توجد نسخة احتياطية بعد (نقطة على ⚙ تعني مضى أسبوع بلا نسخ)'};\n  cst();\n  $('#ccl').onclick=async e=>{\n    const b=e.currentTarget;ST.cloud=ST.cloud?0:1;b.classList.toggle('on',!!ST.cloud);save();\n    if(ST.cloud&&!(await cloudPush(true))){ST.cloud=0;b.classList.remove('on');save()}\n    cst();upd();\n  };\n  $('#cnow').onclick=async()=>{toast((await cloudPush(true))?'تم الحفظ في السحابة':'تعذّر الحفظ');cst();upd()};\n  $('#cres').onclick=()=>cloudSheet();\n  $('#call').onclick=async()=>{await allFile();cst()};\n", ''),
+          ])
+          edit('js/01-core.js', [
+              (' *        cloudT، cloudAt، fileHintT، toast، P، drawFlow، f، clamp، num، len، w2s،\n', ' *        fileHintT، toast، P، drawFlow، f، clamp، num، len، w2s،\n'),
+              ("let polygonSides=6;let S={end:1,mid:1,int:1,cen:1,grid:1,ortho:0,polar:0,dyn:1},D={col:'',lw:2},ST={unit:'m',gs:0,axes:1,coord:1,grid:1,cloud:0,bk:0,showDims:0,showAreas:0},cpos=null,furnKind='bed2',cloudT=0,cloudAt=0,fileHintT=0;", "let polygonSides=6;let S={end:1,mid:1,int:1,cen:1,grid:1,ortho:0,polar:0,dyn:1},D={col:'',lw:2},ST={unit:'m',gs:0,axes:1,coord:1,grid:1,showDims:0,showAreas:0},cpos=null,furnKind='bed2',fileHintT=0;"),
+          ])
+          edit('js/05-persistence.js', [
+              (' *            20-backup.js، 22-toolbar.js\n', ' *            22-toolbar.js\n'),
+              ("const save=()=>{lsSet('p:'+pid,{shapes,V,LY,cl});lsSet('set',{S,D,ST});lsSet('idx',{PJ,pid});cloudSoon()};", "const save=()=>{lsSet('p:'+pid,{shapes,V,LY,cl});lsSet('set',{S,D,ST});lsSet('idx',{PJ,pid})};"),
+              ("const st=lsGet('set');if(st){S=Object.assign(S,st.S||{});D=st.D||D;ST=Object.assign(ST,st.ST||{})}", "const st=lsGet('set');if(st){S=Object.assign(S,st.S||{});D=st.D||D;ST=Object.assign(ST,st.ST||{});delete ST.cloud;delete ST.bk}"),
+          ])
+          edit('sw.js', [("  'js/20-backup.js',\n", '')])
+          (root / 'js/20-backup.js').unlink(missing_ok=True)
+          PY
+          cp -a _site/planAotuCAD/. _site/
             rm -rf _site/planAotuCAD
           fi
           test -f _site/index.html
