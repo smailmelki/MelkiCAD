@@ -85,14 +85,6 @@
 +    +'<b>الخصائص العامة</b><div class="chips"><button class="chip" id="dynInputToggle">الإدخال الرقمي</button></div>'
      +'<b>الإظهار</b><div class="chips" id="ct">'+[['grid','الشبكة'],['axes','المعلم والأصل'],['coord','الإحداثيات']].map(([k,l])=>`<button class="chip${ST[k]?' on':''}" data-k2="${k}">${l}</button>`).join('')+'</div>'
      +'<b>خصائص العرض</b><div class="chips"><button class="chip" id="showDims">إظهار الأبعاد</button><button class="chip" id="showAreas">إظهار المساحات</button></div>'
-@@ -25,3 +26,7 @@
-   pick('cu',v=>{ST.unit=v});pick('cg',v=>{ST.gs=+v});
-+  const dynToggle=$('#dynInputToggle');
-+  const syncDynToggle=()=>dynToggle.classList.toggle('on',!!S.dyn);
-+  syncDynToggle();
-+  dynToggle.onclick=()=>{S.dyn=S.dyn?0:1;syncDynToggle();diSetOpen(diOpen,false);toast(S.dyn?'الإدخال الرقمي متاح أثناء الرسم — استخدم زر لوحة المفاتيح':'الإدخال الرقمي معطّل أثناء الرسم');save();upd()};
-   const syncView=()=>{$('#showDims').classList.toggle('on',!!ST.showDims);$('#showAreas').classList.toggle('on',!!ST.showAreas)};
-   $('#showDims').onclick=()=>{ST.showDims=ST.showDims?0:1;save();syncView();draw()};
 --- a/js/13-draw-input.js
 +++ b/js/13-draw-input.js
 @@ -18,1 +18,8 @@
@@ -105,3 +97,12 @@
 + if(key){key.classList.toggle('on',o);key.setAttribute('aria-pressed',o?'true':'false')}
 + if(o&&focus)setTimeout(()=>{const f=drawFlow&&drawFlow.stage==='params'?$('#diExtra input'):$('#diX');if(f)f.focus({preventScroll:true})},30)
 +}
+
+--- a/js/21-settings.js
++++ b/js/21-settings.js
+@@ -40,1 +40,5 @@
+   sh.classList.add('on');$('#ctx').style.display='none';
++  const dynToggle=$('#dynInputToggle');
++  const syncDynToggle=()=>dynToggle.classList.toggle('on',!!S.dyn);
++  syncDynToggle();
++  dynToggle.onclick=()=>{S.dyn=S.dyn?0:1;syncDynToggle();diSetOpen(diOpen,false);toast(S.dyn?'الإدخال الرقمي متاح أثناء الرسم — استخدم زر لوحة المفاتيح':'الإدخال الرقمي معطّل أثناء الرسم');save();upd()};
