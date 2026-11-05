@@ -46,7 +46,7 @@ jobs:
           cp -a site/. www/
           rm -rf site
           npx esbuild android-bridge.js --bundle --format=iife --outfile=www/android-bridge.bundle.js
-          node -e "const fs=require('fs');const p='www/index.html';let s=fs.readFileSync(p,'utf8');if(!s.includes('android-bridge.bundle.js')){s=s.replace('</body>','<script src=\\\"android-bridge.bundle.js\\\"></script>\\n</body>');fs.writeFileSync(p,s)}"
+          node -e "const fs=require('fs');const p='www/index.html';let s=fs.readFileSync(p,'utf8');if(!s.includes('android-bridge.bundle.js')){s=s.replace('</body>','<script src=\"android-bridge.bundle.js\"></script>\n</body>');fs.writeFileSync(p,s)}"
 
       - name: Add Android platform
         working-directory: android-wrapper
@@ -65,11 +65,15 @@ jobs:
       - name: Prepare release signing
         working-directory: android-wrapper/android
         env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_BASE64: \${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PATH: \${{ runner.temp }}/MelkiCAD.keystore
+          ANDROID_KEYSTORE_PASSWORD: \${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: \${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: \${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           test -n "$ANDROID_KEYSTORE_BASE64"
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/MelkiCAD.keystore"
-          test -s "$RUNNER_TEMP/MelkiCAD.keystore"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          test -s "$ANDROID_KEYSTORE_PATH"
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -78,40 +82,34 @@ jobs:
           content = gradle_file.read_text()
 
           if "signingConfigs {" not in content:
-              marker = re.search(r"(?m)^([ \\t]*)buildTypes\\s*\\{", content)
+              marker = re.search(r"(?m)^([ \t]*)buildTypes\s*\{", content)
               if not marker:
                   raise SystemExit("Could not find buildTypes block in app/build.gradle")
               indent = marker.group(1)
               signing = (
-                  f"{indent}signingConfigs {{\\n"
-                  f"{indent}    release {{\\n"
-                  f"{indent}        storeFile file(System.getenv('ANDROID_KEYSTORE_PATH'))\\n"
-                  f"{indent}        storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')\\n"
-                  f"{indent}        keyAlias System.getenv('ANDROID_KEY_ALIAS')\\n"
-                  f"{indent}        keyPassword System.getenv('ANDROID_KEY_PASSWORD')\\n"
-                  f"{indent}    }}\\n"
-                  f"{indent}}}\\n\\n"
+                  f"{indent}signingConfigs {{\n"
+                  f"{indent}    release {{\n"
+                  f"{indent}        storeFile file(System.getenv('ANDROID_KEYSTORE_PATH'))\n"
+                  f"{indent}        storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')\n"
+                  f"{indent}        keyAlias System.getenv('ANDROID_KEY_ALIAS')\n"
+                  f"{indent}        keyPassword System.getenv('ANDROID_KEY_PASSWORD')\n"
+                  f"{indent}    }}\n"
+                  f"{indent}}}\n\n"
               )
               content = content[:marker.start()] + signing + content[marker.start():]
 
-          build_types = re.search(r"(?s)buildTypes\\s*\\{(.*)", content)
+          build_types = re.search(r"(?s)buildTypes\s*\{(.*)", content)
           if not build_types:
               raise SystemExit("Could not find buildTypes block")
-          release = re.search(r"(?m)^([ \\t]*)release\\s*\\{", build_types.group(1))
+          release = re.search(r"(?m)^([ \t]*)release\s*\{", build_types.group(1))
           if not release:
               raise SystemExit("Could not find release build type")
           absolute = build_types.start(1) + release.end()
           if "signingConfig signingConfigs.release" not in content:
-              content = content[:absolute] + "\\n" + release.group(1) + "    signingConfig signingConfigs.release" + content[absolute:]
+              content = content[:absolute] + "\n" + release.group(1) + "    signingConfig signingConfigs.release" + content[absolute:]
 
           gradle_file.write_text(content)
           PY
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/MelkiCAD.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
       - name: Build signed release APK and AAB
         working-directory: android-wrapper/android
