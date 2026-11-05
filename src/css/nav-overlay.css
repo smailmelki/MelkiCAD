@@ -1,0 +1,9 @@
+/* nav-overlay.css — الشريط السفلي (nav) وطبقة عرض الصورة (#ov). */
+nav{display:flex;overflow-x:auto;border-top:1px solid var(--bd);background:var(--ui)}
+nav button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;padding:8px 0;color:var(--dim)}
+nav button.on{color:var(--ac)}
+nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#ov{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px;box-sizing:border-box;z-index:5;-webkit-user-select:auto;user-select:auto}
+#ov[hidden]{display:none}
+#ov img{max-width:100%;max-height:70%;object-fit:contain;border:1px solid var(--bd);-webkit-touch-callout:default}
+#ov p{margin:0;color:var(--dim);text-align:center}

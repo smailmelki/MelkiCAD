@@ -1,0 +1,8 @@
+node_modules/
+_site/
+*.orig
+*.rej
+# مولَّدة أثناء بناء APK
+android-wrapper/android/
+android-wrapper/www/
+android-wrapper/site/
