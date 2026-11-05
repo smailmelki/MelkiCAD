@@ -1,4 +1,4 @@
-name: Build MelkiCAD Android APK
+name: Build MelkiCAD Android Release APK
 
 on:
   workflow_dispatch:
@@ -35,6 +35,9 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Set up Android SDK tools
+        uses: android-actions/setup-android@v3
+
       - name: Install dependencies
         working-directory: android-wrapper
         run: npm install
@@ -46,7 +49,7 @@ jobs:
           cp -a site/. www/
           rm -rf site
           npx esbuild android-bridge.js --bundle --format=iife --outfile=www/android-bridge.bundle.js
-          node -e "const fs=require('fs');const p='www/index.html';let s=fs.readFileSync(p,'utf8');if(!s.includes('android-bridge.bundle.js')){s=s.replace('</body>','<script src=\"android-bridge.bundle.js\"></script>\\n</body>');fs.writeFileSync(p,s)}"
+          node -e "const fs=require('fs');const p='www/index.html';let s=fs.readFileSync(p,'utf8');if(!s.includes('android-bridge.bundle.js')){s=s.replace('</body>','<script src=\\"android-bridge.bundle.js\\"></script>\\n</body>');fs.writeFileSync(p,s)}"
 
       - name: Add Android platform
         working-directory: android-wrapper
@@ -62,16 +65,41 @@ jobs:
         working-directory: android-wrapper
         run: npx cap sync android
 
-      - name: Build installable debug APK
+      - name: Build release APK
         working-directory: android-wrapper/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleRelease --no-daemon
 
-      - name: Upload APK
+      - name: Decode Android release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" || (echo "Missing ANDROID_KEYSTORE_BASE64 secret" && exit 1)
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/melkicad-release.jks"
+
+      - name: Align and sign release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_PASSWORD" || (echo "Missing ANDROID_KEYSTORE_PASSWORD secret" && exit 1)
+          test -n "$KEY_ALIAS" || (echo "Missing ANDROID_KEY_ALIAS secret" && exit 1)
+          test -n "$KEY_PASSWORD" || (echo "Missing ANDROID_KEY_PASSWORD secret" && exit 1)
+          APK="android-wrapper/android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -name zipalign -type f | sort -V | tail -n 1)"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          test -f "$APK"
+          "$ZIPALIGN" -v -p 4 "$APK" "$RUNNER_TEMP/app-release-aligned.apk"
+          "$APKSIGNER" sign --ks "$RUNNER_TEMP/melkicad-release.jks" --ks-key-alias "$KEY_ALIAS" --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEY_PASSWORD --out "$RUNNER_TEMP/MelkiCAD-release.apk" "$RUNNER_TEMP/app-release-aligned.apk"
+          "$APKSIGNER" verify --verbose "$RUNNER_TEMP/MelkiCAD-release.apk"
+
+      - name: Upload signed Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: MelkiCAD-Android-APK
-          path: android-wrapper/android/app/build/outputs/apk/debug/app-debug.apk
+          name: MelkiCAD-Android-Release
+          path: ${{ runner.temp }}/MelkiCAD-release.apk
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90
