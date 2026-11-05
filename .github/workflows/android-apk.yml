@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "android-wrapper/**"
+      - "src/**"
       - ".github/workflows/android-apk.yml"
 
 permissions:
@@ -54,6 +55,10 @@ jobs:
       - name: Add Android platform
         working-directory: android-wrapper
         run: npx cap add android
+
+      - name: Install MelkiCAD launcher icons
+        working-directory: android-wrapper
+        run: cp -a native/res/. android/app/src/main/res/
 
       - name: Install native save-to-folder plugin
         working-directory: android-wrapper
