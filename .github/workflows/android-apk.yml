@@ -52,6 +52,12 @@ jobs:
         working-directory: android-wrapper
         run: npx cap add android
 
+      - name: Install native save-to-folder plugin
+        working-directory: android-wrapper
+        run: |
+          mkdir -p android/app/src/main/java/com/smailmelki/melkicad
+          cp -a native/android/. android/app/src/main/java/com/smailmelki/melkicad/
+
       - name: Sync Capacitor
         working-directory: android-wrapper
         run: npx cap sync android
