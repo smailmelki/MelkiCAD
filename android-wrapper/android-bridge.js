@@ -1,7 +1,8 @@
-import { Filesystem } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
+import { registerPlugin } from '@capacitor/core';
 
-/* Native Android file export bridge. */
+const SaveFile = registerPlugin('SaveFile');
+
+/* Native Android export using the system "Save to" document picker. */
 (() => {
   const cap = window.Capacitor;
   if (!cap || typeof cap.isNativePlatform !== 'function' || !cap.isNativePlatform()) return;
@@ -17,22 +18,15 @@ import { Share } from '@capacitor/share';
 
   async function exportNative(name, blob) {
     try {
-      const file = await Filesystem.writeFile({
-        path: name,
-        data: await toBase64(blob),
-        directory: 'CACHE',
-        recursive: true
+      const result = await SaveFile.save({
+        name,
+        mimeType: blob.type || 'application/octet-stream',
+        data: await toBase64(blob)
       });
-      await Share.share({
-        title: name,
-        text: 'ملف صادر من MelkiCAD',
-        url: file.uri,
-        dialogTitle: 'حفظ أو مشاركة الملف'
-      });
-      return 'ok';
+      return result?.cancelled ? 'no' : 'ok';
     } catch (error) {
-      console.error('MelkiCAD native export failed:', error);
-      if (typeof window.toast === 'function') window.toast('تعذّر تجهيز الملف للمشاركة');
+      console.error('MelkiCAD native save failed:', error);
+      if (typeof window.toast === 'function') window.toast('تعذّر حفظ الملف');
       return 'err';
     }
   }
