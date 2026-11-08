@@ -102,7 +102,7 @@ function impText(txt){
     $('#sheet').classList.remove('on');return;
   }
   const v=validateProjectData(d);
-  newP(`${d.name||'مشروع'} (مستورد)`,v.shapes,{LY:v.LY,cl:v.cl});
+  newP(d.name||'مشروع',v.shapes,{LY:v.LY,cl:v.cl});
   $('#sheet').classList.remove('on');
 }
 
