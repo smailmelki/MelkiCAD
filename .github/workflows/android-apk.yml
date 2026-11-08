@@ -19,12 +19,6 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Checkout published website
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: android-wrapper/site
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -49,8 +43,7 @@ jobs:
         working-directory: android-wrapper
         run: |
           mkdir -p www
-          cp -a site/. www/
-          rm -rf site
+          cp -a ../src/. www/
           npx esbuild android-bridge.js --bundle --format=iife --outfile=www/android-bridge.bundle.js
           node -e "const fs=require('fs');const p='www/index.html';let s=fs.readFileSync(p,'utf8');if(!s.includes('android-bridge.bundle.js')){s=s.replace('</body>','<script src=\\"android-bridge.bundle.js\\"></script>\\n</body>');fs.writeFileSync(p,s)}"
 
