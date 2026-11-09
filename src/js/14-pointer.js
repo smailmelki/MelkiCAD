@@ -29,9 +29,9 @@ cv.addEventListener('pointerdown',e=>{
   if(P.size>2)return;
   const p=pos(e);cpos=s2w(...p);
   // عند تفعيل الموازاة، تكون النقرة الأولى لاختيار الخط المرجعي.
-  if(S.parallel&&!parallelRef&&!drawFlow){
+  if(S.parallel&&!parallelRef&&(!drawFlow||(drawFlow.stage==='first'&&drawFlow.points.length===0))){
     parallelRef=pickParallelReference(s2w(...p));
-    toast(parallelRef?'تم تحديد الخط المرجعي للموازاة':'المس خطًا أو ضلعًا قريبًا لاختياره مرجعًا');
+    toast(parallelRef?'تم تحديد الخط المرجعي للموازاة':'لم يتم العثور على خط قريب؛ المس خطًا أو ضلعًا واضحًا');
     g=null;draw();return;
   }
   if(drawFlow){addDrawPoint(cpos,false);draw();return}$('#sheet').classList.remove('on');$('#smenu').classList.remove('on');hideDyn();$$('.gm').forEach(m=>m.classList.remove('on'));
