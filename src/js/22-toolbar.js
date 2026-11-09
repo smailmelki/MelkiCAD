@@ -16,8 +16,8 @@ function upd(){
   $('#op').disabled=$('#cp').disabled=$('#del').disabled=$('#rt').disabled=$('#scale').disabled=!n;$('#ps').disabled=!clip.length;
   $$('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tool));
   $$('[data-fk]').forEach(b=>b.classList.toggle('on',tool==='furn'&&b.dataset.fk===furnKind));
-  $('[data-g]').forEach(b=>{const m=$('#'+b.dataset.g),it=m.querySelector(tool==='furn'?`[data-fk="${furnKind}"]`:`[data-t="${tool}"]`);b.classList.toggle('on',!!it);b.classList.toggle('has-active',!!it);b.title=it?`الأداة الحالية: ${it.textContent.trim()}`:b.dataset.groupTitle||b.textContent.trim()});
-  $$('[data-s]').forEach(b=>b.classList.toggle('on',!!S[b.dataset.s]));
+  $$('[data-g]').forEach(b=>{const m=$('#'+b.dataset.g),it=m.querySelector(tool==='furn'?`[data-fk="${furnKind}"]`:`[data-t="${tool}"]`);b.classList.toggle('on',!!it);b.classList.toggle('has-active',!!it);b.title=it?`الأداة الحالية: ${it.textContent.trim()}`:b.dataset.groupTitle||b.textContent.trim()});
+  $$('[data-s]').forEach(b=>{b.classList.toggle('on',!!S[b.dataset.s]);b.setAttribute('aria-pressed',S[b.dataset.s]?'true':'false')});
   $('#snap').classList.toggle('on',Object.values(S).some(Boolean));
 }
 // ---- الأزرار ----
@@ -25,14 +25,15 @@ $$('[data-t]').forEach(b=>b.onclick=()=>{if(polyDraft)finishPolyline();closeDraw
 
 $('#snap').onclick=()=>{$$('.gm').forEach(m=>m.classList.remove('on'));$('#smenu').classList.toggle('on')};
 
-$('[data-s]').forEach(b=>b.onclick=()=>{
+const SNAP_ICONS={end:'<svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14"/></svg>',mid:'<svg viewBox="0 0 24 24"><path d="M12 4L20 19H4Z"/></svg>',int:'<svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg>',cen:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>',grid:'<svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM12 4v16M4 12h16"/></svg>',ortho:'<svg viewBox="0 0 24 24"><path d="M5 5v14h14"/></svg>',parallel:'<svg viewBox="0 0 24 24"><path d="M7 4L3 20M17 4l-4 16"/></svg>',polar:'<svg viewBox="0 0 24 24"><path d="M4 20L20 4M4 20h16M4 20V4"/></svg>'};
+$$('[data-s]').forEach(b=>{if(!b.querySelector('.snap-ico'))b.insertAdjacentHTML('afterbegin',`<span class="snap-ico">${SNAP_ICONS[b.dataset.s]||''}</span>`);b.setAttribute('aria-pressed',S[b.dataset.s]?'true':'false');b.onclick=()=>{
   const k=b.dataset.s;S[k]=S[k]?0:1;
   if(k==='parallel'){
     parallelRef=null;parallelGuide=null;
     toast(S.parallel?'الموازاة مفعّلة: المس خطًا مرجعيًا أولًا':'تم إيقاف الموازاة');
   }else if(k==='ortho'&&S.ortho)toast('التعامد مفعّل: اتجاه أفقي أو رأسي');
   upd();save();draw();
-});
+}});
 // ---- مجموعات الأدوات: رسم / إضافة (تنقل أزرار الأدوات إلى قائمة منبثقة) ----
 const GROUPS=[['gdraw','رسم','<path d="M4 20l4-1 11-11-3-3L5 16z"/>',['line','wall','rect','circle','arc','ellipse','polygon','polyline','tri','free']],['gadd','إضافة','<circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/>',['door','win','text','north']],['gedit','تعديل','<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 7.5L20 18M8.5 16.5L20 6"/>',['trim','extend']]];
 

@@ -23,7 +23,28 @@ function grips(){
 function boxSel(){
   if(!box)return[];
   const a=s2w(box.x0,box.y0),b=s2w(box.x1,box.y1),x=Math.min(a[0],b[0]),X=Math.max(a[0],b[0]),y=Math.min(a[1],b[1]),Y=Math.max(a[1],b[1]),cross=box.x1<box.x0;
-  return shapes.map((_,i)=>i).filter(i=>{if(!ed(shapes[i]))return false;const r=bx(shapes[i]);return cross?r.x<=X&&r.X>=x&&r.y<=Y&&r.Y>=y:r.x>=x&&r.X<=X&&r.y>=y&&r.Y<=Y});
+  const inside=p=>p[0]>=x&&p[0]<=X&&p[1]>=y&&p[1]<=Y;
+  const corners=[[x,y],[X,y],[X,Y],[x,Y]];
+  const orient=(p,q,r)=>(q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0]);
+  const segHit=(p,q,r,s)=>{const a1=orient(p,q,r),a2=orient(p,q,s),b1=orient(r,s,p),b2=orient(r,s,q);return a1*a2<=1e-10&&b1*b2<=1e-10&&Math.max(Math.min(p[0],q[0]),Math.min(r[0],s[0]))<=Math.min(Math.max(p[0],q[0]),Math.max(r[0],s[0]))+1e-9&&Math.max(Math.min(p[1],q[1]),Math.min(r[1],s[1]))<=Math.min(Math.max(p[1],q[1]),Math.max(r[1],s[1]))+1e-9};
+  const inPoly=(p,poly)=>{let hit=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const u=poly[i],v=poly[j];if((u[1]>p[1])!==(v[1]>p[1])&&p[0]<(v[0]-u[0])*(p[1]-u[1])/(v[1]-u[1])+u[0])hit=!hit}return hit};
+  const geometry=s=>s.t==='circle'?Array.from({length:96},(_,i)=>[s.x+s.r*Math.cos(i*Math.PI/48),s.y+s.r*Math.sin(i*Math.PI/48)]):s.t==='dim'?dimPts(s):pts(s);
+  const closed=s=>['circle','ellipse','rect','furn','tri','polygon','text','north'].includes(s.t);
+  const hitShape=s=>{
+    if(s.t==='circle'){
+      if(!cross)return s.x-s.r>=x&&s.x+s.r<=X&&s.y-s.r>=y&&s.y+s.r<=Y;
+      const qx=clamp(s.x,x,X),qy=clamp(s.y,y,Y);return Math.hypot(qx-s.x,qy-s.y)<=s.r+1e-9;
+    }
+    const p=geometry(s);if(!p.length)return false;
+    if(!cross)return p.every(inside);
+    if(p.some(inside))return true;
+    const edges=[];for(let i=1;i<p.length;i++)edges.push([p[i-1],p[i]]);
+    if(closed(s)&&p.length>2)edges.push([p[p.length-1],p[0]]);
+    const rectEdges=[[corners[0],corners[1]],[corners[1],corners[2]],[corners[2],corners[3]],[corners[3],corners[0]]];
+    if(edges.some(e=>rectEdges.some(r=>segHit(e[0],e[1],r[0],r[1]))))return true;
+    return closed(s)&&p.length>2&&corners.some(q=>inPoly(q,p));
+  };
+  return shapes.map((_,i)=>i).filter(i=>ed(shapes[i])&&hitShape(shapes[i]));
 }
 
 const gripAt=p=>grips().find(q=>Math.hypot(q.sp[0]-p[0],q.sp[1]-p[1])<=22);
