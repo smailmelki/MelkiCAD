@@ -26,8 +26,17 @@ function pickParallelReference(p){
   return best;
 }
 
+function parallelWithinTolerance(a,b){
+  if(!parallelRef)return false;
+  const rx=parallelRef.b[0]-parallelRef.a[0],ry=parallelRef.b[1]-parallelRef.a[1];
+  const dx=b[0]-a[0],dy=b[1]-a[1];
+  if(Math.hypot(dx,dy)<1e-9||Math.hypot(rx,ry)<1e-9)return false;
+  const cross=Math.abs(dx*ry-dy*rx),dot=Math.abs(dx*rx+dy*ry);
+  return Math.atan2(cross,dot)<=Math.PI/18;
+}
+
 function parallelPoint(a,b){
-  if(!parallelRef)return b;
+  if(!parallelRef||!parallelWithinTolerance(a,b))return b;
   const dx=parallelRef.b[0]-parallelRef.a[0],dy=parallelRef.b[1]-parallelRef.a[1],L=Math.hypot(dx,dy);
   if(L<1e-9)return b;
   const ux=dx/L,uy=dy/L,t=(b[0]-a[0])*ux+(b[1]-a[1])*uy;
@@ -67,7 +76,7 @@ function snapPt(p){const o=osnap(p);mk=o;return o?o.p.slice():S.grid?[grid(p[0])
 function constrain(a,b){
   const dx=b[0]-a[0],dy=b[1]-a[1];
   // عند تفعيل الموازاة واختيار مرجع، تتقدم على التعامد لأن القيدين متعارضان هندسيًا.
-  if(S.parallel&&parallelRef)return parallelPoint(a,b);
+  if(S.parallel&&parallelRef&&parallelWithinTolerance(a,b))return parallelPoint(a,b);
   if(S.ortho)return Math.abs(dx)>=Math.abs(dy)?[b[0],a[1]]:[a[0],b[1]];
   if(S.polar){const L=Math.hypot(dx,dy),st=Math.PI/4,t=Math.round(Math.atan2(dy,dx)/st)*st,l=S.grid?Math.round(L/step())*step():L;return[a[0]+l*Math.cos(t),a[1]+l*Math.sin(t)]}
   return b;
