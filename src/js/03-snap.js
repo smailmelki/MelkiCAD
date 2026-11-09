@@ -66,8 +66,9 @@ function snapPt(p){const o=osnap(p);mk=o;return o?o.p.slice():S.grid?[grid(p[0])
 // القيود: أفقي/رأسي (Ortho) أو زاوية كل 15° (Polar)، والالتقاط بالنقاط يتقدم عليهما
 function constrain(a,b){
   const dx=b[0]-a[0],dy=b[1]-a[1];
-  if(S.ortho)return Math.abs(dx)>=Math.abs(dy)?[b[0],a[1]]:[a[0],b[1]];
+  // عند تفعيل الموازاة واختيار مرجع، تتقدم على التعامد لأن القيدين متعارضان هندسيًا.
   if(S.parallel&&parallelRef)return parallelPoint(a,b);
+  if(S.ortho)return Math.abs(dx)>=Math.abs(dy)?[b[0],a[1]]:[a[0],b[1]];
   if(S.polar){const L=Math.hypot(dx,dy),st=Math.PI/4,t=Math.round(Math.atan2(dy,dx)/st)*st,l=S.grid?Math.round(L/step())*step():L;return[a[0]+l*Math.cos(t),a[1]+l*Math.sin(t)]}
   return b;
 }
