@@ -105,12 +105,17 @@ function autoGridScale(){
 function draw(){
   const c=colors();syncDims();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.direction='ltr';
   ctx.fillStyle=c.bg;ctx.fillRect(0,0,W,H);
-  const gs=autoGridScale();const x0=Math.floor(-V.x/V.s/gs)*gs,x1=(W-V.x)/V.s,y0=Math.floor(-V.y/V.s/gs)*gs,y1=(H-V.y)/V.s;
-  if(ST.grid)for(const major of[false,true]){
-    ctx.beginPath();
-    for(let x=x0;x<=x1;x+=gs){if((Math.round(x/gs)%5===0)!==major)continue;const p=Math.round(V.x+x*V.s)+.5;ctx.moveTo(p,0);ctx.lineTo(p,H)}
-    for(let y=y0;y<=y1;y+=gs){if((Math.round(y/gs)%5===0)!==major)continue;const p=Math.round(V.y+y*V.s)+.5;ctx.moveTo(0,p);ctx.lineTo(W,p)}
-    ctx.strokeStyle=major?c.major:c.grid;ctx.lineWidth=1;ctx.stroke();
+  const gs=autoGridScale(),L=gs*V.s;
+  // لا نرسم شبكة تقل مسافتها على الشاشة عن 8px؛ فهذا يمنع حلقات رسم ضخمة عند التصغير الشديد.
+  // يظل التكبير/التصغير مستمرًا، ويعود ظهور الشبكة تلقائيًا عند الاقتراب.
+  if(ST.grid&&L>=8){
+    const x0=Math.floor(-V.x/V.s/gs)*gs,x1=(W-V.x)/V.s,y0=Math.floor(-V.y/V.s/gs)*gs,y1=(H-V.y)/V.s;
+    for(const major of[false,true]){
+      ctx.beginPath();
+      for(let x=x0;x<=x1;x+=gs){if((Math.round(x/gs)%5===0)!==major)continue;const p=Math.round(V.x+x*V.s)+.5;ctx.moveTo(p,0);ctx.lineTo(p,H)}
+      for(let y=y0;y<=y1;y+=gs){if((Math.round(y/gs)%5===0)!==major)continue;const p=Math.round(V.y+y*V.s)+.5;ctx.moveTo(0,p);ctx.lineTo(W,p)}
+      ctx.strokeStyle=major?c.major:c.grid;ctx.lineWidth=1;ctx.stroke();
+    }
   }
   for(const pass of[0,1])shapes.forEach((s,i)=>{if(shown(s)&&(s.t==='door'||s.t==='win')===!!pass)drawShape(s,sel.includes(i),false,c)});
   if(cur)drawShape(cur,false,true,c);
@@ -137,7 +142,7 @@ function draw(){
   if(tool==='polyline'){ctx.font=`400 13px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText('انقر لإضافة الرؤوس ثم اضغط إنهاء POLYLINE',W/2,20)}
   if(tool==='door'||tool==='win'){ctx.font=`400 13px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText(`المس جدارًا لوضع ${tool==='door'?'الباب':'النافذة'} ثم اسحب لتحريكه`,W/2,20)}
   if(!shapes.length&&!cur&&!polyDraft){ctx.font=`400 15px ${FONT}`;ctx.textAlign='center';ctx.fillStyle=c.dim;ctx.fillText('اختر شكلًا من الأسفل ثم اسحب على اللوحة',W/2,H/2)}
-  const L=gs*V.s;ctx.strokeStyle=c.dim;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(12,H-14);ctx.lineTo(12+L,H-14);ctx.stroke();
+  ctx.strokeStyle=c.dim;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(12,H-14);ctx.lineTo(12+L,H-14);ctx.stroke();
   ctx.font=`400 11px ${FONT}`;ctx.textAlign='left';ctx.fillStyle=c.dim;ctx.fillText(fl(gs),12,H-26);
 }
 
