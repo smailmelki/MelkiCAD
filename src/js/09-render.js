@@ -106,9 +106,7 @@ function draw(){
   const c=colors();syncDims();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.direction='ltr';
   ctx.fillStyle=c.bg;ctx.fillRect(0,0,W,H);
   const gs=autoGridScale(),L=gs*V.s;
-  // لا نرسم شبكة تقل مسافتها على الشاشة عن 8px؛ فهذا يمنع حلقات رسم ضخمة عند التصغير الشديد.
-  // يظل التكبير/التصغير مستمرًا، ويعود ظهور الشبكة تلقائيًا عند الاقتراب.
-  if(ST.grid&&L>=8){
+  if(ST.grid){
     const x0=Math.floor(-V.x/V.s/gs)*gs,x1=(W-V.x)/V.s,y0=Math.floor(-V.y/V.s/gs)*gs,y1=(H-V.y)/V.s;
     for(const major of[false,true]){
       ctx.beginPath();
