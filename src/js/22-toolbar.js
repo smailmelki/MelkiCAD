@@ -36,7 +36,7 @@ $$('[data-s]').forEach(b=>{if(!b.querySelector('.snap-ico'))b.insertAdjacentHTML
   upd();save();draw();
 }});
 // ---- مجموعات الأدوات: رسم / إضافة (تنقل أزرار الأدوات إلى قائمة منبثقة) ----
-const GROUPS=[['gdraw','رسم','<path d="M4 20l4-1 11-11-3-3L5 16z"/>',['line','wall','rect','circle','arc','ellipse','polygon','polyline','tri','free']],['gadd','إضافة','<circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/>',['door','win','text','north']],['gedit','تعديل','<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 7.5L20 18M8.5 16.5L20 6"/>',['trim','extend']]];
+const GROUPS=[['gdraw','رسم','<path d="M4 20l4-1 11-11-3-3L5 16z"/>',['line','wall','rect','circle','arc','ellipse','polygon','polyline','tri','free']],['gadd','إضافة','<circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/>',['door','win','text','north']],['gedit','تعديل','<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 7.5L20 18M8.5 16.5L20 6"/>',['trim','extend']],['gdim','الأبعاد','<path d="M4 6v12M20 6v12M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3"/>',['dim']]];
 
 GROUPS.forEach(([id,label,icon,tools])=>{
   const gb=document.createElement('button'),menu=document.createElement('div');
@@ -45,6 +45,28 @@ GROUPS.forEach(([id,label,icon,tools])=>{
   tools.forEach(t=>menu.append($(`nav [data-t="${t}"]`)));
   $('main').append(menu);
 });
+
+// قائمة أنواع الأبعاد: اختيار النمط قبل بدء الرسم، مثل قائمة «إضافة».
+const dimMenu=$('#gdim');
+if(dimMenu){
+  const oldDim=dimMenu.querySelector('[data-t="dim"]');
+  if(oldDim)oldDim.remove();
+  [
+    ['aligned','محاذٍ','<path d="M4 6v12M20 6v12M4 12h16"/>'],
+    ['horizontal','أفقي','<path d="M4 8v8M20 8v8M4 12h16"/>'],
+    ['vertical','رأسي','<path d="M8 4h8M8 20h8M12 4v16"/>']
+  ].forEach(([mode,label,ic])=>{
+    const b=document.createElement('button');
+    b.dataset.dimMode=mode;
+    b.innerHTML=`<svg viewBox="0 0 24 24">${ic}</svg>${label}`;
+    b.onclick=()=>{
+      activeDimMode=mode;tool='dim';sel=[];hideDyn();closeDrawFlow();
+      $('.gm').forEach(m=>m.classList.remove('on'));
+      $('#sheet').classList.remove('on');upd();draw();startDrawFlow('dim');
+    };
+    dimMenu.append(b);
+  });
+}
 
 [['offset','إزاحة','<path d="M4 8h16M4 16h16"/><path d="M12 8v8M9 13l3 3 3-3"/>'],['mirror','انعكاس','<path d="M12 3v18M7 7l-4 5 4 5zM17 7l4 5-4 5z"/>'],['array','تكرار','<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>']].forEach(([a,l,ic])=>{const b=document.createElement('button');b.dataset.a=a;b.innerHTML=`<svg viewBox="0 0 24 24">${ic}</svg>${l}`;b.onclick=()=>opAction(a);$('#gedit').append(b)});
 
