@@ -8,6 +8,31 @@
  * ================================================================== */
 
 // ---- الالتقاط (OSNAP) ----
+// مرجع الموازاة مؤقت أثناء جلسة الرسم ولا يُخزَّن ضمن بيانات المشروع.
+let parallelRef=null,parallelGuide=null;
+
+function pickParallelReference(p){
+  let best=null,bd=20;
+  for(const s of shapes){
+    if(!shown(s)||['text','north','circle'].includes(s.t))continue;
+    for(const e of segs(s)){
+      const [a,b]=e,dx=b[0]-a[0],dy=b[1]-a[1],l2=dx*dx+dy*dy;
+      if(l2<1e-12)continue;
+      const t=clamp(((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l2,0,1);
+      const q=[a[0]+t*dx,a[1]+t*dy],d=Math.hypot((q[0]-p[0])*V.s,(q[1]-p[1])*V.s);
+      if(d<bd){bd=d;best={a:a.slice(),b:b.slice()}}
+    }
+  }
+  return best;
+}
+
+function parallelPoint(a,b){
+  if(!parallelRef)return b;
+  const dx=parallelRef.b[0]-parallelRef.a[0],dy=parallelRef.b[1]-parallelRef.a[1],L=Math.hypot(dx,dy);
+  if(L<1e-9)return b;
+  const ux=dx/L,uy=dy/L,t=(b[0]-a[0])*ux+(b[1]-a[1])*uy;
+  return [a[0]+ux*t,a[1]+uy*t];
+}
 function xSS(a,b){const[p,q]=a,[r,t]=b,d=(q[0]-p[0])*(t[1]-r[1])-(q[1]-p[1])*(t[0]-r[0]);if(Math.abs(d)<1e-9)return[];
   const u=((r[0]-p[0])*(t[1]-r[1])-(r[1]-p[1])*(t[0]-r[0]))/d,v=((r[0]-p[0])*(q[1]-p[1])-(r[1]-p[1])*(q[0]-p[0]))/d;
   return u>=0&&u<=1&&v>=0&&v<=1?[[p[0]+u*(q[0]-p[0]),p[1]+u*(q[1]-p[1])]]:[]}
@@ -42,6 +67,7 @@ function snapPt(p){const o=osnap(p);mk=o;return o?o.p.slice():S.grid?[grid(p[0])
 function constrain(a,b){
   const dx=b[0]-a[0],dy=b[1]-a[1];
   if(S.ortho)return Math.abs(dx)>=Math.abs(dy)?[b[0],a[1]]:[a[0],b[1]];
+  if(S.parallel&&parallelRef)return parallelPoint(a,b);
   if(S.polar){const L=Math.hypot(dx,dy),st=Math.PI/4,t=Math.round(Math.atan2(dy,dx)/st)*st,l=S.grid?Math.round(L/step())*step():L;return[a[0]+l*Math.cos(t),a[1]+l*Math.sin(t)]}
   return b;
 }

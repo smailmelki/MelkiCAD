@@ -20,7 +20,7 @@ const NM={end:'نهاية',mid:'منتصف',int:'تقاطع',cen:'مركز',qua:
 
 let shapes=[],redo=[],hist=nh(),sel=[],clip=[],tool='rect',cur=null,polyDraft=null,g=null,box=null,mk=null,V={x:24,y:24,s:40},dpr=1,W=0,H=0;
 
-let polygonSides=6;let S={end:1,mid:1,int:1,cen:1,grid:1,ortho:0,polar:0,dyn:1},D={col:'',lw:2},ST={unit:'m',gs:0,axes:1,coord:1,grid:1,showDims:0,showAreas:0},cpos=null,furnKind='bed2',fileHintT=0;
+let polygonSides=6;let S={end:1,mid:1,int:1,cen:1,grid:1,ortho:0,polar:0,parallel:0,dyn:1},D={col:'',lw:2},ST={unit:'m',gs:0,axes:1,coord:1,grid:1,showDims:0,showAreas:0},cpos=null,furnKind='bed2',fileHintT=0;
 
 // تهريب نص قبل وضعه داخل innerHTML (أسماء الطبقات والمشاريع قد تأتي من ملف مستورد)
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

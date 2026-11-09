@@ -27,8 +27,15 @@ cv.addEventListener('pointerdown',e=>{
     g={k:'pinch',d:Math.hypot(a[0]-b[0],a[1]-b[1])||1,s:V.s,w:s2w(...m)};cur=null;box=null;mk=null;draw();return;
   }
   if(P.size>2)return;
-  const p=pos(e);cpos=s2w(...p);if(drawFlow){addDrawPoint(cpos,false);draw();return}$('#sheet').classList.remove('on');$('#smenu').classList.remove('on');hideDyn();$$('.gm').forEach(m=>m.classList.remove('on'));
-  if(tool==='polyline'){const q=snapPt(s2w(...p));if(!polyDraft){polyDraft={t:'polyline',p:[q],ly:cl,col:D.col||undefined,lw:D.lw};toast('أضف الرؤوس، ثم اضغط إنهاء POLYLINE')}else{const first=polyDraft.p[0];if(polyDraft.p.length>=3&&Math.hypot((q[0]-first[0])*V.s,(q[1]-first[1])*V.s)<14){polyDraft.t='polygon';finishPolyline();return}const last=polyDraft.p[polyDraft.p.length-1];if(Math.hypot(q[0]-last[0],q[1]-last[1])>.01)polyDraft.p.push(q)}$('#polybar').style.display='flex';mk=null;draw();return}
+  const p=pos(e);cpos=s2w(...p);
+  // عند تفعيل الموازاة، تكون النقرة الأولى لاختيار الخط المرجعي.
+  if(S.parallel&&!parallelRef&&!drawFlow){
+    parallelRef=pickParallelReference(s2w(...p));
+    toast(parallelRef?'تم تحديد الخط المرجعي للموازاة':'المس خطًا أو ضلعًا قريبًا لاختياره مرجعًا');
+    g=null;draw();return;
+  }
+  if(drawFlow){addDrawPoint(cpos,false);draw();return}$('#sheet').classList.remove('on');$('#smenu').classList.remove('on');hideDyn();$$('.gm').forEach(m=>m.classList.remove('on'));
+  if(tool==='polyline'){const q=snapPt(s2w(...p));if(!polyDraft){polyDraft={t:'polyline',p:[q],ly:cl,col:D.col||undefined,lw:D.lw};toast('أضف الرؤوس، ثم اضغط إنهاء POLYLINE')}else{let q=snapPt(s2w(...p));const first=polyDraft.p[0];if(polyDraft.p.length>=3&&Math.hypot((q[0]-first[0])*V.s,(q[1]-first[1])*V.s)<14){polyDraft.t='polygon';finishPolyline();return}const last=polyDraft.p[polyDraft.p.length-1];if(!mk&&(S.ortho||S.parallel&&parallelRef))q=constrain(last,q);if(Math.hypot(q[0]-last[0],q[1]-last[1])>.01)polyDraft.p.push(q)}$('#polybar').style.display='flex';mk=null;draw();return}
   if(tool==='pan')g={k:'pan',px:p[0],py:p[1],vx:V.x,vy:V.y};
   else if(tool==='select'){
     const gr=gripAt(p);
@@ -94,7 +101,7 @@ cv.addEventListener('pointermove',e=>{
   else if(g.k==='draw'){
     let b=tool==='free'?s2w(...p):snapPt(s2w(...p));if(!mk&&(tool==='line'||tool==='wall'||tool==='dim'))b=constrain(g.a,b);
     if(tool==='free'){if(cur){const l=cur.p[cur.p.length-1];if(Math.hypot(b[0]-l[0],b[1]-l[1])*V.s>=4)cur.p.push(b)}}
-    else{cur=build(g.a,b);if(tool==='dim'){cur.la=g.la||undefined;cur.lb=(mk&&mk.ref)||undefined}}
+    else{if(!mk&&(tool==='line'||tool==='wall'||tool==='dim')&&(S.ortho||S.parallel&&parallelRef))b=constrain(g.a,b);parallelGuide=S.parallel&&parallelRef&&(tool==='line'||tool==='wall')?{a:g.a,b}:null;cur=build(g.a,b);if(tool==='dim'){cur.la=g.la||undefined;cur.lb=(mk&&mk.ref)||undefined}}
   }
   draw();
 });
@@ -108,7 +115,7 @@ function endPtr(e){
       sel=boxSel();
     }
   }
-  cur=null;g=null;box=null;mk=null;save();upd();draw();
+  cur=null;g=null;box=null;mk=null;parallelGuide=null;save();upd();draw();
 }
 
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
