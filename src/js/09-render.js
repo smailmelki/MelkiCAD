@@ -96,7 +96,7 @@ function marker(c){
 function draw(){
   const c=colors();syncDims();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.direction='ltr';
   ctx.fillStyle=c.bg;ctx.fillRect(0,0,W,H);
-  let gs=ST.gs||(V.s>=18?1:5);while(gs*V.s<7)gs*=2;const x0=Math.floor(-V.x/V.s/gs)*gs,x1=(W-V.x)/V.s,y0=Math.floor(-V.y/V.s/gs)*gs,y1=(H-V.y)/V.s;
+  const gs=autoGridScale();const x0=Math.floor(-V.x/V.s/gs)*gs,x1=(W-V.x)/V.s,y0=Math.floor(-V.y/V.s/gs)*gs,y1=(H-V.y)/V.s;
   if(ST.grid)for(const major of[false,true]){
     ctx.beginPath();
     for(let x=x0;x<=x1;x+=gs){if((Math.round(x/gs)%5===0)!==major)continue;const p=Math.round(V.x+x*V.s)+.5;ctx.moveTo(p,0);ctx.lineTo(p,H)}
