@@ -117,8 +117,8 @@ function draw(){
   }
   for(const pass of[0,1])shapes.forEach((s,i)=>{if(shown(s)&&(s.t==='door'||s.t==='win')===!!pass)drawShape(s,sel.includes(i),false,c)});
   // أثناء الرسم الموازي: إبراز ضلع المرجع ورسم دليل متقطع ممتد عبر مساحة اللوحة.
-  if(parallelGuide&&parallelRef){
-    const dx=parallelRef.b[0]-parallelRef.a[0],dy=parallelRef.b[1]-parallelRef.a[1],len=Math.hypot(dx,dy);
+  if(parallelGuide&&parallelRef&&parallelGuide.target&&referenceWithinTolerance(parallelGuide.origin,parallelGuide.target)){
+    const rx=parallelRef.b[0]-parallelRef.a[0],ry=parallelRef.b[1]-parallelRef.a[1],len=Math.hypot(rx,ry),dx=S.perpendicular?-ry:rx,dy=S.perpendicular?rx:ry;
     if(len>1e-9){
       const ux=dx/len,uy=dy/len,origin=parallelGuide.origin||parallelGuide.a;
       const corners=[[0,0],[W,0],[0,H],[W,H]].map(q=>s2w(...q));
@@ -128,7 +128,7 @@ function draw(){
       const r0=w2s(...parallelRef.a),r1=w2s(...parallelRef.b);
       ctx.globalAlpha=.28;ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(r0[0],r0[1]);ctx.lineTo(r1[0],r1[1]);ctx.stroke();
       ctx.globalAlpha=1;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(r0[0],r0[1]);ctx.lineTo(r1[0],r1[1]);ctx.stroke();
-      ctx.restore();tag('الخط المرجعي',(r0[0]+r1[0])/2,(r0[1]+r1[1])/2-15,c);
+      ctx.restore();tag(S.perpendicular?'خط التعامد المرجعي':'الخط المرجعي',(r0[0]+r1[0])/2,(r0[1]+r1[1])/2-15,c);
     }
   }
   if(cur)drawShape(cur,false,true,c);
