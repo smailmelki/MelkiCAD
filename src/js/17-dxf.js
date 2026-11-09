@@ -132,7 +132,7 @@ function dxfEntities(txt){
   if(txt.startsWith('AutoCAD Binary DXF'))throw new Error('DXF الثنائي غير مدعوم؛ استخدم DXF ASCII');
   const a=txt.replace(/\r\n?/g,'\n').split('\n'),P=[];
   for(let i=0;i+1<a.length;){
-    if(!a[i].trim()){i++;continue}
+    // لا نتجاوز قيمة فارغة؛ بعض حقول DXF (مثل STYLE group 4) قيمتها فارغة عمدًا.
     const code=Number.parseInt(a[i].trim(),10);
     if(!Number.isInteger(code)||code<0||code>1071)throw new Error('بنية DXF غير صالحة عند السطر '+(i+1));
     P.push([code,a[i+1].trim()]);i+=2;
