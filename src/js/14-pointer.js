@@ -34,7 +34,7 @@ cv.addEventListener('pointerdown',e=>{
     toast(parallelRef?'تم تحديد الخط المرجعي للموازاة':'لم يتم العثور على خط قريب؛ المس خطًا أو ضلعًا واضحًا');
     g=null;draw();return;
   }
-  if(drawFlow){addDrawPoint(cpos,false);if(drawFlow&&drawFlow.stage==='second'&&S.parallel&&parallelRef)parallelGuide={origin:drawFlow.points[0].slice()};draw();return}$('#sheet').classList.remove('on');$('#smenu').classList.remove('on');hideDyn();$$('.gm').forEach(m=>m.classList.remove('on'));
+  if(drawFlow){addDrawPoint(cpos,false);if(drawFlow&&['second','next'].includes(drawFlow.stage)&&S.parallel&&parallelRef&&['line','wall','polyline','dim'].includes(drawFlow.tool)){const anchor=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];parallelGuide={origin:anchor.slice()}}draw();return}$('#sheet').classList.remove('on');$('#smenu').classList.remove('on');hideDyn();$$('.gm').forEach(m=>m.classList.remove('on'));
   if(tool==='polyline'){const q=snapPt(s2w(...p));if(!polyDraft){polyDraft={t:'polyline',p:[q],ly:cl,col:D.col||undefined,lw:D.lw};toast('أضف الرؤوس، ثم اضغط إنهاء POLYLINE')}else{let q=snapPt(s2w(...p));const first=polyDraft.p[0];if(polyDraft.p.length>=3&&Math.hypot((q[0]-first[0])*V.s,(q[1]-first[1])*V.s)<14){polyDraft.t='polygon';finishPolyline();return}const last=polyDraft.p[polyDraft.p.length-1];if(!mk&&(S.ortho||S.parallel&&parallelRef))q=constrain(last,q);if(Math.hypot(q[0]-last[0],q[1]-last[1])>.01)polyDraft.p.push(q)}$('#polybar').style.display='flex';mk=null;draw();return}
   if(tool==='pan')g={k:'pan',px:p[0],py:p[1],vx:V.x,vy:V.y};
   else if(tool==='select'){
@@ -78,7 +78,7 @@ cv.addEventListener('pointermove',e=>{
   if(!P.has(e.pointerId)){
     if(e.pointerType!=='mouse')return;
     cpos=s2w(...p);mk=tool==='select'||tool==='pan'||tool==='trim'||tool==='extend'?null:osnap(cpos);
-    if(drawFlow&&drawFlow.stage==='second'&&S.parallel&&parallelRef)parallelGuide={origin:drawFlow.points[0].slice()};
+    if(drawFlow&&['second','next'].includes(drawFlow.stage)&&S.parallel&&parallelRef&&['line','wall','polyline','dim'].includes(drawFlow.tool)){const anchor=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];parallelGuide={origin:anchor.slice()}}
     else if(!drawFlow)parallelGuide=null;
     draw();return;
   }
