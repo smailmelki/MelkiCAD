@@ -40,12 +40,12 @@ function dxfBuild(){
   const blockDefs=[],blockNames=new Set();
   const enc=v=>String(v).replace(/-/g,'M').replace(/\\./g,'P');
   const decNum=v=>Number(String(v).replace(/M/g,'-').replace(/P/g,'.'));
-  const addBlock=(s,name,items)=>{
+  const addBlock=(name,items)=>{
     if(blockNames.has(name))return;
     blockNames.add(name);
     const B=[],bw=(c,v)=>B.push(String(c),String(v)),bn=v=>n(v),bp=(c,q)=>{bw(c,bn(q[0]));bw(c+10,Yf(q[1]));bw(c+20,0)};
     const bl=(a,b)=>{bw(0,'LINE');bw(8,'0');bp(10,a);bp(11,b)};
-    const bpoly=(p)=>{if(p.length<2)return;bw(0,'LWPOLYLINE');bw(8,'0');bw(90,p.length);bw(70,0);p.forEach(q=>{bw(10,bn(q[0]));bw(20,Yf(q[1]))})};
+    const bpoly=p=>{if(p.length<2)return;bw(0,'LWPOLYLINE');bw(8,'0');bw(90,p.length);bw(70,0);p.forEach(q=>{bw(10,bn(q[0]));bw(20,Yf(q[1]))})};
     items({line:bl,poly:bpoly});
     blockDefs.push(['0','BLOCK','8','0','2',name,'70','0','10','0','20','0','30','0',...B,'0','ENDBLK','8','0']);
   };
@@ -53,7 +53,7 @@ function dxfBuild(){
   const makeCompositeBlock=s=>{
     if(s.t==='door'||s.t==='win'){
       const name=s.t==='door'?['MKD_D',enc(s.w),enc(s.th||0),enc(s.f||1),enc(s.h||1)].join('_'):['MKD_W',enc(s.w),enc(s.th||0)].join('_');
-      addBlock(s,name,({line:bl,poly:bp})=>{
+      addBlock(name,({line:bl,poly:bp})=>{
         const w2=s.w,th=s.th||0;
         if(s.t==='win'){const hf=Math.max(.05,th/2);[-hf,0,hf].forEach(v=>bl([-w2/2,v],[w2/2,v]));bl([-w2/2,-hf],[-w2/2,hf]);bl([w2/2,-hf],[w2/2,hf])}
         else{const f=s.f||1,hu=-(s.h||1)*w2/2,of=th/2*f,H=[hu,of],E=[hu,of+f*w2],C=[-hu,of],arc=[],a0=Math.atan2(E[1]-H[1],E[0]-H[0]),a1=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));bl(H,E);for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+w2*Math.cos(a),H[1]+w2*Math.sin(a)])}bp(arc)}
@@ -62,12 +62,11 @@ function dxfBuild(){
     }
     if(s.t==='furn'){
       const d=SYM[s.k]||SYM.table,name=['MKD_F',String(s.k||'table').replace(/[^A-Za-z0-9_-]/g,''),enc(s.w),enc(s.h)].join('_');
-      addBlock(s,name,({line:bl,poly:bp})=>d.p.forEach(p=>{if(p[0]==='r')bp([[p[1]*s.w,p[2]*s.h],[(p[1]+p[3])*s.w,p[2]*s.h],[(p[1]+p[3])*s.w,(p[2]+p[4])*s.h],[p[1]*s.w,(p[2]+p[4])*s.h]]);else if(p[0]==='e'){const o=[];for(let i=0;i<40;i++){const t=i/40*2*Math.PI;o.push([(p[1]+Math.abs(p[3])*Math.cos(t))*s.w,(p[2]+Math.abs(p[4])*Math.sin(t))*s.h])}bp(o)}else bl([p[1]*s.w,p[2]*s.h],[p[3]*s.w,p[4]*s.h])}));
+      addBlock(name,({line:bl,poly:bp})=>d.p.forEach(p=>{if(p[0]==='r')bp([[p[1]*s.w,p[2]*s.h],[(p[1]+p[3])*s.w,p[2]*s.h],[(p[1]+p[3])*s.w,(p[2]+p[4])*s.h],[p[1]*s.w,(p[2]+p[4])*s.h]]);else if(p[0]==='e'){const o=[];for(let i=0;i<40;i++){const t=i/40*2*Math.PI;o.push([(p[1]+Math.abs(p[3])*Math.cos(t))*s.w,(p[2]+Math.abs(p[4])*Math.sin(t))*s.h])}bp(o)}else bl([p[1]*s.w,p[2]*s.h],[p[3]*s.w,p[4]*s.h])}));
       return name;
     }
     return null;
   };
-  shapes.forEach(s=>{if(s&&(s.t==='door'||s.t==='win'||s.t==='furn'))makeCompositeBlock(s)});
   w(0,'SECTION');w(2,'HEADER');
   w(9,'$ACADVER');w(1,'AC1015');
   w(9,'$INSUNITS');w(70,6);
@@ -82,6 +81,7 @@ function dxfBuild(){
   if(!LY.length){w(0,'LAYER');w(2,'0');w(70,0);w(62,7);w(6,'CONTINUOUS')}
   LY.forEach((l,i)=>{w(0,'LAYER');w(2,lnames[i]);w(70,l.lock?4:0);w(62,l.vis===0?-aci(l.col):aci(l.col));w(6,'CONTINUOUS')});
   w(0,'ENDTAB');w(0,'ENDSEC');
+  shapes.forEach(s=>{if(s&&(s.t==='door'||s.t==='win'||s.t==='furn'))makeCompositeBlock(s)});
   if(blockDefs.length){w(0,'SECTION');w(2,'BLOCKS');blockDefs.forEach(B=>{for(let i=0;i<B.length;i+=2)w(B[i],B[i+1])});w(0,'ENDSEC')}
   w(0,'SECTION');w(2,'ENTITIES');
   shapes.forEach(s=>{
@@ -93,32 +93,28 @@ function dxfBuild(){
     }
     else if(s.t==='rect')poly(s,rc(s),true);
     else if(s.t==='circle')circ(s,[s.x,s.y],s.r);
-    else    else if(s.t==='door'||s.t==='win'){
-      const name=s.t==='door'?['MKD_D',enc(s.w),enc(s.th||0),enc(s.f||1),enc(s.h||1)].join('_'):['MKD_W',enc(s.w),enc(s.th||0)].join('_');
-      insert(s,name,s.x,s.y,s.a||0);
+    else if(s.t==='ellipse'){ent('ELLIPSE',s);const major=Math.max(s.rx,s.ry),minor=Math.min(s.rx,s.ry),ang=(s.rot||0)+(s.ry>s.rx?Math.PI/2:0);P3(10,[s.x,s.y]);w(11,n(major*Math.cos(ang)));w(21,n(-major*Math.sin(ang)));w(31,0);w(40,n(minor/major));w(41,0);w(42,Math.PI*2)}
+    else if(s.t==='polyline')poly(s,s.p,false);
+    else if(s.t==='polygon')poly(s,s.p,true);
+    else if(s.t==='arc'){ent('ARC',s);P3(10,[s.x,s.y]);w(40,n(s.r));let a0=-s.a1*180/Math.PI,a1=-s.a0*180/Math.PI;while(a0<0)a0+=360;while(a0>=360)a0-=360;while(a1<0)a1+=360;while(a1>=360)a1-=360;if(a1<=a0)a1+=360;w(50,n(a0));w(51,n(a1))}
+    else if(s.t==='tri')poly(s,s.p,true);
+    else if(s.t==='free'&&s.p&&s.p.length>1)poly(s,s.p,false);
+    else if(s.t==='dim'&&len(s)>1e-6){
+      const d=dimPts(s),p=d[0],q=d[1];line(s,s.a,p);line(s,s.b,q);line(s,p,q);
+      let ang=Math.atan2(q[1]-p[1],q[0]-p[0]);if(ang>Math.PI/2||ang<-Math.PI/2)ang+=Math.PI;
+      const str=f(len(s)),h=.15,ux=Math.cos(ang),uy=Math.sin(ang),tw=str.length*h*.55,m=[(p[0]+q[0])/2,(p[1]+q[1])/2];
+      txt(s,[m[0]-ux*tw/2+uy*h*.35,m[1]-uy*tw/2-ux*h*.35],h,ang,str);
     }
-    else if(s.t==='furn'){
-      const name=['MKD_F',String(s.k||'table').replace(/[^A-Za-z0-9_-]/g,''),enc(s.w),enc(s.h)].join('_');
-      insert(s,name,s.x+s.w/2,s.y+s.h/2,s.rot||0);
-    }
-*r),T(.35*r,.6*r),T(0,.25*r),T(-.35*r,.6*r)],true);txt(s,T(-.15*r,-1.55*r),r*.5,a,'N')}
+    else if(s.t==='text'){const b=nb(s),a=s.a||0,u=[Math.cos(a),Math.sin(a)],dn=[-Math.sin(a),Math.cos(a)];txt(s,[s.x-u[0]*b.w/2+dn[0]*s.h*.35,s.y-u[1]*b.w/2+dn[1]*s.h*.35],s.h,a,s.txt||'')}
+    else if(s.t==='north'){const r=s.h/2,a=s.a||0,c=[s.x,s.y],T=(u,v)=>rot(c,a,u,v);circ(s,c,r);poly(s,[T(0,-.9*r),T(.35*r,.6*r),T(0,.25*r),T(-.35*r,.6*r)],true);txt(s,T(-.15*r,-1.55*r),r*.5,a,'N')}
     else if(s.t==='door'||s.t==='win'){
-      const name=s.t==='door'?['MKD_D',enc(s.w),enc(s.th||0),enc(s.f||1),enc(s.h||1)].join('_'):['MKD_W',enc(s.w),enc(s.th||0)].join('_');
-      addBlock(s,name,({line:bl,poly:bp})=>{
-        const w2=s.w,th=s.th||0;
-        if(s.t==='win'){const hf=Math.max(.05,th/2);[-hf,0,hf].forEach(v=>bl([-w2/2,v],[w2/2,v]));bl([-w2/2,-hf],[-w2/2,hf]);bl([w2/2,-hf],[w2/2,hf])}
-        else{const f=s.f||1,hu=-(s.h||1)*w2/2,of=th/2*f,H=[hu,of],E=[hu,of+f*w2],C=[-hu,of],arc=[],a0=Math.atan2(E[1]-H[1],E[0]-H[0]),a1=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));bl(H,E);for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+w2*Math.cos(a),H[1]+w2*Math.sin(a)])}bp(arc)}
-      });
-      insert(s,name,s.x,s.y,s.a||0);
+      const name=makeCompositeBlock(s);insert(s,name,s.x,s.y,s.a||0);
     }
     else if(s.t==='furn'){
-      const d=SYM[s.k]||SYM.table,name=['MKD_F',String(s.k||'table').replace(/[^A-Za-z0-9_-]/g,''),enc(s.w),enc(s.h)].join('_');
-      addBlock(s,name,({line:bl,poly:bp})=>d.p.forEach(p=>{if(p[0]==='r')bp([[p[1]*s.w,p[2]*s.h],[(p[1]+p[3])*s.w,p[2]*s.h],[(p[1]+p[3])*s.w,(p[2]+p[4])*s.h],[p[1]*s.w,(p[2]+p[4])*s.h]]);else if(p[0]==='e'){const o=[];for(let i=0;i<40;i++){const t=i/40*2*Math.PI;o.push([(p[1]+Math.abs(p[3])*Math.cos(t))*s.w,(p[2]+Math.abs(p[4])*Math.sin(t))*s.h])}bp(o)}else bl([p[1]*s.w,p[2]*s.h],[p[3]*s.w,p[4]*s.h])}));
-      insert(s,name,s.x+s.w/2,s.y+s.h/2,s.rot||0);
+      const name=makeCompositeBlock(s);insert(s,name,s.x+s.w/2,s.y+s.h/2,s.rot||0);
     }
   });
-  w(0,'ENDSEC');
-  w(0,'EOF');
+  w(0,'ENDSEC');w(0,'EOF');
   return D.join('\r\n')+'\r\n';
 }
 
