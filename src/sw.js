@@ -1,5 +1,5 @@
 // عامل الخدمة: يجعل التطبيق يعمل بلا إنترنت بعد أول تحميل ناجح.
-const VER='plan-v36';
+const VER='plan-v39';
 const CORE=[
   './',
   'index.html',

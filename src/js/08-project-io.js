@@ -23,7 +23,22 @@ async function saveBlob(name,blob){
     if(d){try{await d.save({filename:name,data:blob});return 'ok'}catch(e){return e&&e.code==='declined'?'no':(e&&e.code==='rejected_extension'?'ext':'err')}}
     return 'err';
   }
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();a.remove();return 'ok';
+  // استخدم نافذة الحفظ الأصلية عندما يدعمها المتصفح، لتحديد الاسم والمجلد.
+  if(typeof window.showSaveFilePicker==='function'){
+    try{
+      const ext=(name.match(/\.[^.]+$/)||['.dxf'])[0];
+      const mime=blob.type||'application/octet-stream';
+      const handle=await window.showSaveFilePicker({suggestedName:name,types:[{description:'ملف DXF',accept:{[mime]:[ext]}}]});
+      const stream=await handle.createWritable();await stream.write(blob);await stream.close();return 'ok';
+    }catch(e){if(e&&e.name==='AbortError')return 'no';return 'err'}
+  }
+  // على الهواتف التي لا تدعم نافذة اختيار الملف، افتح قائمة المشاركة
+  // حتى يتمكن المستخدم من اختيار تطبيق الملفات أو وجهة الحفظ المتاحة.
+  try{
+    const file=new File([blob],name,{type:blob.type||'application/octet-stream'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){await navigator.share({files:[file],title:name});return 'ok'}
+  }catch(e){if(e&&e.name==='AbortError')return 'no'}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);return 'ok';
 }
 
 async function copyText(t){
