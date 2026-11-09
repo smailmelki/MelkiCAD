@@ -102,7 +102,7 @@ function dxfBuild(){
     else if(s.t==='dim'&&len(s)>1e-6){
       const d=dimPts(s),p=d[0],q=d[1];line(s,s.a,p);line(s,s.b,q);line(s,p,q);
       let ang=Math.atan2(q[1]-p[1],q[0]-p[0]);if(ang>Math.PI/2||ang<-Math.PI/2)ang+=Math.PI;
-      const str=f(len(s)),h=.15,ux=Math.cos(ang),uy=Math.sin(ang),tw=str.length*h*.55,m=[(p[0]+q[0])/2,(p[1]+q[1])/2];
+      const str=dimText(s),h=.15,ux=Math.cos(ang),uy=Math.sin(ang),tw=str.length*h*.55,m=[(p[0]+q[0])/2,(p[1]+q[1])/2];
       txt(s,[m[0]-ux*tw/2+uy*h*.35,m[1]-uy*tw/2-ux*h*.35],h,ang,str);
     }
     else if(s.t==='text'){const b=nb(s),a=s.a||0,u=[Math.cos(a),Math.sin(a)],dn=[-Math.sin(a),Math.cos(a)];txt(s,[s.x-u[0]*b.w/2+dn[0]*s.h*.35,s.y-u[1]*b.w/2+dn[1]*s.h*.35],s.h,a,s.txt||'')}
