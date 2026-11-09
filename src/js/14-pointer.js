@@ -29,9 +29,9 @@ cv.addEventListener('pointerdown',e=>{
   if(P.size>2)return;
   const p=pos(e);cpos=s2w(...p);
   // عند تفعيل الموازاة، تكون النقرة الأولى لاختيار الخط المرجعي.
-  if(S.parallel&&!parallelRef&&(!drawFlow||(drawFlow.stage==='first'&&drawFlow.points.length===0))){
+  if((S.parallel||S.perpendicular)&&!parallelRef&&(!drawFlow||(drawFlow.stage==='first'&&drawFlow.points.length===0))){
     parallelRef=pickParallelReference(s2w(...p));
-    toast(parallelRef?'تم تحديد الخط المرجعي للموازاة':'لم يتم العثور على خط قريب؛ المس خطًا أو ضلعًا واضحًا');
+    toast(parallelRef?(S.perpendicular?'تم تحديد الخط المرجعي للتعامد':'تم تحديد الخط المرجعي للموازاة'):'لم يتم العثور على خط قريب؛ المس خطًا أو ضلعًا واضحًا');
     g=null;draw();return;
   }
   if(drawFlow){const guideTool=['line','wall','polyline','dim'].includes(drawFlow.tool),guideOrigin=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];addDrawPoint(cpos,false);if(drawFlow&&['second','next'].includes(drawFlow.stage)&&(S.parallel||S.perpendicular)&&parallelRef&&guideTool&&guideOrigin){parallelGuide={origin:guideOrigin.slice(),target:cpos.slice()}}draw();return}$('#sheet').classList.remove('on');$('#smenu').classList.remove('on');hideDyn();$$('.gm').forEach(m=>m.classList.remove('on'));
