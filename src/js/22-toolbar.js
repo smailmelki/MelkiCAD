@@ -55,7 +55,7 @@ $('main').append(fm);
 
 const fbtn=document.createElement('button');fbtn.dataset.g='gfurn';fbtn.innerHTML='<svg viewBox="0 0 24 24"><path d="M3 12V8a2 2 0 012-2h14a2 2 0 012 2v4M3 12h18v5H3zM5 17v2M19 17v2"/></svg>أثاث';$('#lyb').before(fbtn);
 
-$$$('[data-g]').forEach(b=>b.onclick=()=>{
+$('[data-g]').forEach(b=>b.onclick=()=>{
   const m=$('#'+b.dataset.g),was=m.classList.contains('on');
   $$('.gm').forEach(x=>x.classList.remove('on'));$('#smenu').classList.remove('on');$('#sheet').classList.remove('on');
   if(!was)m.classList.add('on');upd();
