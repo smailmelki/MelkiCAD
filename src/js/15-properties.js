@@ -17,7 +17,6 @@ function opts(){
     if(!['line','wall','dim','free','polyline','door','win','text','north','furn'].includes(s1.t))F.push(['name','الاسم',s1.name||'']);
     if(s1.t==='text')F.push(['txt','النص',s1.txt||'']);
     if(s1.t==='dim'){
-      F.push(['mode','نوع البعد',s1.mode||'aligned']);
       F.push(['off','الإزاحة ('+uA()+')',fu(s1.off)]);
       F.push(['prec','الدقة العشرية',String(s1.prec??2)]);
     }
@@ -28,7 +27,7 @@ function opts(){
     +`<label>الطبقة<select id="elementLayer">${LY.map(l=>`<option value="${esc(l.id)}" ${l.id===(first.ly||LY[0]?.id)?'selected':''}>${esc(l.name)}</option>`).join('')}</select></label>`
     +`<label>السُّمك<input type="range" id="lw" min="1" max="10" step=".5"><b id="lwv"></b></label>`
     +(sel.some(i=>['rect','circle','ellipse','tri','polygon'].includes(shapes[i].t))?`<b>التعبئة</b><div class="chips" id="fk">${[['','بدون'],['solid','لون'],['tile','بلاط'],['wood','خشب'],['hatch','تهشير'],['dots','نقاط']].map(([v,l])=>`<button class="chip${(first.fk||'')===v?' on':''}" data-v="${v}">${l}</button>`).join('')}</div><div class="sws" id="fc">${COLS.map(c=>`<button class="sw${c?'':' auto'}${c===(first.fc||'')?' on':''}" data-c="${c}" style="${c?'background:'+c:''}" aria-label="لون التعبئة"></button>`).join('')}</div>`:'')
-    +F.map(x=>x[0]==='mode'?'<label>'+x[1]+'<select data-k="mode"><option value="aligned">محاذٍ</option><option value="horizontal">أفقي</option><option value="vertical">رأسي</option></select></label>':x[0]==='prec'?'<label>'+x[1]+'<select data-k="prec"><option value="0">0</option><option value="1">0.0</option><option value="2">0.00</option><option value="3">0.000</option><option value="4">0.0000</option></select></label>':`<label>${x[1]}<input data-k="${x[0]}" ${x[0]==='name'||x[0]==='txt'?'type="text"':'dir="ltr" inputmode="decimal"'}></label>`).join('')
+    +F.map(x=>x[0]==='prec'?'<label>'+x[1]+'<select data-k="prec"><option value="0">0</option><option value="1">0.0</option><option value="2">0.00</option><option value="3">0.000</option><option value="4">0.0000</option></select></label>':`<label>${x[1]}<input data-k="${x[0]}" ${x[0]==='name'||x[0]==='txt'?'type="text"':'dir="ltr" inputmode="decimal"'}></label>`).join('')
     +(s1&&s1.t==='door'?'<div class="row"><button class="fl" data-f="f">قلب الفتح</button><button class="fl" data-f="h">عكس المفصلة</button></div>':'')
     +(s1&&s1.t==='rect'?'<button class="fl" id="tw">إضافة جدران حولها</button>':'')+'<button id="ok">تم</button>';
   F.forEach(x=>{const el=sh.querySelector(`[data-k="${x[0]}"]`);if(el)el.value=x[2]});
@@ -54,9 +53,8 @@ function opts(){
       }
       applyGeometryValues(s1,k=>{const el=sh.querySelector(`[data-k="${k}"]`);return el?el.value:undefined});
       if(s1.t==='dim'){
-        const off=sh.querySelector('[data-k="off"]'),mode=sh.querySelector('[data-k="mode"]'),prec=sh.querySelector('[data-k="prec"]');
+        const off=sh.querySelector('[data-k="off"]'),prec=sh.querySelector('[data-k="prec"]');
         if(off){const n=nu(off.value);if(Number.isFinite(n))s1.off=n}
-        if(mode)s1.mode=mode.value;
         if(prec)s1.prec=clamp(Math.round(num(prec.value)||0),0,4);
       }
       if(s1.t==='wall'){D.th=s1.th}
