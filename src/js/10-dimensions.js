@@ -8,6 +8,9 @@
  *            09-render.js
  * ================================================================== */
 
+// نمط البعد النشط، يُختار من مجموعة «الأبعاد» قبل بدء الرسم.
+let activeDimMode='aligned';
+
 // خط الأبعاد: a,b نقطتا القياس، off إزاحة الخط بالمتر (الإشارة تحدد الجهة)
 function dimValue(s){return s.mode==='horizontal'?Math.abs(s.b[0]-s.a[0]):s.mode==='vertical'?Math.abs(s.b[1]-s.a[1]):len(s)}
 function dimText(s){const p=clamp(Math.round(Number(s.prec??2)),0,4),v=dimValue(s)*uk();return `${v.toFixed(p)} ${ul()}`}
