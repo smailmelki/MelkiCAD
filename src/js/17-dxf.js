@@ -187,6 +187,9 @@ function dxfShapes(E,k){
   const all=(e,c)=>e.p.filter(z=>z[0]===c).map(z=>z[1]);
   const N=(e,c)=>{const v=Number.parseFloat(g(e,c,0));return Number.isFinite(v)?v:0};
   const X=v=>v*k,Y=v=>-v*k;
+  // فك ترميز الأبعاد المخزنة في أسماء كتل MelkiCAD؛ يجب أن تكون الدالة
+  // ضمن نطاق dxfShapes لأن dxfBuild يملك نطاقًا مستقلاً.
+  const decNum=v=>Number(String(v??'').replace(/M/g,'-').replace(/P/g,'.'));
   const dec=s=>String(s??'').replace(/\\U\+([0-9A-Fa-f]{4})/g,(_,h)=>String.fromCharCode(parseInt(h,16))).replace(/\\P/g,' ').replace(/\\[A-Za-z][^;]*;/g,'').replace(/[{}]/g,'').replace(/%%d/gi,'°').replace(/%%p/gi,'±').replace(/%%c/gi,'⌀');
   const mk=(o,e)=>{
     if(out.length>=30000)return;
