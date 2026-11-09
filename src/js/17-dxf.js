@@ -227,9 +227,9 @@ function dxfShapes(E,k){
     const e=E[i];
     if(e.t==='INSERT'){
       const name=g(e,2,'');
-      if(name.startsWith('MKD_D_')){const q=name.split('_');if(q.length===6){const w=decNum(q[2]),th=decNum(q[3]),f=decNum(q[4]),h=decNum(q[5]);if(w>0)mk({t:'door',x:X(N(e,10)),y:Y(N(e,20)),w,th,f,h,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
-      else if(name.startsWith('MKD_W_')){const q=name.split('_');if(q.length===4){const w=decNum(q[2]),th=decNum(q[3]);if(w>0)mk({t:'win',x:X(N(e,10)),y:Y(N(e,20)),w,th,h:1,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
-      else if(name.startsWith('MKD_F_')){const q=name.split('_');if(q.length===5){const k=q[2],w=decNum(q[3]),h=decNum(q[4]),a=-N(e,50)*Math.PI/180;if(w>0&&h>0)mk({t:'furn',k,x:X(N(e,10))-w/2,y:Y(N(e,20))-h/2,w,h,rot:a},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
+      if(name.startsWith('MKD_D_')){const q=name.split('_');if(q.length===5){const w=decNum(q[1]),th=decNum(q[2]),f=decNum(q[3]),h=decNum(q[4]);if(w>0)mk({t:'door',x:X(N(e,10)),y:Y(N(e,20)),w,th,f,h,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
+      else if(name.startsWith('MKD_W_')){const q=name.split('_');if(q.length===3){const w=decNum(q[1]),th=decNum(q[2]);if(w>0)mk({t:'win',x:X(N(e,10)),y:Y(N(e,20)),w,th,h:1,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
+      else if(name.startsWith('MKD_F_')){const q=name.split('_');if(q.length===4){const k=q[1],w=decNum(q[2]),h=decNum(q[3]),a=-N(e,50)*Math.PI/180;if(w>0&&h>0)mk({t:'furn',k,x:X(N(e,10))-w/2,y:Y(N(e,20))-h/2,w,h,rot:a},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
       else skip.INSERT=(skip.INSERT||0)+1;
     }
     else if(e.t==='LINE')mk({t:'line',a:[X(N(e,10)),Y(N(e,20))],b:[X(N(e,11)),Y(N(e,21))]},e);
