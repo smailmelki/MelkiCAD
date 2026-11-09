@@ -35,7 +35,7 @@ function sidesSheet(done){
 
 function startDrawFlow(t){if(['furn','dim','door','win'].includes(t))return;if(!['line','wall','rect','circle','arc','ellipse','tri','polygon','polyline','free','text','north'].includes(t))return;drawFlow={tool:t,stage:'first',points:[]};if(t==='polygon'){sidesSheet(()=>{if(drawFlow&&drawFlow.tool==='polygon')drawInputStage('first')});return}drawInputStage('first')}
 
-function closeDrawFlow(){drawFlow=null;$('#drawInput').classList.remove('on')}
+function closeDrawFlow(){drawFlow=null;parallelGuide=null;$('#drawInput').classList.remove('on')}
 
 function addDrawPoint(q,fromInput=false){if(!drawFlow)return false;const t=drawFlow.tool;let p=fromInput?q:snapPt(q);if(!fromInput&&!mk&&drawFlow.points.length&&['line','wall','polyline'].includes(drawFlow.tool)&&(S.ortho||S.parallel&&parallelRef))p=constrain(drawFlow.points[drawFlow.points.length-1],p);if(drawFlow.stage==='first'){drawFlow.points=[p];if(['furn','text','north','door','win'].includes(t)){commitSinglePoint(p);return true}drawInputStage(['circle','arc','ellipse','polygon'].includes(t)?'params':'second');return true}
  if(drawFlow.stage==='params'){drawFlow.points.push(p);commitPointShape();return true}

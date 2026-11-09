@@ -1,7 +1,6 @@
 /* nav-overlay.css — الشريط السفلي (nav) وطبقة عرض الصورة (#ov). */
-nav{display:flex;flex:0 0 auto;gap:3px;padding:2px 4px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none;border-top:1px solid var(--bd);background:var(--ui)}
-nav::-webkit-scrollbar{display:none}
-nav button{flex:0 0 58px;width:58px;min-width:58px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;line-height:1.2;padding:5px 2px;color:var(--dim);white-space:nowrap}
+nav{display:flex;flex:0 0 auto;gap:0;padding:2px 2px;overflow-x:hidden;overflow-y:hidden;border-top:1px solid var(--bd);background:var(--ui)}
+nav button{flex:1 1 0;width:auto;min-width:0;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10px;line-height:1.2;padding:5px 0;color:var(--dim);white-space:nowrap}
 nav button svg{flex:0 0 22px}
 nav button.tool-group{position:relative}
 nav button.tool-group.has-active{color:var(--ac)}

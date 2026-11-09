@@ -116,6 +116,21 @@ function draw(){
     }
   }
   for(const pass of[0,1])shapes.forEach((s,i)=>{if(shown(s)&&(s.t==='door'||s.t==='win')===!!pass)drawShape(s,sel.includes(i),false,c)});
+  // أثناء الرسم الموازي: إبراز ضلع المرجع ورسم دليل متقطع ممتد عبر مساحة اللوحة.
+  if(parallelGuide&&parallelRef){
+    const dx=parallelRef.b[0]-parallelRef.a[0],dy=parallelRef.b[1]-parallelRef.a[1],len=Math.hypot(dx,dy);
+    if(len>1e-9){
+      const ux=dx/len,uy=dy/len,origin=parallelGuide.origin||parallelGuide.a;
+      const corners=[[0,0],[W,0],[0,H],[W,H]].map(q=>s2w(...q));
+      const ts=corners.map(q=>(q[0]-origin[0])*ux+(q[1]-origin[1])*uy),lo=Math.min(...ts)-2/Math.max(V.s,1e-9),hi=Math.max(...ts)+2/Math.max(V.s,1e-9);
+      const p0=w2s(origin[0]+ux*lo,origin[1]+uy*lo),p1=w2s(origin[0]+ux*hi,origin[1]+uy*hi);
+      ctx.save();ctx.strokeStyle='#06b6d4';ctx.globalAlpha=.95;ctx.lineWidth=2;ctx.setLineDash([4,5]);ctx.beginPath();ctx.moveTo(p0[0],p0[1]);ctx.lineTo(p1[0],p1[1]);ctx.stroke();ctx.setLineDash([]);
+      const r0=w2s(...parallelRef.a),r1=w2s(...parallelRef.b);
+      ctx.globalAlpha=.28;ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(r0[0],r0[1]);ctx.lineTo(r1[0],r1[1]);ctx.stroke();
+      ctx.globalAlpha=1;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(r0[0],r0[1]);ctx.lineTo(r1[0],r1[1]);ctx.stroke();
+      ctx.restore();tag('الخط المرجعي',(r0[0]+r1[0])/2,(r0[1]+r1[1])/2-15,c);
+    }
+  }
   if(cur)drawShape(cur,false,true,c);
   if(polyDraft)drawShape(polyDraft,false,true,c);
   if(box){
@@ -136,12 +151,6 @@ function draw(){
     if(at){ctx.strokeStyle=c.dim;ctx.lineWidth=1.5;ctx.strokeRect(b0[0]-4,b0[1]-4,8,8);ctx.fillStyle=c.dim;ctx.textAlign='left';ctx.font=`400 10px ${FONT}`;ctx.fillText('0,0',b0[0]+7,b0[1]+13)}
   }
   if(ST.coord&&(mk||cpos)){const q=mk?mk.p:cpos;ctx.font=`400 11px ${FONT}`;ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText(`X ${fu(q[0])}   Y ${fu(-q[1])}  ${ul()}`,W-10,H-14)}
-  if(parallelGuide){
-    const a=w2s(...parallelGuide.a),b=w2s(...parallelGuide.b);
-    ctx.save();ctx.strokeStyle=c.ac;ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
-    ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();ctx.restore();
-    tag('موازٍ',b[0],b[1]-18,c);
-  }
   if(mk)marker(c);
   if(tool==='polyline'){ctx.font=`400 13px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText('انقر لإضافة الرؤوس ثم اضغط إنهاء POLYLINE',W/2,20)}
   if(tool==='door'||tool==='win'){ctx.font=`400 13px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText(`المس جدارًا لوضع ${tool==='door'?'الباب':'النافذة'} ثم اسحب لتحريكه`,W/2,20)}
