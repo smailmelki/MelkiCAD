@@ -16,7 +16,7 @@ function upd(){
   $('#op').disabled=$('#cp').disabled=$('#del').disabled=$('#rt').disabled=$('#scale').disabled=!n;$('#ps').disabled=!clip.length;
   $$('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tool));
   $$('[data-fk]').forEach(b=>b.classList.toggle('on',tool==='furn'&&b.dataset.fk===furnKind));
-  $$('[data-g]').forEach(b=>{const m=$('#'+b.dataset.g),it=m.querySelector(tool==='furn'?`[data-fk="${furnKind}"]`:`[data-t="${tool}"]`);b.dataset.h=b.dataset.h||b.innerHTML;b.innerHTML=it?it.innerHTML:b.dataset.h;b.classList.toggle('on',!!it)});
+  $('[data-g]').forEach(b=>{const m=$('#'+b.dataset.g),it=m.querySelector(tool==='furn'?`[data-fk="${furnKind}"]`:`[data-t="${tool}"]`);b.classList.toggle('on',!!it);b.classList.toggle('has-active',!!it);b.title=it?`الأداة الحالية: ${it.textContent.trim()}`:b.dataset.groupTitle||b.textContent.trim()});
   $$('[data-s]').forEach(b=>b.classList.toggle('on',!!S[b.dataset.s]));
   $('#snap').classList.toggle('on',Object.values(S).some(Boolean));
 }
@@ -38,7 +38,7 @@ const GROUPS=[['gdraw','رسم','<path d="M4 20l4-1 11-11-3-3L5 16z"/>',['line',
 
 GROUPS.forEach(([id,label,icon,tools])=>{
   const gb=document.createElement('button'),menu=document.createElement('div');
-  gb.dataset.g=id;gb.innerHTML=`<svg viewBox="0 0 24 24">${icon}</svg>${label}`;menu.className='gm';menu.id=id;
+  gb.dataset.g=id;gb.dataset.groupTitle=label;gb.className='tool-group';gb.setAttribute('aria-label',label);gb.innerHTML=`<svg viewBox="0 0 24 24">${icon}</svg><span>${label}</span>`;menu.className='gm';menu.id=id;
   $(`nav [data-t="${tools[0]}"]`).before(gb);
   tools.forEach(t=>menu.append($(`nav [data-t="${t}"]`)));
   $('main').append(menu);

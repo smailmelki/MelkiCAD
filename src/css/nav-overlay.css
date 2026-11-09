@@ -1,6 +1,11 @@
 /* nav-overlay.css — الشريط السفلي (nav) وطبقة عرض الصورة (#ov). */
-nav{display:flex;overflow-x:auto;border-top:1px solid var(--bd);background:var(--ui)}
-nav button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;padding:8px 0;color:var(--dim)}
+nav{display:flex;flex:0 0 auto;gap:3px;padding:2px 4px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none;border-top:1px solid var(--bd);background:var(--ui)}
+nav::-webkit-scrollbar{display:none}
+nav button{flex:0 0 58px;width:58px;min-width:58px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;line-height:1.2;padding:5px 2px;color:var(--dim);white-space:nowrap}
+nav button svg{flex:0 0 22px}
+nav button.tool-group{position:relative}
+nav button.tool-group.has-active{color:var(--ac)}
+nav button.tool-group.has-active::after{content:"";width:4px;height:4px;border-radius:50%;background:currentColor;position:absolute;bottom:3px}
 nav button.on{color:var(--ac)}
 nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 #ov{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px;box-sizing:border-box;z-index:5;-webkit-user-select:auto;user-select:auto}
