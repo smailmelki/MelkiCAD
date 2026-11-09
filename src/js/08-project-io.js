@@ -26,7 +26,7 @@ async function saveBlob(name,blob){
   // استخدم نافذة الحفظ الأصلية عندما يدعمها المتصفح، لتحديد الاسم والمجلد.
   if(typeof window.showSaveFilePicker==='function'){
     try{
-      const ext=(name.match(/\\.[^.]+$/)||['.dxf'])[0];
+      const ext=(name.match(/\.[^.]+$/)||['.dxf'])[0];
       const mime=blob.type||'application/octet-stream';
       const handle=await window.showSaveFilePicker({suggestedName:name,types:[{description:'ملف DXF',accept:{[mime]:[ext]}}]});
       const stream=await handle.createWritable();await stream.write(blob);await stream.close();return 'ok';
