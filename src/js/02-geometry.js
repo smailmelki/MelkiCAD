@@ -36,7 +36,7 @@ const area=s=>s.t==='rect'?s.w*s.h:s.t==='circle'?Math.PI*s.r*s.r:s.t==='ellipse
 
 const bx=s=>{const q=s.t==='circle'?[[s.x-s.r,s.y-s.r],[s.x+s.r,s.y+s.r]]:pts(s),x=q.map(r=>r[0]),y=q.map(r=>r[1]);return{x:Math.min(...x),y:Math.min(...y),X:Math.max(...x),Y:Math.max(...y)}};
 
-const valid=s=>s.t==='line'||s.t==='wall'||s.t==='dim'?len(s)>=.1:s.t==='circle'?s.r>=.05:s.t==='arc'?s.r>=.05&&s.a1>s.a0&&s.a1-s.a0<=Math.PI*2:s.t==='ellipse'?s.rx>=.05&&s.ry>=.05:['free','polyline','polygon','tri'].includes(s.t)?Array.isArray(s.p)&&s.p.length>=(s.t==='tri'?3:2)&&plen(s.p)>=.2:s.w>=.1&&s.h>=.1;
+const valid=s=>s.t==='dim'?dimValue(s)>=.1:s.t==='line'||s.t==='wall'?len(s)>=.1:s.t==='circle'?s.r>=.05:s.t==='arc'?s.r>=.05&&s.a1>s.a0&&s.a1-s.a0<=Math.PI*2:s.t==='ellipse'?s.rx>=.05&&s.ry>=.05:['free','polyline','polygon','tri'].includes(s.t)?Array.isArray(s.p)&&s.p.length>=(s.t==='tri'?3:2)&&plen(s.p)>=.2:s.w>=.1&&s.h>=.1;
 
 const segs=s=>s.t==='line'||s.t==='wall'?[[s.a,s.b]]:s.t==='arc'||s.t==='ellipse'?(()=>{const p=pts(s);return p.slice(1).map((q,i)=>[p[i],q])})():s.t==='tri'||s.t==='polygon'?s.p.map((q,i)=>[q,s.p[(i+1)%s.p.length]]):s.t==='polyline'||s.t==='free'?s.p.slice(1).map((q,i)=>[s.p[i],q]):s.t==='rect'?pts(s).map((q,i,a)=>[q,a[(i+1)%4]]):[];
 
