@@ -117,7 +117,7 @@ function draw(){
   }
   for(const pass of[0,1])shapes.forEach((s,i)=>{if(shown(s)&&(s.t==='door'||s.t==='win')===!!pass)drawShape(s,sel.includes(i),false,c)});
   // أثناء الرسم الموازي: إبراز ضلع المرجع ورسم دليل متقطع ممتد عبر مساحة اللوحة.
-  if(parallelGuide&&parallelRef){
+  if(parallelGuide&&parallelRef&&parallelGuide.target&&parallelWithinTolerance(parallelGuide.origin,parallelGuide.target)){
     const dx=parallelRef.b[0]-parallelRef.a[0],dy=parallelRef.b[1]-parallelRef.a[1],len=Math.hypot(dx,dy);
     if(len>1e-9){
       const ux=dx/len,uy=dy/len,origin=parallelGuide.origin||parallelGuide.a;
