@@ -79,7 +79,8 @@ function dynSpec(s){
   const b=bx(s),cx=(b.x+b.X)/2,cy=(b.y+b.Y)/2;
   if(s.t==='rect')return [['w','العرض',fu(s.w)],['h','الارتفاع',fu(s.h)],['ang','الزاوية °',f(deg(s.rot||0))]];
   if(s.t==='circle')return [['r','نصف القطر',fu(s.r)]];
-  if(s.t==='line'||s.t==='wall'||s.t==='dim')return [['L','الطول',fu(len(s))],['ang','الزاوية °',f(dynAngle(s.b[0]-s.a[0],s.b[1]-s.a[1]))],...(s.t==='wall'?[['th','السماكة',fu(s.th)]]:[])];
+  if(s.t==='dim')return [['L','قيمة البعد',fu(dimValue(s))]];
+  if(s.t==='line'||s.t==='wall')return [['L','الطول',fu(len(s))],['ang','الزاوية °',f(dynAngle(s.b[0]-s.a[0],s.b[1]-s.a[1]))],...(s.t==='wall'?[['th','السماكة',fu(s.th)]]:[])];
   if(s.t==='arc')return [['r','نصف القطر',fu(s.r)],['a0','زاوية البداية °',f(deg(s.a0||0))],['a1','زاوية النهاية °',f(deg(s.a1||0))]];
   if(s.t==='ellipse')return [['rx','نصف المحور X',fu(s.rx)],['ry','نصف المحور Y',fu(s.ry)],['ang','زاوية الدوران °',f(deg(s.rot||0))]];
   if(s.t==='tri')return [['w','العرض',fu(b.X-b.x)],['h','الارتفاع',fu(b.Y-b.y)]];
@@ -108,9 +109,17 @@ function applyGeometryValues(s,get){
     const w=nu(get('w')),h=nu(get('h')),a=angle('ang');
     if(w>0)s.w=w;if(h>0)s.h=h;if(a!==null)s.rot=a;
   }else if(s.t==='circle'){const r=nu(get('r'));if(r>0)s.r=r}
-  else if(s.t==='line'||s.t==='wall'||s.t==='dim'){
+  else if(s.t==='dim'){
+    const L=nu(get('L'));
+    if(L>0){
+      if(s.mode==='horizontal')s.b[0]=s.a[0]+Math.sign(s.b[0]-s.a[0]||1)*L;
+      else if(s.mode==='vertical')s.b[1]=s.a[1]+Math.sign(s.b[1]-s.a[1]||1)*L;
+      else{const q=Math.atan2(-(s.b[1]-s.a[1]),s.b[0]-s.a[0]);s.b=[s.a[0]+L*Math.cos(q),s.a[1]-L*Math.sin(q)]}
+      s.lb=undefined;
+    }
+  }else if(s.t==='line'||s.t==='wall'){
     const L=nu(get('L')),a=angle('ang'),d=len(s)||1;
-    if(L>0||a!==null){const q=a===null?Math.atan2(-(s.b[1]-s.a[1]),s.b[0]-s.a[0]):a,l=L>0?L:d;s.b=[s.a[0]+l*Math.cos(q),s.a[1]-l*Math.sin(q)];if(s.t==='dim'){s.lb=undefined}}
+    if(L>0||a!==null){const q=a===null?Math.atan2(-(s.b[1]-s.a[1]),s.b[0]-s.a[0]):a,l=L>0?L:d;s.b=[s.a[0]+l*Math.cos(q),s.a[1]-l*Math.sin(q)]}
     if(s.t==='wall'){const th=nu(get('th'));if(th>0)s.th=th}
   }else if(s.t==='arc'){
     const r=nu(get('r')),a0=angle('a0'),a1=angle('a1');if(r>0)s.r=r;if(a0!==null)s.a0=a0;if(a1!==null)s.a1=a1;while(s.a1<=s.a0)s.a1+=Math.PI*2;
