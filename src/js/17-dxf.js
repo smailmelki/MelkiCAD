@@ -64,7 +64,6 @@ function dxfBuild(){
   if(!LY.length){w(0,'LAYER');w(2,'0');w(70,0);w(62,7);w(6,'CONTINUOUS')}
   LY.forEach((l,i)=>{w(0,'LAYER');w(2,lnames[i]);w(70,l.lock?4:0);w(62,l.vis===0?-aci(l.col):aci(l.col));w(6,'CONTINUOUS')});
   w(0,'ENDTAB');w(0,'ENDSEC');
-  if(blockDefs.length){w(0,'SECTION');w(2,'BLOCKS');blockDefs.forEach(B=>{for(let i=0;i<B.length;i+=2)w(B[i],B[i+1])});w(0,'ENDSEC')}
   w(0,'SECTION');w(2,'ENTITIES');
   shapes.forEach(s=>{
     if(!s||typeof s!=='object')return;
@@ -104,7 +103,9 @@ function dxfBuild(){
       insert(s,name,s.x+s.w/2,s.y+s.h/2,s.rot||0);
     }
   });
-  w(0,'ENDSEC');w(0,'EOF');
+  w(0,'ENDSEC');
+  if(blockDefs.length){w(0,'SECTION');w(2,'BLOCKS');blockDefs.forEach(B=>{for(let i=0;i<B.length;i+=2)w(B[i],B[i+1])});w(0,'ENDSEC')}
+  w(0,'EOF');
   return D.join('\r\n')+'\r\n';
 }
 
