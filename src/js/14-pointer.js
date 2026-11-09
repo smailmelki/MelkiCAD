@@ -34,8 +34,8 @@ cv.addEventListener('pointerdown',e=>{
     toast(parallelRef?'تم تحديد الخط المرجعي للموازاة':'لم يتم العثور على خط قريب؛ المس خطًا أو ضلعًا واضحًا');
     g=null;draw();return;
   }
-  if(drawFlow){const guideTool=['line','wall','polyline','dim'].includes(drawFlow.tool),guideOrigin=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];addDrawPoint(cpos,false);if(drawFlow&&['second','next'].includes(drawFlow.stage)&&S.parallel&&parallelRef&&guideTool&&guideOrigin){parallelGuide={origin:guideOrigin.slice(),target:cpos.slice()}}draw();return}$('#sheet').classList.remove('on');$('#smenu').classList.remove('on');hideDyn();$$('.gm').forEach(m=>m.classList.remove('on'));
-  if(tool==='polyline'){const q=snapPt(s2w(...p));if(!polyDraft){polyDraft={t:'polyline',p:[q],ly:cl,col:D.col||undefined,lw:D.lw};toast('أضف الرؤوس، ثم اضغط إنهاء POLYLINE')}else{let q=snapPt(s2w(...p));const first=polyDraft.p[0];if(polyDraft.p.length>=3&&Math.hypot((q[0]-first[0])*V.s,(q[1]-first[1])*V.s)<14){polyDraft.t='polygon';finishPolyline();return}const last=polyDraft.p[polyDraft.p.length-1];if(!mk&&(S.ortho||S.parallel&&parallelRef))q=constrain(last,q);if(Math.hypot(q[0]-last[0],q[1]-last[1])>.01)polyDraft.p.push(q)}$('#polybar').style.display='flex';mk=null;draw();return}
+  if(drawFlow){const guideTool=['line','wall','polyline','dim'].includes(drawFlow.tool),guideOrigin=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];addDrawPoint(cpos,false);if(drawFlow&&['second','next'].includes(drawFlow.stage)&&(S.parallel||S.perpendicular)&&parallelRef&&guideTool&&guideOrigin){parallelGuide={origin:guideOrigin.slice(),target:cpos.slice()}}draw();return}$('#sheet').classList.remove('on');$('#smenu').classList.remove('on');hideDyn();$$('.gm').forEach(m=>m.classList.remove('on'));
+  if(tool==='polyline'){const q=snapPt(s2w(...p));if(!polyDraft){polyDraft={t:'polyline',p:[q],ly:cl,col:D.col||undefined,lw:D.lw};toast('أضف الرؤوس، ثم اضغط إنهاء POLYLINE')}else{let q=snapPt(s2w(...p));const first=polyDraft.p[0];if(polyDraft.p.length>=3&&Math.hypot((q[0]-first[0])*V.s,(q[1]-first[1])*V.s)<14){polyDraft.t='polygon';finishPolyline();return}const last=polyDraft.p[polyDraft.p.length-1];if(!mk&&(S.ortho||(S.parallel||S.perpendicular)&&parallelRef))q=constrain(last,q);if(Math.hypot(q[0]-last[0],q[1]-last[1])>.01)polyDraft.p.push(q)}$('#polybar').style.display='flex';mk=null;draw();return}
   if(tool==='pan')g={k:'pan',px:p[0],py:p[1],vx:V.x,vy:V.y};
   else if(tool==='select'){
     const gr=gripAt(p);
@@ -78,7 +78,7 @@ cv.addEventListener('pointermove',e=>{
   if(!P.has(e.pointerId)){
     if(e.pointerType!=='mouse')return;
     cpos=s2w(...p);mk=tool==='select'||tool==='pan'||tool==='trim'||tool==='extend'?null:osnap(cpos);
-    if(drawFlow&&['second','next'].includes(drawFlow.stage)&&S.parallel&&parallelRef&&['line','wall','polyline','dim'].includes(drawFlow.tool)){const anchor=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];if(anchor)parallelGuide={origin:anchor.slice(),target:cpos.slice()}}
+    if(drawFlow&&['second','next'].includes(drawFlow.stage)&&(S.parallel||S.perpendicular)&&parallelRef&&['line','wall','polyline','dim'].includes(drawFlow.tool)){const anchor=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];if(anchor)parallelGuide={origin:anchor.slice(),target:cpos.slice()}}
     else if(!drawFlow)parallelGuide=null;
     draw();return;
   }
@@ -110,7 +110,7 @@ cv.addEventListener('pointermove',e=>{
   else if(g.k==='draw'){
     let b=tool==='free'?s2w(...p):snapPt(s2w(...p));if(!mk&&(tool==='line'||tool==='wall'||tool==='dim'))b=constrain(g.a,b);
     if(tool==='free'){if(cur){const l=cur.p[cur.p.length-1];if(Math.hypot(b[0]-l[0],b[1]-l[1])*V.s>=4)cur.p.push(b)}}
-    else{if(!mk&&(tool==='line'||tool==='wall'||tool==='dim')&&(S.ortho||S.parallel&&parallelRef))b=constrain(g.a,b);parallelGuide=S.parallel&&parallelRef&&['line','wall','dim'].includes(tool)?{origin:g.a.slice(),target:b.slice()}:null;cur=build(g.a,b);if(tool==='dim'){cur.la=g.la||undefined;cur.lb=(mk&&mk.ref)||undefined}}
+    else{if(!mk&&(tool==='line'||tool==='wall'||tool==='dim')&&(S.ortho||(S.parallel||S.perpendicular)&&parallelRef))b=constrain(g.a,b);parallelGuide=(S.parallel||S.perpendicular)&&parallelRef&&['line','wall','dim'].includes(tool)?{origin:g.a.slice(),target:b.slice()}:null;cur=build(g.a,b);if(tool==='dim'){cur.la=g.la||undefined;cur.lb=(mk&&mk.ref)||undefined}}
   }
   draw();
 });
