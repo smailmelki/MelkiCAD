@@ -151,12 +151,6 @@ function draw(){
     if(at){ctx.strokeStyle=c.dim;ctx.lineWidth=1.5;ctx.strokeRect(b0[0]-4,b0[1]-4,8,8);ctx.fillStyle=c.dim;ctx.textAlign='left';ctx.font=`400 10px ${FONT}`;ctx.fillText('0,0',b0[0]+7,b0[1]+13)}
   }
   if(ST.coord&&(mk||cpos)){const q=mk?mk.p:cpos;ctx.font=`400 11px ${FONT}`;ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText(`X ${fu(q[0])}   Y ${fu(-q[1])}  ${ul()}`,W-10,H-14)}
-  if(parallelGuide){
-    const a=w2s(...parallelGuide.a),b=w2s(...parallelGuide.b);
-    ctx.save();ctx.strokeStyle=c.ac;ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
-    ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();ctx.restore();
-    tag('موازٍ',b[0],b[1]-18,c);
-  }
   if(mk)marker(c);
   if(tool==='polyline'){ctx.font=`400 13px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText('انقر لإضافة الرؤوس ثم اضغط إنهاء POLYLINE',W/2,20)}
   if(tool==='door'||tool==='win'){ctx.font=`400 13px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText(`المس جدارًا لوضع ${tool==='door'?'الباب':'النافذة'} ثم اسحب لتحريكه`,W/2,20)}
