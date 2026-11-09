@@ -74,7 +74,13 @@ cv.addEventListener('pointerdown',e=>{
 });
 
 cv.addEventListener('pointermove',e=>{
-  if(!P.has(e.pointerId))return;P.set(e.pointerId,pos(e));if(!g)return;const p=P.get(e.pointerId);cpos=s2w(...p);
+  const p=pos(e);
+  if(!P.has(e.pointerId)){
+    if(e.pointerType!=='mouse')return;
+    cpos=s2w(...p);mk=tool==='select'||tool==='pan'||tool==='trim'||tool==='extend'?null:osnap(cpos);draw();return;
+  }
+  P.set(e.pointerId,p);cpos=s2w(...p);
+  if(!g){if(e.pointerType==='mouse'){mk=tool==='select'||tool==='pan'||tool==='trim'||tool==='extend'?null:osnap(cpos);draw()}return;}
   if(g.k==='pinch'){
     const[a,b]=[...P.values()];if(!b)return;
     const d=Math.hypot(a[0]-b[0],a[1]-b[1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
@@ -119,6 +125,7 @@ function endPtr(e){
 }
 
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
+cv.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&!P.has(e.pointerId)){mk=null;draw()}});
 
 cv.addEventListener('wheel',e=>{
   e.preventDefault();const p=pos(e),w=s2w(...p);
