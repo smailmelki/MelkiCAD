@@ -124,7 +124,7 @@ function draw(){
       const corners=[[0,0],[W,0],[0,H],[W,H]].map(q=>s2w(...q));
       const ts=corners.map(q=>(q[0]-origin[0])*ux+(q[1]-origin[1])*uy),lo=Math.min(...ts)-2/Math.max(V.s,1e-9),hi=Math.max(...ts)+2/Math.max(V.s,1e-9);
       const p0=w2s(origin[0]+ux*lo,origin[1]+uy*lo),p1=w2s(origin[0]+ux*hi,origin[1]+uy*hi);
-      ctx.save();ctx.strokeStyle=c.ac;ctx.globalAlpha=.85;ctx.lineWidth=1.6;ctx.setLineDash([8,6]);ctx.beginPath();ctx.moveTo(p0[0],p0[1]);ctx.lineTo(p1[0],p1[1]);ctx.stroke();ctx.setLineDash([]);
+      ctx.save();ctx.strokeStyle='#f59e0b';ctx.globalAlpha=.95;ctx.lineWidth=2;ctx.setLineDash([4,5]);ctx.beginPath();ctx.moveTo(p0[0],p0[1]);ctx.lineTo(p1[0],p1[1]);ctx.stroke();ctx.setLineDash([]);
       const r0=w2s(...parallelRef.a),r1=w2s(...parallelRef.b);
       ctx.globalAlpha=.28;ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(r0[0],r0[1]);ctx.lineTo(r1[0],r1[1]);ctx.stroke();
       ctx.globalAlpha=1;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(r0[0],r0[1]);ctx.lineTo(r1[0],r1[1]);ctx.stroke();
