@@ -93,6 +93,15 @@ function marker(c){
   ctx.stroke();tag(NM[mk.k],x,y-22,c);
 }
 
+// اختيار سلم شبكي تلقائي ضمن الحدود المطلوبة (من 1 سم إلى 10,000 م).
+function autoGridScale(){
+  const raw=clamp(48/Math.max(V.s,1e-12),.01,10000);
+  const power=10**Math.floor(Math.log10(raw));
+  const ratio=raw/power;
+  const nice=ratio<=1?1:ratio<=2?2:ratio<=5?5:10;
+  return clamp(nice*power,.01,10000);
+}
+
 function draw(){
   const c=colors();syncDims();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.direction='ltr';
   ctx.fillStyle=c.bg;ctx.fillRect(0,0,W,H);
