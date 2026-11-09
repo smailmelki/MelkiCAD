@@ -16,7 +16,7 @@ function upd(){
   $('#op').disabled=$('#cp').disabled=$('#del').disabled=$('#rt').disabled=$('#scale').disabled=!n;$('#ps').disabled=!clip.length;
   $$('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tool));
   $$('[data-fk]').forEach(b=>b.classList.toggle('on',tool==='furn'&&b.dataset.fk===furnKind));
-  $$('[data-g]').forEach(b=>{const m=$('#'+b.dataset.g),it=m.querySelector(tool==='furn'?`[data-fk="${furnKind}"]`:`[data-t="${tool}"]`);b.classList.toggle('on',!!it);b.classList.toggle('has-active',!!it);b.title=it?`الأداة الحالية: ${it.textContent.trim()}`:b.dataset.groupTitle||b.textContent.trim()});
+  $('[data-g]').forEach(b=>{const m=$('#'+b.dataset.g),it=m.querySelector(tool==='furn'?`[data-fk="${furnKind}"]`:`[data-t="${tool}"]`)||(b.dataset.g==='gdim'?m.querySelector(`[data-dim-mode="${activeDimMode}"]`):null);b.classList.toggle('on',!!it);b.classList.toggle('has-active',!!it);b.title=it?`الأداة الحالية: ${it.textContent.trim()}`:b.dataset.groupTitle||b.textContent.trim()});
   $$('[data-s]').forEach(b=>{b.classList.toggle('on',!!S[b.dataset.s]);b.setAttribute('aria-pressed',S[b.dataset.s]?'true':'false')});
   $('#snap').classList.toggle('on',Object.values(S).some(Boolean));
 }
