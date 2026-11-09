@@ -11,6 +11,9 @@
  * ================================================================== */
 
 // ---- اللمس ----
+// أصغر مقياس عرض يسمح بوصول سلم 1-2-5 إلى 10,000 م، ويمنع التصغير بعده.
+const MIN_VIEW_SCALE=48/5001;
+
 function finishPolyline(){if(polyDraft&&polyDraft.p.length>=2&&valid(polyDraft)){snap();shapes.push(polyDraft);sel=[shapes.length-1];if(shapes.length===1&&W<=700)fitView([shapes[0]]);polyDraft=null;$('#polybar').style.display='none';save();upd();draw();showDyn(shapes[sel[0]])}else{polyDraft=null;$('#polybar').style.display='none';draw()}}
 
 $('#polyfinish').onclick=finishPolyline;$('#polycancel').onclick=()=>{polyDraft=null;$('#polybar').style.display='none';draw()};
@@ -68,7 +71,7 @@ cv.addEventListener('pointermove',e=>{
   if(g.k==='pinch'){
     const[a,b]=[...P.values()];if(!b)return;
     const d=Math.hypot(a[0]-b[0],a[1]-b[1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
-    V.s=clamp(g.s*d/g.d,.0001,1200);V.x=m[0]-g.w[0]*V.s;V.y=m[1]-g.w[1]*V.s;
+    V.s=clamp(g.s*d/g.d,MIN_VIEW_SCALE,1200);V.x=m[0]-g.w[0]*V.s;V.y=m[1]-g.w[1]*V.s;
   }else if(g.k==='pan'){V.x=g.vx+p[0]-g.px;V.y=g.vy+p[1]-g.py}
   else if(g.k==='move'){
     const w=s2w(...p),dx=grid(w[0]-g.w0[0]),dy=grid(w[1]-g.w0[1]);
@@ -112,5 +115,5 @@ cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endP
 
 cv.addEventListener('wheel',e=>{
   e.preventDefault();const p=pos(e),w=s2w(...p);
-  V.s=clamp(V.s*(e.deltaY<0?1.1:.9),.0001,1200);V.x=p[0]-w[0]*V.s;V.y=p[1]-w[1]*V.s;draw();
+  V.s=clamp(V.s*(e.deltaY<0?1.1:.9),MIN_VIEW_SCALE,1200);V.x=p[0]-w[0]*V.s;V.y=p[1]-w[1]*V.s;draw();
 },{passive:false});
