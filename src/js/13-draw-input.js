@@ -37,7 +37,7 @@ function startDrawFlow(t){if(['furn','dim','door','win'].includes(t))return;if(!
 
 function closeDrawFlow(){drawFlow=null;$('#drawInput').classList.remove('on')}
 
-function addDrawPoint(q,fromInput=false){if(!drawFlow)return false;const t=drawFlow.tool;const p=fromInput?q:snapPt(q);if(drawFlow.stage==='first'){drawFlow.points=[p];if(['furn','text','north','door','win'].includes(t)){commitSinglePoint(p);return true}drawInputStage(['circle','arc','ellipse','polygon'].includes(t)?'params':'second');return true}
+function addDrawPoint(q,fromInput=false){if(!drawFlow)return false;const t=drawFlow.tool;let p=fromInput?q:snapPt(q);if(!fromInput&&!mk&&drawFlow.points.length&&(S.ortho||S.parallel&&parallelRef))p=constrain(drawFlow.points[drawFlow.points.length-1],p);if(drawFlow.stage==='first'){drawFlow.points=[p];if(['furn','text','north','door','win'].includes(t)){commitSinglePoint(p);return true}drawInputStage(['circle','arc','ellipse','polygon'].includes(t)?'params':'second');return true}
  if(drawFlow.stage==='params'){drawFlow.points.push(p);commitPointShape();return true}
  if(t==='polyline'||t==='free'){const last=drawFlow.points[drawFlow.points.length-1];if(!last||Math.hypot(p[0]-last[0],p[1]-last[1])>.001)drawFlow.points.push(p);drawInputStage('next');return true}
  drawFlow.points.push(p);commitPointShape();return true}
