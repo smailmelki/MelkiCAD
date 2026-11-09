@@ -7,6 +7,11 @@ on:
       - 'src/**'
       - 'tools/check.js'
       - '.github/workflows/deploy-pages.yml'
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'src/**'
   workflow_dispatch:
 
 permissions:
@@ -31,10 +36,12 @@ jobs:
           mkdir _site
           cp -a src/. _site/
 
-      - name: Publish to gh-pages branch
+      - name: Publish site
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: ./_site
-          force_orphan: true
+          destination_dir: ${{ github.event_name == 'pull_request' && format('preview/pr-{0}', github.event.pull_request.number) || '' }}
+          keep_files: ${{ github.event_name == 'pull_request' }}
+          force_orphan: ${{ github.event_name != 'pull_request' }}
