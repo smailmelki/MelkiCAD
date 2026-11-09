@@ -99,7 +99,7 @@ function dxfBuild(){
     else if(s.t==='arc'){ent('ARC',s);P3(10,[s.x,s.y]);w(40,n(s.r));let a0=-s.a1*180/Math.PI,a1=-s.a0*180/Math.PI;while(a0<0)a0+=360;while(a0>=360)a0-=360;while(a1<0)a1+=360;while(a1>=360)a1-=360;if(a1<=a0)a1+=360;w(50,n(a0));w(51,n(a1))}
     else if(s.t==='tri')poly(s,s.p,true);
     else if(s.t==='free'&&s.p&&s.p.length>1)poly(s,s.p,false);
-    else if(s.t==='dim'&&len(s)>1e-6){
+    else if(s.t==='dim'&&dimValue(s)>1e-6){
       const d=dimPts(s),p=d[0],q=d[1];line(s,s.a,p);line(s,s.b,q);line(s,p,q);
       let ang=Math.atan2(q[1]-p[1],q[0]-p[0]);if(ang>Math.PI/2||ang<-Math.PI/2)ang+=Math.PI;
       const str=dimText(s),h=.15,ux=Math.cos(ang),uy=Math.sin(ang),tw=str.length*h*.55,m=[(p[0]+q[0])/2,(p[1]+q[1])/2];
