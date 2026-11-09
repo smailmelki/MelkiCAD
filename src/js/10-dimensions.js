@@ -9,10 +9,17 @@
  * ================================================================== */
 
 // خط الأبعاد: a,b نقطتا القياس، off إزاحة الخط بالمتر (الإشارة تحدد الجهة)
-function dimPts(s){const L=len(s)||1,nx=-(s.b[1]-s.a[1])/L*s.off,ny=(s.b[0]-s.a[0])/L*s.off;return[[s.a[0]+nx,s.a[1]+ny],[s.b[0]+nx,s.b[1]+ny]]}
+function dimValue(s){return s.mode==='horizontal'?Math.abs(s.b[0]-s.a[0]):s.mode==='vertical'?Math.abs(s.b[1]-s.a[1]):len(s)}
+function dimText(s){const p=clamp(Math.round(Number(s.prec??2)),0,4),v=dimValue(s)*uk();return `${v.toFixed(p)} ${ul()}`}
+function dimPts(s){
+  if(s.mode==='horizontal'){const y=(s.a[1]+s.b[1])/2+s.off;return[[s.a[0],y],[s.b[0],y]]}
+  if(s.mode==='vertical'){const x=(s.a[0]+s.b[0])/2+s.off;return[[x,s.a[1]],[x,s.b[1]]]}
+  const L=len(s)||1,nx=-(s.b[1]-s.a[1])/L*s.off,ny=(s.b[0]-s.a[0])/L*s.off;
+  return[[s.a[0]+nx,s.a[1]+ny],[s.b[0]+nx,s.b[1]+ny]]
+}
 
 function drawDim(s,on,prev,c){
-  const L=len(s);if(L<1e-6)return;
+  const L=dimValue(s);if(L<1e-6)return;
   const d=dimPts(s),A=w2s(...s.a),B=w2s(...s.b),p=w2s(...d[0]),q=w2s(...d[1]),col=s.col||layerOf(s).col||'#0d9488',lw=s.lw?Math.max(1,s.lw*.75):1.5;
   const el=Math.hypot(q[0]-p[0],q[1]-p[1])||1,e=[(q[0]-p[0])/el,(q[1]-p[1])/el];
   let n=[p[0]-A[0],p[1]-A[1]];const nl=Math.hypot(n[0],n[1]);n=nl>1?[n[0]/nl,n[1]/nl]:[-e[1],e[0]];
@@ -24,7 +31,7 @@ function drawDim(s,on,prev,c){
   ctx.fillStyle=col;if(s.la){ctx.beginPath();ctx.arc(A[0],A[1],3,0,7);ctx.fill()}if(s.lb){ctx.beginPath();ctx.arc(B[0],B[1],3,0,7);ctx.fill()}
   let ang=Math.atan2(e[1],e[0]);if(ang>Math.PI/2||ang<-Math.PI/2)ang+=Math.PI;
   ctx.save();ctx.translate((p[0]+q[0])/2,(p[1]+q[1])/2);ctx.rotate(ang);ctx.font=`600 12px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';
-  const txt=fl(L),tw=ctx.measureText(txt).width+10;ctx.globalAlpha=.9;ctx.fillStyle=c.bg;ctx.fillRect(-tw/2,-9,tw,18);ctx.globalAlpha=1;ctx.fillStyle=col;ctx.fillText(txt,0,0);ctx.restore();
+  const txt=dimText(s),tw=ctx.measureText(txt).width+10;ctx.globalAlpha=.9;ctx.fillStyle=c.bg;ctx.fillRect(-tw/2,-9,tw,18);ctx.globalAlpha=1;ctx.fillStyle=col;ctx.fillText(txt,0,0);ctx.restore();
   if(prev){const dx=s.b[0]-s.a[0],dy=s.b[1]-s.a[1];let an=Math.atan2(-dy,dx)*180/Math.PI;if(an<0)an+=360;tag(`${Math.round(an)}° · Δx ${fu(Math.abs(dx))} · Δy ${fu(Math.abs(dy))}`,B[0],B[1]+26,c)}
 }
 // أبعاد مرتبطة: البُعد يحمل la/lb = {id,i,m} (شكل معرّف بـ id، رقم الرأس أو الضلع، m=1 لمنتصف الضلع) ويتحدّث مع كل رسم
