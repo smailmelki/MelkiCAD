@@ -13,7 +13,7 @@ function opts(){
   const sh=$('#sheet'),s1=sel.length===1?shapes[sel[0]]:null,first=shapes[sel[0]],F=[];let done=0;
   const once=()=>{if(!done){snap();done=1}};
   if(s1){
-    if(!['line','wall','dim','free','polyline','door','win','text','north','furn'].includes(s1.t))F.push(['name','الاسم',s1.name||'']);
+    if(!['line','wall','dim','free','polyline','door','door2','win','text','north','furn'].includes(s1.t))F.push(['name','الاسم',s1.name||'']);
     if(s1.t==='text')F.push(['txt','النص',s1.txt||'']);
     if(s1.t==='dim'&&!['radius','diameter'].includes(s1.mode))F.push(['off',s1.mode==='angular'?'نصف قطر قوس الزاوية':'الإزاحة ('+uA()+')',fu(s1.off||.6)]);
     F.push(...dynSpec(s1));
@@ -24,7 +24,7 @@ function opts(){
     +`<label>السُّمك<input type="range" id="lw" min="1" max="10" step=".5"><b id="lwv"></b></label>`
     +(sel.some(i=>['rect','circle','ellipse','tri','polygon'].includes(shapes[i].t))?`<b>التعبئة</b><div class="chips" id="fk">${[['','بدون'],['solid','لون'],['tile','بلاط'],['wood','خشب'],['hatch','تهشير'],['dots','نقاط']].map(([v,l])=>`<button class="chip${(first.fk||'')===v?' on':''}" data-v="${v}">${l}</button>`).join('')}</div><div class="sws" id="fc">${COLS.map(c=>`<button class="sw${c?'':' auto'}${c===(first.fc||'')?' on':''}" data-c="${c}" style="${c?'background:'+c:''}" aria-label="لون التعبئة"></button>`).join('')}</div>`:'')
     +F.map(x=>`<label>${x[1]}<input data-k="${x[0]}" ${x[0]==='name'||x[0]==='txt'?'type="text"':'dir="ltr" inputmode="decimal"'}></label>`).join('')
-    +(s1&&s1.t==='door'?'<div class="row"><button class="fl" data-f="f">قلب الفتح</button><button class="fl" data-f="h">عكس المفصلة</button></div>':'')
+    +(s1&&s1.t==='door'?'<div class="row"><button class="fl" data-f="f">قلب الفتح</button><button class="fl" data-f="h">عكس المفصلة</button></div>':s1&&s1.t==='door2'?'<button class="fl" data-f="f">قلب اتجاه الفتح</button>':'')
     +(s1&&s1.t==='rect'?'<button class="fl" id="tw">إضافة جدران حولها</button>':'')+'<button id="ok">تم</button>';
   F.forEach(x=>sh.querySelector(`[data-k="${x[0]}"]`).value=x[2]);
   $('#elementLayer').onchange=e=>{once();const id=e.target.value;sel.forEach(i=>{shapes[i].ly=id});save();draw()};
@@ -82,6 +82,7 @@ function dynSpec(s){
     const a=p[n-2],z=p[n-1];return [['L','طول آخر مقطع',fu(Math.hypot(z[0]-a[0],z[1]-a[1]))],['ang','زاوية آخر مقطع °',f(dynAngle(z[0]-a[0],z[1]-a[1]))]];
   }
   if(s.t==='furn')return [['w','العرض',fu(s.w)],['h','الطول',fu(s.h)],['ang','زاوية الدوران °',f(deg(s.rot||0))]];
+  if(s.t==='door2')return [['w1','عرض الجهة الأولى',fu(s.w1)],['w2','عرض الجهة الثانية',fu(s.w2)],['ang','زاوية العنصر °',f(deg(s.a||0))]];
   if(s.t==='door'||s.t==='win')return [['w','العرض',fu(s.w)],['ang','زاوية العنصر °',f(deg(s.a||0))]];
   if(s.t==='text'||s.t==='north')return [['h','الحجم',fu(s.h)],['ang','زاوية الدوران °',f(deg(s.a||0))]];
   return [];
@@ -117,10 +118,13 @@ function applyGeometryValues(s,get){
     const p=s.p||[],n=p.length;if(n>=2){const a=p[n-2],z=p[n-1],oldL=Math.hypot(z[0]-a[0],z[1]-a[1])||1,L=nu(get('L')),ang=angle('ang'),q=ang===null?Math.atan2(-(z[1]-a[1]),z[0]-a[0]):ang,l=L>0?L:oldL;p[n-1]=[a[0]+l*Math.cos(q),a[1]-l*Math.sin(q)]}
   }else if(s.t==='furn'){
     const cx=s.x+s.w/2,cy=s.y+s.h/2,w=nu(get('w')),h=nu(get('h')),a=angle('ang');if(w>0){s.w=w;s.x=cx-w/2}if(h>0){s.h=h;s.y=cy-h/2}if(a!==null)s.rot=a;
+  }else if(s.t==='door2'){
+    const w1=nu(get('w1')),w2=nu(get('w2')),a=angle('ang');if(w1>0)s.w1=w1;if(w2>0)s.w2=w2;s.w=s.w1+s.w2;if(a!==null)s.a=a;
   }else if(s.t==='door'||s.t==='win'){
     const w=nu(get('w')),a=angle('ang');if(w>0)s.w=w;if(a!==null)s.a=a;
   }else if(s.t==='text'||s.t==='north'){
     const h=nu(get('h')),a=angle('ang');if(h>0)s.h=h;if(a!==null)s.a=a;
   }
 }
+
 
