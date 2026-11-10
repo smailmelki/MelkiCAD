@@ -19,6 +19,11 @@ function dimPts(s){
   return[[s.a[0]+nx,s.a[1]+ny],[s.b[0]+nx,s.b[1]+ny]];
 }
 
+function dimLabel(s,value){
+  const precision=clamp(Math.round(Number(s.prec??2)),0,4);
+  return `${(value*uk()).toFixed(precision)} ${ul()}`;
+}
+
 function drawDim(s,on,prev,c){
   const mode=s.mode||'linear',col=s.col||layerOf(s).col||'#0d9488';
   ctx.save();ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=s.lw?Math.max(1,s.lw*.75):1.5;ctx.lineCap='butt';ctx.setLineDash(prev?[6,4]:[]);
@@ -35,7 +40,7 @@ function drawDim(s,on,prev,c){
     const A=w2s(...s.a),B=w2s(...s.b),M=mode==='diameter'?[(A[0]+B[0])/2,(A[1]+B[1])/2]:[(A[0]+B[0])/2,(A[1]+B[1])/2];
     if(on){ctx.globalAlpha=.2;ctx.lineWidth+=8;ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.stroke();ctx.globalAlpha=1;ctx.lineWidth=s.lw||1.5}
     ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.stroke();
-    const value=len(s),txt=`${mode==='diameter'?'Ø':'R'} ${fl(value)}`;
+    const value=len(s),txt=`${mode==='diameter'?'Ø':'R'} ${dimLabel(s,value)}`;
     ctx.font=`600 12px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';const tw=ctx.measureText(txt).width+10;ctx.globalAlpha=.9;ctx.fillStyle=c.bg;ctx.fillRect(M[0]-tw/2,M[1]-9,tw,18);ctx.globalAlpha=1;ctx.fillStyle=col;ctx.fillText(txt,M[0],M[1]);
   }else{
     const L=len(s);if(L<1e-6){ctx.restore();return}
@@ -47,7 +52,7 @@ function drawDim(s,on,prev,c){
     let value=mode==='horizontal'?Math.abs(s.b[0]-s.a[0]):mode==='vertical'?Math.abs(s.b[1]-s.a[1]):L;
     let ang=Math.atan2(e[1],e[0]);if(ang>Math.PI/2||ang<-Math.PI/2)ang+=Math.PI;
     ctx.save();ctx.translate((p[0]+q[0])/2,(p[1]+q[1])/2);ctx.rotate(ang);ctx.font=`600 12px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';
-    const txt=fl(value),tw=ctx.measureText(txt).width+10;ctx.globalAlpha=.9;ctx.fillStyle=c.bg;ctx.fillRect(-tw/2,-9,tw,18);ctx.globalAlpha=1;ctx.fillStyle=col;ctx.fillText(txt,0,0);ctx.restore();
+    const txt=dimLabel(s,value),tw=ctx.measureText(txt).width+10;ctx.globalAlpha=.9;ctx.fillStyle=c.bg;ctx.fillRect(-tw/2,-9,tw,18);ctx.globalAlpha=1;ctx.fillStyle=col;ctx.fillText(txt,0,0);ctx.restore();
     if(prev){const dx=s.b[0]-s.a[0],dy=s.b[1]-s.a[1];let an=Math.atan2(-dy,dx)*180/Math.PI;if(an<0)an+=360;tag(`${Math.round(an)}° · Δx ${fu(Math.abs(dx))} · Δy ${fu(Math.abs(dy))}`,B[0],B[1]+26,c)}
   }
   ctx.restore();
