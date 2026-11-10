@@ -82,8 +82,9 @@ function dynSpec(s){
     const a=p[n-2],z=p[n-1];return [['L','طول آخر مقطع',fu(Math.hypot(z[0]-a[0],z[1]-a[1]))],['ang','زاوية آخر مقطع °',f(dynAngle(z[0]-a[0],z[1]-a[1]))]];
   }
   if(s.t==='furn')return [['w','العرض',fu(s.w)],['h','الطول',fu(s.h)],['ang','زاوية الدوران °',f(deg(s.rot||0))]];
-  if(s.t==='door2')return [['w1','عرض الجهة الأولى',fu(s.w1)],['w2','عرض الجهة الثانية',fu(s.w2)],['ang','زاوية العنصر °',f(deg(s.a||0))]];
-  if(s.t==='door'||s.t==='win')return [['w','العرض',fu(s.w)],['ang','زاوية العنصر °',f(deg(s.a||0))]];
+  if(s.t==='door2')return [['w1','عرض الجهة الأولى',fu(s.w1)],['w2','عرض الجهة الثانية',fu(s.w2)],['ang','زاوية العنصر °',f(deg(s.a||0))],['oa','زاوية الفتح °',f(s.oa===undefined?90:s.oa)]];
+  if(s.t==='door')return [['w','العرض',fu(s.w)],['ang','زاوية العنصر °',f(deg(s.a||0))],['oa','زاوية الفتح °',f(s.oa===undefined?90:s.oa)]];
+  if(s.t==='win')return [['w','العرض',fu(s.w)],['ang','زاوية العنصر °',f(deg(s.a||0))]];
   if(s.t==='text'||s.t==='north')return [['h','الحجم',fu(s.h)],['ang','زاوية الدوران °',f(deg(s.a||0))]];
   return [];
 }
@@ -119,9 +120,9 @@ function applyGeometryValues(s,get){
   }else if(s.t==='furn'){
     const cx=s.x+s.w/2,cy=s.y+s.h/2,w=nu(get('w')),h=nu(get('h')),a=angle('ang');if(w>0){s.w=w;s.x=cx-w/2}if(h>0){s.h=h;s.y=cy-h/2}if(a!==null)s.rot=a;
   }else if(s.t==='door2'){
-    const w1=nu(get('w1')),w2=nu(get('w2')),a=angle('ang');if(w1>0)s.w1=w1;if(w2>0)s.w2=w2;s.w=s.w1+s.w2;if(a!==null)s.a=a;
+    const w1=nu(get('w1')),w2=nu(get('w2')),a=angle('ang'),oa=v('oa');if(w1>0)s.w1=w1;if(w2>0)s.w2=w2;s.w=s.w1+s.w2;if(a!==null)s.a=a;if(Number.isFinite(oa))s.oa=clamp(oa,0,180);
   }else if(s.t==='door'||s.t==='win'){
-    const w=nu(get('w')),a=angle('ang');if(w>0)s.w=w;if(a!==null)s.a=a;
+    const w=nu(get('w')),a=angle('ang');if(w>0)s.w=w;if(a!==null)s.a=a;if(s.t==='door'){const oa=v('oa');if(Number.isFinite(oa))s.oa=clamp(oa,0,180)}
   }else if(s.t==='text'||s.t==='north'){
     const h=nu(get('h')),a=angle('ang');if(h>0)s.h=h;if(a!==null)s.a=a;
   }

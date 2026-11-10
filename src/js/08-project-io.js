@@ -76,7 +76,7 @@ function validateProjectData(d){
   for(const raw of d.shapes){
     if(!raw||typeof raw!=='object'||!types.has(raw.t))continue;
     const s=JSON.parse(JSON.stringify(raw));
-    const xy=['x','y','w','w1','w2','h','r','a','a0','a1','rot','th','off','f','lw'];
+    const xy=['x','y','w','w1','w2','h','r','a','a0','a1','rot','th','off','f','lw','oa'];
     for(const key of xy){if(key==='a'&&['line','wall','dim'].includes(s.t))continue;if(s[key]!==undefined&&!finite(s[key]))throw new Error('قيمة هندسية غير صالحة')}
     if(['line','wall','dim'].includes(s.t)){if(!point(s.a)||!point(s.b))continue}
     else if(['rect','furn'].includes(s.t)){if(!finite(s.x)||!finite(s.y)||!finite(s.w)||!finite(s.h)||s.w<=0||s.h<=0)continue}
@@ -84,7 +84,7 @@ function validateProjectData(d){
     else if(s.t==='ellipse'){if(!finite(s.x)||!finite(s.y)||!finite(s.rx)||!finite(s.ry)||s.rx<=0||s.ry<=0)continue;s.rot=finite(s.rot)?s.rot:0}
     else if(s.t==='arc'){if(!finite(s.x)||!finite(s.y)||!finite(s.r)||s.r<=0||!finite(s.a0)||!finite(s.a1)||s.a1<=s.a0||s.a1-s.a0>Math.PI*2)continue}
     else if(['tri','free','polyline','polygon'].includes(s.t)){if(!Array.isArray(s.p)||s.p.length<(s.t==='tri'?3:2)||s.p.length>10000||!s.p.every(point))continue;total+=s.p.length}
-    else if(['door','door2','win','text','north'].includes(s.t)){if(!finite(s.x)||!finite(s.y)||!finite(s.h)||s.h<=0)continue;if(['door','win'].includes(s.t)&&(!finite(s.w)||s.w<=0))continue;if(s.t==='door2'){if(!finite(s.w1)||!finite(s.w2)||s.w1<=0||s.w2<=0)continue;s.w=s.w1+s.w2;s.f=s.f===-1?-1:1}}
+    else if(['door','door2','win','text','north'].includes(s.t)){if(!finite(s.x)||!finite(s.y)||!finite(s.h)||s.h<=0)continue;if(['door','win'].includes(s.t)&&(!finite(s.w)||s.w<=0))continue;if(s.t==='door2'){if(!finite(s.w1)||!finite(s.w2)||s.w1<=0||s.w2<=0)continue;s.w=s.w1+s.w2;s.f=s.f===-1?-1:1}if(['door','door2'].includes(s.t))s.oa=finite(s.oa)?Math.max(0,Math.min(180,s.oa)):90}
     if(s.t==='text')s.txt=String(s.txt||'').slice(0,10000);
     if(s.t==='furn')s.k=String(s.k||'table').slice(0,40);
     if(s.ly!==undefined)s.ly=String(s.ly).slice(0,128);

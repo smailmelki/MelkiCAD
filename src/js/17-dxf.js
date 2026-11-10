@@ -52,20 +52,20 @@ function dxfBuild(){
   const insert=(s,name,x,y,angle)=>{ent('INSERT',s);w(2,name);P3(10,[x,y]);w(41,1);w(42,1);w(43,1);w(50,n(-angle*180/Math.PI))};
   const makeCompositeBlock=s=>{
     if(s.t==='door2'){
-      const name=['MKD_D2',enc(s.w1),enc(s.w2),enc(s.th||0),enc(s.f||1)].join('_');
+      const name=['MKD_D2',enc(s.w1),enc(s.w2),enc(s.th||0),enc(s.f||1),enc(s.oa===undefined?90:s.oa)].join('_');
       addBlock(name,({line:bl,poly:bp})=>{
-        const total=s.w1+s.w2,f=s.f||1,of=(s.th||0)/2*f;
-        const leaf=(hx,span,dir)=>{const H=[hx,of],E=[hx,of+f*span],C=[hx+dir*span,of],arc=[],a0=Math.atan2(E[1]-H[1],E[0]-H[0]),a1=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));bl(H,E);for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+span*Math.cos(a),H[1]+span*Math.sin(a)])}bp(arc)};
+        const total=s.w1+s.w2,f=s.f||1,of=(s.th||0)/2*f,reach=Math.PI/2-(Number.isFinite(s.oa)?Math.max(0,Math.min(180,s.oa)):90)*Math.PI/180;
+        const leaf=(hx,span,dir)=>{const H=[hx,of],E=[hx+dir*span*Math.cos(reach),of+f*span*Math.sin(reach)],C=[hx+dir*span,of],arc=[],a0=Math.atan2(E[1]-H[1],E[0]-H[0]),a1=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));bl(H,E);for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+span*Math.cos(a),H[1]+span*Math.sin(a)])}bp(arc)};
         leaf(-total/2,s.w1,1);leaf(total/2,s.w2,-1);
       });
       return name;
     }
     if(s.t==='door'||s.t==='win'){
-      const name=s.t==='door'?['MKD_D',enc(s.w),enc(s.th||0),enc(s.f||1),enc(s.h||1)].join('_'):['MKD_W',enc(s.w),enc(s.th||0)].join('_');
+      const name=s.t==='door'?['MKD_D',enc(s.w),enc(s.th||0),enc(s.f||1),enc(s.h||1),enc(s.oa===undefined?90:s.oa)].join('_'):['MKD_W',enc(s.w),enc(s.th||0)].join('_');
       addBlock(name,({line:bl,poly:bp})=>{
         const w2=s.w,th=s.th||0;
         if(s.t==='win'){const hf=Math.max(.05,th/2);[-hf,0,hf].forEach(v=>bl([-w2/2,v],[w2/2,v]));bl([-w2/2,-hf],[-w2/2,hf]);bl([w2/2,-hf],[w2/2,hf])}
-        else{const f=s.f||1,hu=-(s.h||1)*w2/2,of=th/2*f,H=[hu,of],E=[hu,of+f*w2],C=[-hu,of],arc=[],a0=Math.atan2(E[1]-H[1],E[0]-H[0]),a1=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));bl(H,E);for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+w2*Math.cos(a),H[1]+w2*Math.sin(a)])}bp(arc)}
+        else{const f=s.f||1,h=s.h===-1?-1:1,hu=-h*w2/2,of=th/2*f,reach=Math.PI/2-(Number.isFinite(s.oa)?Math.max(0,Math.min(180,s.oa)):90)*Math.PI/180,H=[hu,of],E=[hu+h*w2*Math.cos(reach),of+f*w2*Math.sin(reach)],C=[hu+h*w2,of],arc=[],a0=Math.atan2(E[1]-H[1],E[0]-H[0]),a1=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));bl(H,E);for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+w2*Math.cos(a),H[1]+w2*Math.sin(a)])}bp(arc)}
       });
       return name;
     }
@@ -252,8 +252,8 @@ function dxfShapes(E,k){
     const e=E[i];
     if(e.t==='INSERT'){
       const name=g(e,2,'');
-      if(name.startsWith('MKD_D2_')){const q=name.split('_');if(q.length===6){const w1=decNum(q[2]),w2=decNum(q[3]),th=decNum(q[4]),f=decNum(q[5]);if(w1>0&&w2>0)mk({t:'door2',x:X(N(e,10)),y:Y(N(e,20)),w:w1+w2,w1,w2,th,f,h:1,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
-      else if(name.startsWith('MKD_D_')){const q=name.split('_');if(q.length===6){const w=decNum(q[2]),th=decNum(q[3]),f=decNum(q[4]),h=decNum(q[5]);if(w>0)mk({t:'door',x:X(N(e,10)),y:Y(N(e,20)),w,th,f,h,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
+      if(name.startsWith('MKD_D2_')){const q=name.split('_');if(q.length===6||q.length===7){const w1=decNum(q[2]),w2=decNum(q[3]),th=decNum(q[4]),f=decNum(q[5]),oa=q.length===7?decNum(q[6]):90;if(w1>0&&w2>0&&Number.isFinite(oa))mk({t:'door2',x:X(N(e,10)),y:Y(N(e,20)),w:w1+w2,w1,w2,th,f,oa,h:1,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
+      else if(name.startsWith('MKD_D_')){const q=name.split('_');if(q.length===6||q.length===7){const w=decNum(q[2]),th=decNum(q[3]),f=decNum(q[4]),h=decNum(q[5]),oa=q.length===7?decNum(q[6]):90;if(w>0&&Number.isFinite(oa))mk({t:'door',x:X(N(e,10)),y:Y(N(e,20)),w,th,f,h,oa,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
       else if(name.startsWith('MKD_W_')){const q=name.split('_');if(q.length===4){const w=decNum(q[2]),th=decNum(q[3]);if(w>0)mk({t:'win',x:X(N(e,10)),y:Y(N(e,20)),w,th,h:1,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
       else if(name.startsWith('MKD_F_')){const q=name.split('_');if(q.length===5){const k=q[2],w=decNum(q[3]),h=decNum(q[4]),a=-N(e,50)*Math.PI/180;if(w>0&&h>0)mk({t:'furn',k,x:X(N(e,10))-w/2,y:Y(N(e,20))-h/2,w,h,rot:a},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
       else skip.INSERT=(skip.INSERT||0)+1;
