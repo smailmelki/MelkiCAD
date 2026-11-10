@@ -1,34 +1,39 @@
 /* ==================================================================
  * 05-persistence.js
- * التخزين المحلي (localStorage) وسجل التراجع/الإعادة. المتغيرات PJ و pid و LY و cl
+ * حالة المشاريع والحفظ (عبر طبقة التخزين 00-storage.js) وسجل التراجع/الإعادة. المتغيرات PJ و pid و LY و cl
  * تُعرَّف هنا وتُستخدم في المشاريع والطبقات.
  *
- * يعرّف: PJ، pid، LY، cl، K، uid، lsGet، lsSet، lsWarnAt، save، load، snapStr، snap، restore
+ * يعرّف: PJ، pid، LY، cl، uid، saveTimer، save، saveSoon، flushOnLeave، load، snapStr، snap، restore
  * يعتمد على: 01-core.js، 06-layers.js، 09-render.js، 15-properties.js،
  *            22-toolbar.js
  * ================================================================== */
 
 // المشاريع: idx = قائمة المشاريع والحالي، p:<id> = رسم كل مشروع، set = إعدادات الالتقاط واللون
-let PJ=[],pid='',LY=[],cl='';const K='plan3:',uid=()=>Math.random().toString(36).slice(2,9);
+let PJ=[],pid='',LY=[],cl='';const uid=()=>Math.random().toString(36).slice(2,9);
 
-const lsGet=k=>{try{return JSON.parse(localStorage.getItem(K+k))}catch(e){return null}};
+// القراءة والكتابة من kvGet/kvSet/kvDel (00-storage.js): متزامنة من جهة الكود، وتُكتب إلى IndexedDB في الخلفية.
 
-// فشل الكتابة (امتلاء التخزين أو منعه) يُنبَّه عنه مرة كل 15 ثانية بدل ابتلاعه بصمت
-let lsWarnAt=0;
-const lsSet=(k,v)=>{try{localStorage.setItem(K+k,JSON.stringify(v));return true}catch(e){if(Date.now()-lsWarnAt>15000){lsWarnAt=Date.now();toast('تعذّر الحفظ التلقائي: التخزين ممتلئ أو غير متاح. صدّر المشروع من الإعدادات الآن')}return false}};
-
-const save=()=>{lsSet('p:'+pid,{shapes,V,LY,cl});lsSet('set',{S,D,ST});lsSet('idx',{PJ,pid})};
+// save() فوري ويُلغي أي حفظ مؤجَّل؛ saveSoon() لتغييرات العرض فقط (تحريك/تكبير) فيجمعها في كتابة واحدة.
+// كل مسار يبدّل المشروع (openP/newP/delP) يستدعي save() أولًا فلا يُكتب مؤجَّل على مشروع آخر.
+let saveTimer=0;
+// قبل جاهزية التخزين (Store.init) لا نكتب شيئًا كي لا نطمس المشاريع المحفوظة بحالة فارغة.
+const save=()=>{clearTimeout(saveTimer);saveTimer=0;if(!Store.ready)return;kvSet('p:'+pid,{shapes,V,LY,cl});kvSet('set',{S,D,ST});kvSet('idx',{PJ,pid})};
+const saveSoon=()=>{clearTimeout(saveTimer);saveTimer=setTimeout(save,400)};
+// عند إخفاء الصفحة أو إغلاقها: احفظ أي تغيير عرض مؤجَّل ثم ابدأ كتابة IndexedDB فورًا
+const flushOnLeave=()=>{if(saveTimer)save();Store.flushNow()};
+window.addEventListener('pagehide',flushOnLeave);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushOnLeave()});
 
 const load=()=>{
-  const st=lsGet('set');if(st){S=Object.assign(S,st.S||{});D=st.D||D;ST=Object.assign(ST,st.ST||{});delete ST.cloud;delete ST.bk}
-  const ix=lsGet('idx');
+  const st=kvGet('set');if(st){S=Object.assign(S,st.S||{});D=st.D||D;ST=Object.assign(ST,st.ST||{});delete ST.cloud;delete ST.bk}
+  const ix=kvGet('idx');
   if(ix&&ix.PJ&&ix.PJ.length){PJ=ix.PJ;pid=PJ.some(p=>p.id===ix.pid)?ix.pid:PJ[0].id}
   else{
     let old=null;try{old=JSON.parse(localStorage.getItem('plan2')||localStorage.getItem('plan1'))}catch(e){}
     pid=uid();PJ=[{id:pid,name:'مشروعي'}];
-    if(old){lsSet('p:'+pid,{shapes:old.shapes||[],V:old.V||V});if(old.S)S=old.S;if(old.D)D=old.D}
+    if(old){kvSet('p:'+pid,{shapes:old.shapes||[],V:old.V||V});if(old.S)S=old.S;if(old.D)D=old.D}
   }
-  const d=lsGet('p:'+pid);setLY(d);if(d){shapes=d.shapes||[];V=d.V||V}
+  const d=kvGet('p:'+pid);setLY(d);if(d){shapes=d.shapes||[];V=d.V||V}
 };
 
 const snapStr=()=>JSON.stringify({s:shapes,LY,cl});const snap=()=>{hist.push(snapStr());if(hist.length>100)hist.shift()};
@@ -37,7 +42,7 @@ function restore(str){
   const d=JSON.parse(str);
   if(Array.isArray(d))shapes=d;else{shapes=d.s;LY=d.LY;cl=d.cl}
   if(!LY||!LY.length)setLY(null);else{if(!LY.some(l=>l.id===cl))cl=LY[0].id;const c0=LY.find(l=>l.id===cl);if(c0)c0.vis=1}
-  sel=[];hideDyn();$('#sheet').classList.remove('on');
+  sel=[];$('#sheet').classList.remove('on');
 }
 
 $('#undo').onclick=()=>{if(!hist.length)return;redo.push(snapStr());restore(hist.pop());save();upd();draw()};

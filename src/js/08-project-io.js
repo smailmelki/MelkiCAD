@@ -8,37 +8,33 @@
  * يعتمد على: 01-core.js، 07-projects.js، 17-dxf.js، 21-settings.js
  * ================================================================== */
 
-async function saveFile(name,text){
-  if(window.claude){
-    let d=null;try{d=await claude.use('downloads')}catch(e){}
-    if(d){try{await d.save({filename:name,data:text});return 'ok'}catch(e){return e&&e.code==='declined'?'no':'text'}}
-    return 'text';
-  }
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.download=name;document.body.append(a);a.click();a.remove();return 'ok';
-}
+// وصف نوع الملف في نافذة الحفظ (كان «ملف DXF» لكل الأنواع)
+const FILE_KINDS={'.json':'ملف مشروع JSON','.dxf':'ملف DXF','.png':'صورة PNG','.pdf':'ملف PDF','.csv':'جدول CSV'};
+
+// كل أنواع الحفظ تمرّ من saveBlob (وغلاف أندرويد يستبدل saveFile وsaveBlob معًا في android-bridge.js).
+// النتيجة: 'ok' نجح، 'no' ألغى المستخدم، 'err' فشل كل مسار.
+async function saveFile(name,text){return saveBlob(name,new Blob([text],{type:'application/json;charset=utf-8'}))}
 
 async function saveBlob(name,blob){
-  if(window.claude){
-    let d=null;try{d=await claude.use('downloads')}catch(e){}
-    if(d){try{await d.save({filename:name,data:blob});return 'ok'}catch(e){return e&&e.code==='declined'?'no':(e&&e.code==='rejected_extension'?'ext':'err')}}
-    return 'err';
-  }
-  // استخدم نافذة الحفظ الأصلية عندما يدعمها المتصفح، لتحديد الاسم والمجلد.
+  // 1) نافذة الحفظ الأصلية (متصفحات الحاسوب): يختار المستخدم الاسم والمجلد
   if(typeof window.showSaveFilePicker==='function'){
     try{
-      const ext=(name.match(/\.[^.]+$/)||['.dxf'])[0];
-      const mime=blob.type||'application/octet-stream';
-      const handle=await window.showSaveFilePicker({suggestedName:name,types:[{description:'ملف DXF',accept:{[mime]:[ext]}}]});
+      const ext=((name.match(/\.[^.]+$/)||[''])[0]).toLowerCase(),mime=(blob.type||'application/octet-stream').split(';')[0];
+      const opts={suggestedName:name};
+      if(ext)opts.types=[{description:FILE_KINDS[ext]||'ملف',accept:{[mime]:[ext]}}];
+      const handle=await window.showSaveFilePicker(opts);
       const stream=await handle.createWritable();await stream.write(blob);await stream.close();return 'ok';
-    }catch(e){if(e&&e.name==='AbortError')return 'no';return 'err'}
+    }catch(e){if(e&&e.name==='AbortError')return 'no'}  // أي خطأ آخر (مثل الإطار المعزول): جرّب المسار التالي
   }
-  // على الهواتف التي لا تدعم نافذة اختيار الملف، افتح قائمة المشاركة
-  // حتى يتمكن المستخدم من اختيار تطبيق الملفات أو وجهة الحفظ المتاحة.
+  // 2) قائمة المشاركة على الهواتف التي لا تدعم نافذة الحفظ
   try{
     const file=new File([blob],name,{type:blob.type||'application/octet-stream'});
     if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){await navigator.share({files:[file],title:name});return 'ok'}
   }catch(e){if(e&&e.name==='AbortError')return 'no'}
-  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);return 'ok';
+  // 3) تنزيل عادي
+  try{
+    const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);return 'ok';
+  }catch(e){return 'err'}
 }
 
 async function copyText(t){
@@ -67,7 +63,7 @@ async function exportFile(){
   const nm=(pname().replace(/[^\p{L}\p{N} _.()-]+/gu,'').trim()||'مشروع')+'.json';
   const data={app:'plan',schemaVersion:2,v:2,name:pname(),unit:ST.unit||'m',createdAt:new Date().toISOString(),LY,cl,shapes};
   const r=await saveFile(nm,JSON.stringify(data));
-  if(r==='ok')toast('تم حفظ ملف المشروع الكامل');else if(r==='text')io('export');
+  if(r==='ok')toast('تم حفظ ملف المشروع الكامل');else if(r==='err')io('export');  // تعذّر الحفظ كملف: اعرض النص ليُنسخ يدويًا
 }
 
 function validateProjectData(d){

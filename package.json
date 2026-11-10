@@ -1,0 +1,17 @@
+{
+  "name": "melkicad",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MelkiCAD — تطبيق عربي لرسم مخططات الغرف والمنازل (PWA + غلاف Android)",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "check": "node tools/check.js",
+    "test": "node tools/test.js",
+    "verify": "node tools/check.js && node tools/test.js",
+    "serve": "python3 -m http.server 8000 -d src",
+    "smoke": "node tools/smoke.js http://localhost:8000/"
+  }
+}

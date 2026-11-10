@@ -100,10 +100,24 @@ function dxfBuild(){
     else if(s.t==='tri')poly(s,s.p,true);
     else if(s.t==='free'&&s.p&&s.p.length>1)poly(s,s.p,false);
     else if(s.t==='dim'&&len(s)>1e-6){
-      const d=dimPts(s),p=d[0],q=d[1];line(s,s.a,p);line(s,s.b,q);line(s,p,q);
-      let ang=Math.atan2(q[1]-p[1],q[0]-p[0]);if(ang>Math.PI/2||ang<-Math.PI/2)ang+=Math.PI;
-      const str=f(len(s)),h=.15,ux=Math.cos(ang),uy=Math.sin(ang),tw=str.length*h*.55,m=[(p[0]+q[0])/2,(p[1]+q[1])/2];
-      txt(s,[m[0]-ux*tw/2+uy*h*.35,m[1]-uy*tw/2-ux*h*.35],h,ang,str);
+      const mode=s.mode||'linear',h=.15;
+      if(mode==='angular'){
+        line(s,s.c,s.a);line(s,s.c,s.b);
+        const a0=Math.atan2(s.a[1]-s.c[1],s.a[0]-s.c[0]),a1=Math.atan2(s.b[1]-s.c[1],s.b[0]-s.c[0]);
+        let delta=a1-a0;while(delta<=-Math.PI)delta+=Math.PI*2;while(delta>Math.PI)delta-=Math.PI*2;
+        const r=Math.max(.25,Math.abs(s.off||.6)),arcPts=Array.from({length:25},(_,i)=>{const a=a0+delta*i/24;return[s.c[0]+r*Math.cos(a),s.c[1]+r*Math.sin(a)]});
+        poly(s,arcPts,false);const mid=a0+delta/2,q=[s.c[0]+r*Math.cos(mid),s.c[1]+r*Math.sin(mid)];
+        txt(s,q,h,0,`${Math.abs(delta*180/Math.PI).toFixed(1).replace(/\\.0$/,'')}°`);
+      }else if(mode==='radius'||mode==='diameter'){
+        line(s,s.a,s.b);const m=[(s.a[0]+s.b[0])/2,(s.a[1]+s.b[1])/2],v=mode==='diameter'?len(s):len(s);
+        txt(s,m,h,0,`${mode==='diameter'?'Ø':'R'} ${f(v)}`);
+      }else{
+        const d=dimPts(s),p=d[0],q=d[1];line(s,s.a,p);line(s,s.b,q);line(s,p,q);
+        let ang=Math.atan2(q[1]-p[1],q[0]-p[0]);if(ang>Math.PI/2||ang<-Math.PI/2)ang+=Math.PI;
+        const value=mode==='horizontal'?Math.abs(s.b[0]-s.a[0]):mode==='vertical'?Math.abs(s.b[1]-s.a[1]):len(s);
+        const str=f(value),ux=Math.cos(ang),uy=Math.sin(ang),tw=str.length*h*.55,m=[(p[0]+q[0])/2,(p[1]+q[1])/2];
+        txt(s,[m[0]-ux*tw/2+uy*h*.35,m[1]-uy*tw/2-ux*h*.35],h,ang,str);
+      }
     }
     else if(s.t==='text'){const b=nb(s),a=s.a||0,u=[Math.cos(a),Math.sin(a)],dn=[-Math.sin(a),Math.cos(a)];txt(s,[s.x-u[0]*b.w/2+dn[0]*s.h*.35,s.y-u[1]*b.w/2+dn[1]*s.h*.35],s.h,a,s.txt||'')}
     else if(s.t==='north'){const r=s.h/2,a=s.a||0,c=[s.x,s.y],T=(u,v)=>rot(c,a,u,v);circ(s,c,r);poly(s,[T(0,-.9*r),T(.35*r,.6*r),T(0,.25*r),T(-.35*r,.6*r)],true);txt(s,T(-.15*r,-1.55*r),r*.5,a,'N')}
@@ -121,8 +135,7 @@ function dxfBuild(){
 async function exportDXF(){
   let txt;try{txt=dxfBuild()}catch(e){toast('تعذّر إنشاء ملف DXF');return}
   const nm=pname().replace(/[^\p{L}\p{N} _.()-]+/gu,'').trim()||'plan';
-  let r=await saveBlob(nm+'.dxf',new Blob([txt],{type:'application/dxf'}));
-  if(r==='ext'){r=await saveBlob(nm+'.dxf.txt',new Blob([txt],{type:'text/plain'}));if(r==='ok')toast('حُفظ باسم ‎.dxf.txt — غيّر الامتداد إلى dxf قبل فتحه في أوتوكاد');return}
+  const r=await saveBlob(nm+'.dxf',new Blob([txt],{type:'application/dxf'}));
   if(r==='ok')toast('تم حفظ ملف DXF');else if(r==='err')toast('الحفظ غير متاح هنا');
 }
 

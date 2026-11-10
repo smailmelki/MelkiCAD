@@ -14,27 +14,30 @@
 // أصغر مقياس عرض يسمح بوصول سلم 1-2-5 إلى 10,000 م، ويمنع التصغير بعده.
 const MIN_VIEW_SCALE=48/5001;
 
-function finishPolyline(){if(polyDraft&&polyDraft.p.length>=2&&valid(polyDraft)){snap();shapes.push(polyDraft);sel=[shapes.length-1];if(shapes.length===1&&W<=700)fitView([shapes[0]]);polyDraft=null;$('#polybar').style.display='none';save();upd();draw();showDyn(shapes[sel[0]])}else{polyDraft=null;$('#polybar').style.display='none';draw()}}
+function finishPolyline(){if(polyDraft&&polyDraft.p.length>=2&&valid(polyDraft)){snap();shapes.push(polyDraft);sel=[shapes.length-1];if(shapes.length===1&&W<=700)fitView([shapes[0]]);polyDraft=null;$('#polybar').style.display='none';save();upd();draw();}else{polyDraft=null;$('#polybar').style.display='none';draw()}}
 
 $('#polyfinish').onclick=finishPolyline;$('#polycancel').onclick=()=>{polyDraft=null;$('#polybar').style.display='none';draw()};
 
 cv.addEventListener('dblclick',e=>{if(tool==='polyline'&&polyDraft){e.preventDefault();finishPolyline()}});
 
 cv.addEventListener('pointerdown',e=>{
-  cv.setPointerCapture(e.pointerId);P.set(e.pointerId,pos(e));
+  try{cv.setPointerCapture(e.pointerId)}catch(_){}  // قد يرمي في بعض المتصفحات/أنواع المؤشر؛ الرسم يعمل بدونه
+  P.set(e.pointerId,pos(e));
   if(P.size===2){
     const[a,b]=[...P.values()],m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
     g={k:'pinch',d:Math.hypot(a[0]-b[0],a[1]-b[1])||1,s:V.s,w:s2w(...m)};cur=null;box=null;mk=null;draw();return;
   }
   if(P.size>2)return;
   const p=pos(e);cpos=s2w(...p);
+  if(tool==='dim'&&dimensionPick(p)){g=null;mk=null;return;}
+
   // عند تفعيل الموازاة، تكون النقرة الأولى لاختيار الخط المرجعي.
   if((S.parallel||S.perpendicular)&&!parallelRef&&(!drawFlow||(drawFlow.stage==='first'&&drawFlow.points.length===0))){
     parallelRef=pickParallelReference(s2w(...p));
     toast(parallelRef?(S.perpendicular?'تم تحديد الخط المرجعي للتعامد':'تم تحديد الخط المرجعي للموازاة'):'لم يتم العثور على خط قريب؛ المس خطًا أو ضلعًا واضحًا');
     g=null;draw();return;
   }
-  if(drawFlow){const guideTool=['line','wall','polyline','dim'].includes(drawFlow.tool),guideOrigin=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];addDrawPoint(cpos,false);if(drawFlow&&['second','next'].includes(drawFlow.stage)&&(S.parallel||S.perpendicular)&&parallelRef&&guideTool&&guideOrigin){parallelGuide={origin:guideOrigin.slice(),target:cpos.slice()}}draw();return}$('#sheet').classList.remove('on');$('#smenu').classList.remove('on');hideDyn();$$('.gm').forEach(m=>m.classList.remove('on'));
+  if(drawFlow){const guideTool=['line','wall','polyline','dim'].includes(drawFlow.tool),guideOrigin=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];addDrawPoint(cpos,false);if(drawFlow&&['second','next'].includes(drawFlow.stage)&&(S.parallel||S.perpendicular)&&parallelRef&&guideTool&&guideOrigin){parallelGuide={origin:guideOrigin.slice(),target:cpos.slice()}}draw();return}$('#sheet').classList.remove('on');$('#smenu').classList.remove('on');$$('.gm').forEach(m=>m.classList.remove('on'));
   if(tool==='polyline'){const q=snapPt(s2w(...p));if(!polyDraft){polyDraft={t:'polyline',p:[q],ly:cl,col:D.col||undefined,lw:D.lw};toast('أضف الرؤوس، ثم اضغط إنهاء POLYLINE')}else{let q=snapPt(s2w(...p));const first=polyDraft.p[0];if(polyDraft.p.length>=3&&Math.hypot((q[0]-first[0])*V.s,(q[1]-first[1])*V.s)<14){polyDraft.t='polygon';finishPolyline();return}const last=polyDraft.p[polyDraft.p.length-1];if(!mk&&(S.ortho||(S.parallel||S.perpendicular)&&parallelRef))q=constrain(last,q);if(Math.hypot(q[0]-last[0],q[1]-last[1])>.01)polyDraft.p.push(q)}$('#polybar').style.display='flex';mk=null;draw();return}
   if(tool==='pan')g={k:'pan',px:p[0],py:p[1],vx:V.x,vy:V.y};
   else if(tool==='select'){
@@ -53,19 +56,19 @@ cv.addEventListener('pointerdown',e=>{
     }else{sel=[];setMoveMode(false);g={k:'box',a:p}}
   }else if(tool==='furn'){
     const a=snapPt(s2w(...p)),d=SYM[furnKind],s={t:'furn',k:furnKind,x:a[0]-d.w/2,y:a[1]-d.h/2,w:d.w,h:d.h,rot:0,ly:cl,col:D.col||undefined};
-    snap();shapes.push(s);sel=[shapes.length-1];g={k:'move',w0:s2w(...p),o:[copy(s)],moved:1,numericPlace:1};mk=null;
+    snap();shapes.push(s);sel=[shapes.length-1];g={k:'move',w0:s2w(...p),o:[copy(s)],moved:1};mk=null;
   }else if(tool==='trim'||tool==='extend'){
     (tool==='trim'?trimAt:extendAt)(p);g=null;mk=null;upd();draw();return;
   }else if(tool==='text'||tool==='north'){
     const a=snapPt(s2w(...p)),s={t:tool,x:a[0],y:a[1],h:tool==='text'?.35:1,a:0,ly:cl,col:D.col||undefined};
     if(tool==='text')s.txt='نص';
     snap();shapes.push(s);sel=[shapes.length-1];g=null;mk=null;upd();draw();
-    showDyn(s);if(tool==='text'){opts();setTimeout(()=>{const t=$('#sheet [data-k="txt"]');if(t){t.focus();t.select()}},60)}
+    if(tool==='text'){opts();setTimeout(()=>{const t=$('#sheet [data-k="txt"]');if(t){t.focus();t.select()}},60)}
     return;
   }else if(tool==='door'||tool==='win'){
     const w=wallAt(s2w(...p),28/V.s);sel=[];
     if(w){const s={t:tool,x:w.q[0],y:w.q[1],a:w.a,th:w.th,w:tool==='door'?.9:1.2,f:1,h:1,ly:cl,col:D.col||undefined,lw:D.lw};
-      snap();shapes.push(s);sel=[shapes.length-1];g={k:'move',w0:s2w(...p),o:[copy(s)],moved:1,numericPlace:1}}
+      snap();shapes.push(s);sel=[shapes.length-1];g={k:'move',w0:s2w(...p),o:[copy(s)],moved:1}}
   }else{
     sel=[];const a=tool==='free'?s2w(...p):snapPt(s2w(...p));if(tool==='free')mk=null;
     g={k:'draw',a,la:mk&&mk.ref,before:snapStr()};if(tool==='free')cur={t:'free',p:[a],ly:cl,col:D.col||undefined,lw:D.lw};
@@ -80,10 +83,10 @@ cv.addEventListener('pointermove',e=>{
     cpos=s2w(...p);mk=tool==='select'||tool==='pan'||tool==='trim'||tool==='extend'?null:osnap(cpos);
     if(drawFlow&&['second','next'].includes(drawFlow.stage)&&(S.parallel||S.perpendicular)&&parallelRef&&['line','wall','polyline','dim'].includes(drawFlow.tool)){const anchor=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];if(anchor)parallelGuide={origin:anchor.slice(),target:cpos.slice()}}
     else if(!drawFlow)parallelGuide=null;
-    draw();return;
+    redraw();return;
   }
   P.set(e.pointerId,p);cpos=s2w(...p);
-  if(!g){if(e.pointerType==='mouse'){mk=tool==='select'||tool==='pan'||tool==='trim'||tool==='extend'?null:osnap(cpos);draw()}return;}
+  if(!g){if(e.pointerType==='mouse'){mk=tool==='select'||tool==='pan'||tool==='trim'||tool==='extend'?null:osnap(cpos);redraw()}return;}
   if(g.k==='pinch'){
     const[a,b]=[...P.values()];if(!b)return;
     const d=Math.hypot(a[0]-b[0],a[1]-b[1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
@@ -93,7 +96,7 @@ cv.addEventListener('pointermove',e=>{
     const w=s2w(...p),dx=grid(w[0]-g.w0[0]),dy=grid(w[1]-g.w0[1]);
     if(!g.moved&&(dx||dy)){g.moved=1;hist.push(g.before)}
     sel.forEach((j,n)=>mv(shapes[j],g.o[n],dx,dy));
-    sel.forEach((j,n)=>{const s=shapes[j],o=g.o[n];if(s.t==='dim'&&(s.la||s.lb)){s.a=o.a;s.b=o.b;const L=len(o)||1;s.off=o.off+(dx*(-(o.b[1]-o.a[1]))+dy*(o.b[0]-o.a[0]))/L}});
+    sel.forEach((j,n)=>{const s=shapes[j],o=g.o[n];if(s.t==='dim'&&s.circleId)delete s.circleId;if(s.t==='dim'&&(s.la||s.lb)){s.a=o.a;s.b=o.b;const L=len(o)||1;s.off=o.off+(dx*(-(o.b[1]-o.a[1]))+dy*(o.b[0]-o.a[0]))/L}});
     sel.forEach(j=>{const s=shapes[j];if(s.t==='door'||s.t==='win'){const q=wallAt([s.x,s.y],28/V.s);if(q){s.x=q.q[0];s.y=q.q[1];s.a=q.a;s.th=q.th}}});
   }else if(g.k==='rot'){
     const w=s2w(...p);let d=Math.atan2(w[1]-g.c[1],w[0]-g.c[0])-g.a0;if(S.grid)d=Math.round(d/(Math.PI/12))*Math.PI/12;
@@ -102,29 +105,38 @@ cv.addEventListener('pointermove',e=>{
   }else if(g.k==='grip'){
     const s=shapes[g.i],o=g.o,id=g.gr.id,keep=shapes.splice(g.i,1)[0],q=snapPt(s2w(...p));shapes.splice(g.i,0,keep);
     if(!g.moved){g.moved=1;hist.push(g.before)}
-    if(s.t==='dim'){if(id==='o'){const L=len(s)||1,nx=-(s.b[1]-s.a[1])/L,ny=(s.b[0]-s.a[0])/L;s.off=(q[0]-s.a[0])*nx+(q[1]-s.a[1])*ny}else{s[id]=q;const L2=mk&&mk.ref&&mk.ref.s!==s?{id:sid(mk.ref.s),i:mk.ref.i,m:mk.ref.m||0}:undefined;if(id==='a')s.la=L2;else s.lb=L2}}else if(s.t==='line'||s.t==='wall'){const oth=s[id==='a'?'b':'a'];s[id]=mk?q:constrain(oth,q)}
+    if(s.t==='dim'){
+      if(id==='o'){if(s.mode==='angular')s.off=Math.max(.1,Math.hypot(q[0]-s.c[0],q[1]-s.c[1]));else{const L=len(s)||1,nx=-(s.b[1]-s.a[1])/L,ny=(s.b[0]-s.a[0])/L;s.off=(q[0]-s.a[0])*nx+(q[1]-s.a[1])*ny}}
+      else if(id==='c'){s.c=q}
+      else{s[id]=q;if(s.circleId)delete s.circleId;const L2=mk&&mk.ref&&mk.ref.s!==s?{id:sid(mk.ref.s),i:mk.ref.i,m:mk.ref.m||0}:undefined;if(id==='a')s.la=L2;else if(id==='b')s.lb=L2}
+    }else if(s.t==='line'||s.t==='wall'){const oth=s[id==='a'?'b':'a'];s[id]=mk?q:constrain(oth,q)}
     else if(s.t==='tri')s.p=o.p.map((r,i)=>i===id?q:r);
     else if(s.t==='circle')s.r=Math.max(.05,Math.hypot(q[0]-s.x,q[1]-s.y));
     else if(s.t==='rect'||s.t==='furn'){const opp=rc(o)[(id+2)%4],rt=-(o.rot||0),c=Math.cos(rt),n=Math.sin(rt),dx=q[0]-opp[0],dy=q[1]-opp[1],w=Math.max(.05,Math.abs(dx*c-dy*n)),h=Math.max(.05,Math.abs(dx*n+dy*c));s.w=w;s.h=h;s.x=(q[0]+opp[0])/2-w/2;s.y=(q[1]+opp[1])/2-h/2}
   }else if(g.k==='box'){if(Math.hypot(p[0]-g.a[0],p[1]-g.a[1])>6){box={x0:g.a[0],y0:g.a[1],x1:p[0],y1:p[1]};sel=boxSel()}}
   else if(g.k==='draw'){
-    let b=tool==='free'?s2w(...p):snapPt(s2w(...p));if(!mk&&(tool==='line'||tool==='wall'||tool==='dim'))b=constrain(g.a,b);
+    let b=tool==='free'?s2w(...p):snapPt(s2w(...p));if(tool==='dim'&&dimMode==='horizontal')b[1]=g.a[1];if(tool==='dim'&&dimMode==='vertical')b[0]=g.a[0];if(!mk&&(tool==='line'||tool==='wall'||tool==='dim'))b=constrain(g.a,b);
     if(tool==='free'){if(cur){const l=cur.p[cur.p.length-1];if(Math.hypot(b[0]-l[0],b[1]-l[1])*V.s>=4)cur.p.push(b)}}
     else{if(!mk&&(tool==='line'||tool==='wall'||tool==='dim')&&(S.ortho||(S.parallel||S.perpendicular)&&parallelRef))b=constrain(g.a,b);parallelGuide=(S.parallel||S.perpendicular)&&parallelRef&&['line','wall','dim'].includes(tool)?{origin:g.a.slice(),target:b.slice()}:null;cur=build(g.a,b);if(tool==='dim'){cur.la=g.la||undefined;cur.lb=(mk&&mk.ref)||undefined}}
   }
-  draw();
+  redraw();
 });
 
 function endPtr(e){
   if(!P.has(e.pointerId))return;P.delete(e.pointerId);
+  const gk=g&&g.k;
+  // dirty = تغيّرت بيانات المشروع (يُحفظ فورًا)، viewMoved = تغيّر العرض فقط (يُحفظ مؤجَّلًا)، وغير ذلك لا يُكتب شيء
+  let dirty=!!g&&['move','rot','grip'].includes(gk)&&!!g.moved;
+  const viewMoved=!!g&&(gk==='pan'?(V.x!==g.vx||V.y!==g.vy):gk==='pinch');
   if(g&&e.type==='pointerup'){
-    if(g.k==='draw'&&cur&&valid(cur)){hist.push(g.before);if(cur.t==='dim')linkDim(cur);shapes.push(cur);sel=[shapes.length-1];if(shapes.length===1&&W<=700)fitView([cur]);showDyn(cur)}
-    else if(g.k==='move'&&g.numericPlace&&sel.length){showDyn(shapes[sel[0]])}
+    if(g.k==='draw'&&cur&&valid(cur)){dirty=true;hist.push(g.before);if(cur.t==='dim')linkDim(cur);shapes.push(cur);sel=[shapes.length-1];if(shapes.length===1&&W<=700)fitView([cur]);}
     else if(g.k==='box'&&box){
       sel=boxSel();
     }
   }
-  cur=null;g=null;box=null;mk=null;if(!drawFlow)parallelGuide=null;save();upd();draw();
+  cur=null;g=null;box=null;mk=null;if(!drawFlow)parallelGuide=null;
+  if(dirty)save();else if(viewMoved)saveSoon();
+  upd();draw();
 }
 
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
@@ -132,5 +144,5 @@ cv.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&!P.has(e.poin
 
 cv.addEventListener('wheel',e=>{
   e.preventDefault();const p=pos(e),w=s2w(...p);
-  V.s=clamp(V.s*(e.deltaY<0?1.1:.9),MIN_VIEW_SCALE,1200);V.x=p[0]-w[0]*V.s;V.y=p[1]-w[1]*V.s;draw();
+  V.s=clamp(V.s*(e.deltaY<0?1.1:.9),MIN_VIEW_SCALE,1200);V.x=p[0]-w[0]*V.s;V.y=p[1]-w[1]*V.s;redraw();saveSoon();
 },{passive:false});

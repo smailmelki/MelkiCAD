@@ -1,9 +1,8 @@
 /* ==================================================================
  * 15-properties.js
- * خصائص العنصر: لوحة الخيارات (اللون، السمك، الطبقة، التعبئة، القياسات) وشريط
- * الإدخال الرقمي الشامل dyn.
+ * خصائص العنصر: لوحة الخيارات (اللون، السمك، الطبقة، التعبئة، القياسات).
  *
- * يعرّف: opts، dynS، dynFields، hideDyn، dynAngle، dynSpec، showDyn، applyDyn
+ * يعرّف: opts، dynAngle، dynSpec، applyGeometryValues
  * يعتمد على: 01-core.js، 02-geometry.js، 05-persistence.js، 09-render.js،
  *            22-toolbar.js
  * ================================================================== */
@@ -16,7 +15,7 @@ function opts(){
   if(s1){
     if(!['line','wall','dim','free','polyline','door','win','text','north','furn'].includes(s1.t))F.push(['name','الاسم',s1.name||'']);
     if(s1.t==='text')F.push(['txt','النص',s1.txt||'']);
-    if(s1.t==='dim')F.push(['off','الإزاحة ('+uA()+')',fu(s1.off)]);
+    if(s1.t==='dim'&&!['radius','diameter'].includes(s1.mode))F.push(['off',s1.mode==='angular'?'نصف قطر قوس الزاوية':'الإزاحة ('+uA()+')',fu(s1.off||.6)]);
     F.push(...dynSpec(s1));
 
   }
@@ -62,17 +61,14 @@ function opts(){
 }
 
 $('#op').onclick=opts;
-// الإدخال الرقمي الشامل: قيم هندسية مناسبة لكل نوع من عناصر الرسم
-let dynS=null,dynFields=[];
-
-function hideDyn(){dynS=null;dynFields=[];const panel=$('#dyn'),host=$('#dynfields');if(panel)panel.classList.remove('on');if(host)host.innerHTML=''}
-
+// القيم الهندسية القابلة للتعديل لكل نوع من عناصر الرسم (تُعرض في لوحة الخصائص)
 function dynAngle(dx,dy){let a=deg(Math.atan2(-dy,dx));return (a+360)%360}
 
 function dynSpec(s){
   const b=bx(s),cx=(b.x+b.X)/2,cy=(b.y+b.Y)/2;
   if(s.t==='rect')return [['w','العرض',fu(s.w)],['h','الارتفاع',fu(s.h)],['ang','الزاوية °',f(deg(s.rot||0))]];
   if(s.t==='circle')return [['r','نصف القطر',fu(s.r)]];
+  if(s.t==='dim'&&s.mode==='angular')return [];
   if(s.t==='line'||s.t==='wall'||s.t==='dim')return [['L','الطول',fu(len(s))],['ang','الزاوية °',f(dynAngle(s.b[0]-s.a[0],s.b[1]-s.a[1]))],...(s.t==='wall'?[['th','السماكة',fu(s.th)]]:[])];
   if(s.t==='arc')return [['r','نصف القطر',fu(s.r)],['a0','زاوية البداية °',f(deg(s.a0||0))],['a1','زاوية النهاية °',f(deg(s.a1||0))]];
   if(s.t==='ellipse')return [['rx','نصف المحور X',fu(s.rx)],['ry','نصف المحور Y',fu(s.ry)],['ang','زاوية الدوران °',f(deg(s.rot||0))]];
@@ -91,9 +87,6 @@ function dynSpec(s){
   return [];
 }
 
-function showDyn(s){hideDyn()}
-
-
 function applyGeometryValues(s,get){
   const v=k=>{const n=num(get(k));return Number.isFinite(n)?n:NaN};
   const old=copy(s);
@@ -102,7 +95,10 @@ function applyGeometryValues(s,get){
     const w=nu(get('w')),h=nu(get('h')),a=angle('ang');
     if(w>0)s.w=w;if(h>0)s.h=h;if(a!==null)s.rot=a;
   }else if(s.t==='circle'){const r=nu(get('r'));if(r>0)s.r=r}
-  else if(s.t==='line'||s.t==='wall'||s.t==='dim'){
+  else if(s.t==='dim'&&(s.mode==='radius'||s.mode==='diameter')){
+    const L=nu(get('L')),a=angle('ang'),oldL=len(s)||1,l=L>0?L:oldL,ang=a===null?Math.atan2(-(s.b[1]-s.a[1]),s.b[0]-s.a[0]):a;
+    if(L>0||a!==null){if(s.mode==='radius'){s.b=[s.a[0]+l*Math.cos(ang),s.a[1]-l*Math.sin(ang)]}else{const cx=(s.a[0]+s.b[0])/2,cy=(s.a[1]+s.b[1])/2,dx=Math.cos(ang)*l/2,dy=-Math.sin(ang)*l/2;s.a=[cx-dx,cy-dy];s.b=[cx+dx,cy+dy]}delete s.circleId}
+  }else if(s.t==='line'||s.t==='wall'||s.t==='dim'){
     const L=nu(get('L')),a=angle('ang'),d=len(s)||1;
     if(L>0||a!==null){const q=a===null?Math.atan2(-(s.b[1]-s.a[1]),s.b[0]-s.a[0]):a,l=L>0?L:d;s.b=[s.a[0]+l*Math.cos(q),s.a[1]-l*Math.sin(q)];if(s.t==='dim'){s.lb=undefined}}
     if(s.t==='wall'){const th=nu(get('th'));if(th>0)s.th=th}
