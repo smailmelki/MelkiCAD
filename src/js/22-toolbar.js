@@ -14,7 +14,7 @@ function upd(){
   $('#tot').textContent=`المساحة الكلية ${f(shapes.reduce((a,s)=>a+(shown(s)&&!s.ex?area(s):0),0))} م² ▾`;
   $('#undo').disabled=!hist.length;$('#redo').disabled=!redo.length;$('#ctx').style.display=tool==='select'||n?'flex':'none';
   $('#op').disabled=$('#cp').disabled=$('#del').disabled=$('#rt').disabled=$('#scale').disabled=!n;$('#ps').disabled=!clip.length;
-  $$('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tool));
+  $$$('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tool));
   $$('[data-fk]').forEach(b=>b.classList.toggle('on',tool==='furn'&&b.dataset.fk===furnKind));
   $$('[data-dm]').forEach(b=>b.classList.toggle('on',tool==='dim'&&b.dataset.dm===dimMode));
   $$('[data-g]').forEach(b=>{const m=$('#'+b.dataset.g),it=m.querySelector(tool==='furn'?`[data-fk="${furnKind}"]`:tool==='dim'?`[data-dm="${dimMode}"]`:`[data-t="${tool}"]`);b.classList.toggle('on',!!it);b.classList.toggle('has-active',!!it);b.title=it?`الأداة الحالية: ${it.textContent.trim()}`:b.dataset.groupTitle||b.textContent.trim()});
@@ -22,7 +22,7 @@ function upd(){
   $('#snap').classList.toggle('on',Object.values(S).some(Boolean));
 }
 // ---- الأزرار ----
-$('[data-t]').forEach(b=>b.onclick=()=>{if(polyDraft)finishPolyline();closeDrawFlow();tool=b.dataset.t;if(tool==='dim'){dimMode='linear';dimDraft=[]}sel=[];if(tool==='trim')toast('المس الجزء المراد قصه من خط أو جدار');if(tool==='extend')toast('المس قرب طرف الخط أو الجدار لتمديده');$('#sheet').classList.remove('on');$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();startDrawFlow(tool)});
+$('[data-t]').forEach(b=>b.onclick=()=>{if(polyDraft)finishPolyline();closeDrawFlow();tool=b.dataset.t;if(tool==='dim'){dimMode='linear';dimDraft=[]}sel=[];if(tool==='trim')toast('المس الجزء المراد قصه من خط أو جدار');if(tool==='extend')toast('المس قرب طرف الخط أو الجدار لتمديده');$('#sheet').classList.remove('on');$$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();startDrawFlow(tool)});
 
 $('#snap').onclick=()=>{$$('.gm').forEach(m=>m.classList.remove('on'));$('#smenu').classList.toggle('on')};
 
