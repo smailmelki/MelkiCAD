@@ -9,6 +9,7 @@
  * ================================================================== */
 
 // ---- أدوات التعديل المتقدمة: إزاحة، انعكاس، نسخ متكرر، قص، تمديد ----
+let editAction=null;
 function opSheet(title,fields,apply,extra){
   const sh=$('#sheet');
   sh.innerHTML=`<b>${title}</b>`+fields.map(x=>`<label>${x[1]}<input data-k="${x[0]}" dir="ltr" inputmode="decimal"></label>`).join('')+(extra||'')+'<div class="row"><button class="fl" id="opx">إلغاء</button><button class="fl" id="opk">تطبيق</button></div>';
@@ -53,7 +54,8 @@ function mirrorSel(m){
 
 function opAction(a){
   $$('.gm').forEach(m=>m.classList.remove('on'));
-  if(!sel.length){tool='select';upd();toast('حدّد أشكالًا أولًا ثم اختر الأداة');return}
+  if(!sel.length){tool='select';editAction=null;upd();toast('حدّد أشكالًا أولًا ثم اختر الأداة');return}
+  editAction=a;upd();
   if(a==='offset'){
     const ts=sel.map(i=>shapes[i]).filter(s=>['line','wall','rect','circle','tri'].includes(s.t));
     if(!ts.length){toast('الإزاحة للخطوط والجدران والغرف والدوائر والمثلثات');return}
@@ -107,3 +109,4 @@ function extendAt(p){
   if(!best){toast('لا يوجد ما يمدّ إليه');return}
   snap();s[end]=best;save();
 }
+
