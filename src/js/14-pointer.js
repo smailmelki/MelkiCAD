@@ -29,6 +29,8 @@ cv.addEventListener('pointerdown',e=>{
   }
   if(P.size>2)return;
   const p=pos(e);cpos=s2w(...p);
+  if(tool==='dim'&&dimensionPick(p)){g=null;mk=null;return;}
+
   // عند تفعيل الموازاة، تكون النقرة الأولى لاختيار الخط المرجعي.
   if((S.parallel||S.perpendicular)&&!parallelRef&&(!drawFlow||(drawFlow.stage==='first'&&drawFlow.points.length===0))){
     parallelRef=pickParallelReference(s2w(...p));
@@ -109,7 +111,7 @@ cv.addEventListener('pointermove',e=>{
     else if(s.t==='rect'||s.t==='furn'){const opp=rc(o)[(id+2)%4],rt=-(o.rot||0),c=Math.cos(rt),n=Math.sin(rt),dx=q[0]-opp[0],dy=q[1]-opp[1],w=Math.max(.05,Math.abs(dx*c-dy*n)),h=Math.max(.05,Math.abs(dx*n+dy*c));s.w=w;s.h=h;s.x=(q[0]+opp[0])/2-w/2;s.y=(q[1]+opp[1])/2-h/2}
   }else if(g.k==='box'){if(Math.hypot(p[0]-g.a[0],p[1]-g.a[1])>6){box={x0:g.a[0],y0:g.a[1],x1:p[0],y1:p[1]};sel=boxSel()}}
   else if(g.k==='draw'){
-    let b=tool==='free'?s2w(...p):snapPt(s2w(...p));if(!mk&&(tool==='line'||tool==='wall'||tool==='dim'))b=constrain(g.a,b);
+    let b=tool==='free'?s2w(...p):snapPt(s2w(...p));if(tool==='dim'&&dimMode==='horizontal')b[1]=g.a[1];if(tool==='dim'&&dimMode==='vertical')b[0]=g.a[0];if(!mk&&(tool==='line'||tool==='wall'||tool==='dim'))b=constrain(g.a,b);
     if(tool==='free'){if(cur){const l=cur.p[cur.p.length-1];if(Math.hypot(b[0]-l[0],b[1]-l[1])*V.s>=4)cur.p.push(b)}}
     else{if(!mk&&(tool==='line'||tool==='wall'||tool==='dim')&&(S.ortho||(S.parallel||S.perpendicular)&&parallelRef))b=constrain(g.a,b);parallelGuide=(S.parallel||S.perpendicular)&&parallelRef&&['line','wall','dim'].includes(tool)?{origin:g.a.slice(),target:b.slice()}:null;cur=build(g.a,b);if(tool==='dim'){cur.la=g.la||undefined;cur.lb=(mk&&mk.ref)||undefined}}
   }
