@@ -7,6 +7,8 @@
  * ================================================================== */
 
 // باب (door)، باب مزدوج (door2: w1,w2 عرض كل ضلفة)، ونافذة (win).
+function doorLeafVector(span,dir,f,oa){const a=(Number.isFinite(oa)?clamp(oa,0,180):90)*Math.PI/180;return [dir*span*Math.cos(a),f*span*Math.sin(a)]}
+
 function drawOpen(s,on,c){
   const q=w2s(s.x,s.y),w=(s.t==='door2'?s.w1+s.w2:s.w)*V.s,co=Math.cos(s.a),si=Math.sin(s.a),col=s.col||layerOf(s).col||c.ln,lw=s.lw||2;
   const T=(u,v)=>[q[0]+co*u-si*v,q[1]+si*u+co*v],L=(a,b)=>{ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1])};
@@ -16,11 +18,11 @@ function drawOpen(s,on,c){
   ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();
   if(s.t==='win'){ctx.lineWidth=Math.max(1.2,lw*.75);const hf=Math.max(4,(s.th||0)*V.s/2);[-hf,0,hf].forEach(v=>L(T(-w/2,v),T(w/2,v)));L(T(-w/2,-hf),T(-w/2,hf));L(T(w/2,-hf),T(w/2,hf));ctx.stroke()}
   else if(s.t==='door2'){
-    const f=s.f||1,of=(s.th||0)*V.s/2*f,leaf=(hx,span,dir)=>{const z=span*V.s,H=T(hx*V.s,of),E=T(hx*V.s,of+f*z),C=T((hx+dir*span)*V.s,of);ctx.beginPath();L(H,E);ctx.stroke();const aE=Math.atan2(E[1]-H[1],E[0]-H[0]),aC=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=aC-aE;d=Math.atan2(Math.sin(d),Math.cos(d));ctx.beginPath();ctx.lineWidth=Math.max(1,lw*.6);ctx.globalAlpha=.7;ctx.arc(H[0],H[1],z,aE,aE+d,d<0);ctx.stroke();ctx.globalAlpha=1;ctx.lineWidth=lw};
+    const f=s.f||1,of=(s.th||0)*V.s/2*f,leaf=(hx,span,dir)=>{const z=span*V.s,H=T(hx*V.s,of),v=doorLeafVector(span,dir,f,s.oa),E=T((hx+v[0])*V.s,of+v[1]*V.s),C=T((hx+dir*span)*V.s,of);ctx.beginPath();L(H,E);ctx.stroke();const aE=Math.atan2(E[1]-H[1],E[0]-H[0]),aC=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=aC-aE;d=Math.atan2(Math.sin(d),Math.cos(d));ctx.beginPath();ctx.lineWidth=Math.max(1,lw*.6);ctx.globalAlpha=.7;ctx.arc(H[0],H[1],z,aE,aE+d,d<0);ctx.stroke();ctx.globalAlpha=1;ctx.lineWidth=lw};
     leaf(-s.w1/2-s.w2/2,s.w1,1);leaf((s.w1+s.w2)/2,s.w2,-1);
   }
   else{
-    const hu=-s.h*w/2,of=(s.th||0)*V.s/2*s.f,H=T(hu,of),E=T(hu,of+s.f*w),C=T(-hu,of);L(H,E);ctx.stroke();
+    const hinge=s.h===-1?-1:1,hu=-hinge*w/2,of=(s.th||0)*V.s/2*(s.f||1),v=doorLeafVector(w,hinge,s.f||1,s.oa),H=T(hu,of),E=T(hu+v[0],of+v[1]),C=T(hu+hinge*w,of);L(H,E);ctx.stroke();
     const aE=Math.atan2(E[1]-H[1],E[0]-H[0]),aC=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=aC-aE;d=Math.atan2(Math.sin(d),Math.cos(d));
     ctx.beginPath();ctx.lineWidth=Math.max(1,lw*.6);ctx.globalAlpha=.7;ctx.arc(H[0],H[1],w,aE,aE+d,d<0);ctx.stroke();ctx.globalAlpha=1;
   }
