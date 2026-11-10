@@ -14,7 +14,7 @@ function selC(){const b=sel.map(i=>bx(shapes[i]));return[(Math.min(...b.map(q=>q
 function grips(){
   if(moveArmed||tool!=='select'||!sel.length||(g&&g.k==='box'))return[];
   const r=[],s=sel.length===1?shapes[sel[0]]:null,b=sel.map(i=>bx(shapes[i])),x0=Math.min(...b.map(q=>q.x)),x1=Math.max(...b.map(q=>q.X)),y0=Math.min(...b.map(q=>q.y)),top=w2s((x0+x1)/2,y0);
-  if(!sel.every(i=>shapes[i].t==='door'||shapes[i].t==='win'))r.push({id:'rot',sp:[top[0],top[1]-34],top});
+  if(!sel.every(i=>['door','door2','win'].includes(shapes[i].t)))r.push({id:'rot',sp:[top[0],top[1]-34],top});
   const add=(id,p)=>r.push({id,sp:w2s(...p)});
   if(s){if(s.t==='dim'){add('a',s.a);add('b',s.b);if(s.mode==='angular'){const a0=Math.atan2(s.a[1]-s.c[1],s.a[0]-s.c[0]),a1=Math.atan2(s.b[1]-s.c[1],s.b[0]-s.c[0]);let d=a1-a0;while(d<=-Math.PI)d+=Math.PI*2;while(d>Math.PI)d-=Math.PI*2;const m=a0+d/2;add('o',[s.c[0]+Math.cos(m)*(s.off||.6),s.c[1]+Math.sin(m)*(s.off||.6)])}else if(s.mode!=='radius'&&s.mode!=='diameter'){const d=dimPts(s);add('o',[(d[0][0]+d[1][0])/2,(d[0][1]+d[1][1])/2])}}else if(s.t==='line'||s.t==='wall'){add('a',s.a);add('b',s.b)}else if(s.t==='tri')s.p.forEach((q,i)=>add(i,q));else if(s.t==='rect'||s.t==='furn')rc(s).forEach((q,i)=>add(i,q));else if(s.t==='circle')add('r',[s.x+s.r,s.y])}
   return r;
@@ -96,9 +96,10 @@ function transformShapeScale(s,o,c,k){
   else if(s.t==='circle'||s.t==='arc'){s.x=c[0]+(o.x-c[0])*k;s.y=c[1]+(o.y-c[1])*k;s.r=o.r*k}
   else if(s.t==='ellipse'){s.x=c[0]+(o.x-c[0])*k;s.y=c[1]+(o.y-c[1])*k;s.rx=o.rx*k;s.ry=o.ry*k}
   else if(s.t==='rect'||s.t==='furn'){const m=sc([o.x+o.w/2,o.y+o.h/2]);s.w=o.w*k;s.h=o.h*k;s.x=m[0]-s.w/2;s.y=m[1]-s.h/2}
-  else if(['text','north','door','win'].includes(s.t)){s.x=c[0]+(o.x-c[0])*k;s.y=c[1]+(o.y-c[1])*k;s.h=o.h*k;if(o.w!==undefined)s.w=o.w*k;if(o.th!==undefined)s.th=o.th*k}
+  else if(['text','north','door','door2','win'].includes(s.t)){s.x=c[0]+(o.x-c[0])*k;s.y=c[1]+(o.y-c[1])*k;s.h=o.h*k;if(o.w!==undefined)s.w=o.w*k;if(o.w1!==undefined)s.w1=o.w1*k;if(o.w2!==undefined)s.w2=o.w2*k;if(o.th!==undefined)s.th=o.th*k}
 }
 
 function transformSheet(kind){if(!sel.length)return;const sh=$('#sheet'),single=sel.length===1?shapes[sel[0]]:null;sh.innerHTML=kind==='rotate'?'<b>تدوير العناصر</b><label>زاوية الدوران (درجة)<input id="trval" type="number" step="0.1" value="90" dir="ltr"></label><p>موجب عكس عقارب الساعة، حول مركز التحديد.</p><button id="applytr">تطبيق</button><button id="ok">إلغاء</button>':'<b>تحجيم العناصر</b><label>عامل التحجيم<input id="trval" type="number" min="0.01" step="0.1" value="2" dir="ltr"></label><p>مثال: 2 تكبير للضعف، و0.5 تصغير إلى النصف. يتم التحجيم حول مركز التحديد.</p><button id="applytr">تطبيق</button><button id="ok">إلغاء</button>';$('#applytr').onclick=()=>{const v=num($('#trval').value);if(!Number.isFinite(v)||(kind==='scale'?v<=0:!Number.isFinite(v))){toast('أدخل قيمة صحيحة');return}snap();const c=selC();if(kind==='rotate'){const a=v*Math.PI/180;sel.forEach(i=>rotS(shapes[i],copy(shapes[i]),c,a))}else sel.forEach(i=>{const o=copy(shapes[i]);transformShapeScale(shapes[i],o,c,v)});save();sh.classList.remove('on');upd();draw()};$('#ok').onclick=()=>{sh.classList.remove('on');upd()};sh.classList.add('on');$('#ctx').style.display='none'}
 
 $('#rt').onclick=()=>transformSheet('rotate');$('#scale').onclick=()=>transformSheet('scale');
+
