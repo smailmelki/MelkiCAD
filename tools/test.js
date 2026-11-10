@@ -206,6 +206,14 @@ t('impText: اسم طبقة يحتوي HTML يبقى نصًّا حرفيًا ع�
 });
 
 // ---------- خصائص زاوية فتح الأبواب ----------
+t('زاوية فتح الباب تحسب موضع نهاية الضلفة بدقة', () => {
+  const p90=R(`doorLeafVector(2,1,1,90)`),p45=R(`doorLeafVector(2,1,1,45)`),p0=R(`doorLeafVector(2,1,1,0)`),pDouble=R(`doorLeafVector(2,-1,-1,90)`);
+  near(p90[0],0);near(p90[1],2);
+  near(p45[0],Math.SQRT2);near(p45[1],Math.SQRT2);
+  near(p0[0],2);near(p0[1],0);
+  near(pDouble[0],0);near(pDouble[1],-2);
+});
+
 t('خصائص الباب تعرض زاوية الفتح وتطبقها ضمن 0–180 درجة', () => {
   R(`globalThis.__one={t:'door',w:.9,h:1,a:0};globalThis.__two={t:'door2',w1:.6,w2:.8,w:1.4,a:0};`);
   const d=R(`dynSpec(globalThis.__one)`),d2=R(`dynSpec(globalThis.__two)`);
