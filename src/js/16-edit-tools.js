@@ -54,8 +54,8 @@ function mirrorSel(m){
 
 function opAction(a){
   $$('.gm').forEach(m=>m.classList.remove('on'));
-  if(!sel.length){tool='select';editAction=null;upd();toast('حدّد أشكالًا أولًا ثم اختر الأداة');return}
   editAction=a;upd();
+  if(!sel.length){tool='select';upd();toast('حدّد أشكالًا أولًا ثم اختر الأداة');return}
   if(a==='offset'){
     const ts=sel.map(i=>shapes[i]).filter(s=>['line','wall','rect','circle','tri'].includes(s.t));
     if(!ts.length){toast('الإزاحة للخطوط والجدران والغرف والدوائر والمثلثات');return}
