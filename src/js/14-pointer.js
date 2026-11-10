@@ -20,6 +20,17 @@ $('#polyfinish').onclick=finishPolyline;$('#polycancel').onclick=()=>{polyDraft=
 
 cv.addEventListener('dblclick',e=>{if(tool==='polyline'&&polyDraft){e.preventDefault();finishPolyline()}});
 
+function updateDrawFlowPreview(p){
+  if(!drawFlow||!['second','next'].includes(drawFlow.stage))return;
+  const t=drawFlow.tool,anchor=t==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];if(!anchor)return;
+  let b=snapPt(p);
+  if(!mk&&['line','wall','dim','polyline'].includes(t)&&(S.ortho||(S.parallel||S.perpendicular)&&parallelRef))b=constrain(anchor,b);
+  if(t==='free')cur={t:'free',p:[anchor.slice(),b],ly:cl,col:D.col||undefined,lw:D.lw};
+  else if(t==='polyline')cur={t:'line',a:anchor.slice(),b,ly:cl,col:D.col||undefined,lw:D.lw};
+  else{cur=build(anchor,b);if(t==='dim'){cur.la=undefined;cur.lb=mk&&mk.ref||undefined}}
+  if((S.parallel||S.perpendicular)&&parallelRef&&['line','wall','polyline','dim'].includes(t))parallelGuide={origin:anchor.slice(),target:b.slice()};
+}
+
 cv.addEventListener('pointerdown',e=>{
   try{cv.setPointerCapture(e.pointerId)}catch(_){}  // قد يرمي في بعض المتصفحات/أنواع المؤشر؛ الرسم يعمل بدونه
   P.set(e.pointerId,pos(e));
@@ -81,12 +92,12 @@ cv.addEventListener('pointermove',e=>{
   if(!P.has(e.pointerId)){
     if(e.pointerType!=='mouse')return;
     cpos=s2w(...p);mk=tool==='select'||tool==='pan'||tool==='trim'||tool==='extend'?null:osnap(cpos);
-    if(drawFlow&&['second','next'].includes(drawFlow.stage)&&(S.parallel||S.perpendicular)&&parallelRef&&['line','wall','polyline','dim'].includes(drawFlow.tool)){const anchor=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];if(anchor)parallelGuide={origin:anchor.slice(),target:cpos.slice()}}
-    else if(!drawFlow)parallelGuide=null;
+    if(drawFlow)updateDrawFlowPreview(cpos);
+    if(!drawFlow)parallelGuide=null;
     redraw();return;
   }
   P.set(e.pointerId,p);cpos=s2w(...p);
-  if(!g){if(e.pointerType==='mouse'){mk=tool==='select'||tool==='pan'||tool==='trim'||tool==='extend'?null:osnap(cpos);redraw()}return;}
+  if(!g){if(drawFlow){mk=osnap(cpos);updateDrawFlowPreview(cpos);redraw();return}if(e.pointerType==='mouse'){mk=tool==='select'||tool==='pan'||tool==='trim'||tool==='extend'?null:osnap(cpos);redraw()}return;}
   if(g.k==='pinch'){
     const[a,b]=[...P.values()];if(!b)return;
     const d=Math.hypot(a[0]-b[0],a[1]-b[1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2];

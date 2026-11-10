@@ -373,6 +373,14 @@ t('Esc يلغي الرسم الجاري', () => {
   R(`drawFlow={tool:'line',stage:'second',points:[[0,0]]};`);
   key('Escape'); eq(R(`drawFlow`), null);
 });
+t('معاينة الإدخال الرقمي تستخدم Snap وتظهر أثناء تحريك المؤشر', () => {
+  R(`tool='line';S.grid=1;S.ortho=0;parallelRef=null;mk=null;drawFlow={tool:'line',stage:'second',points:[[0,0]]};updateDrawFlowPreview([2.2,1.2]);`);
+  eq(R(`cur.t`), 'line'); eq(R(`cur.b`), [2,1]);
+  const css=fs.readFileSync(path.join(src,'css/components.css'),'utf8');
+  ok(/#drawInput\{[^}]*pointer-events:none/.test(css),'اللوحة لا تعترض أحداث اللوحة الفارغة');
+  ok(/#drawInput button,#drawInput input\{pointer-events:auto\}/.test(css),'الأزرار والحقول الرقمية تبقى تفاعلية');
+  R(`drawFlow=null;cur=null;S.grid=0;`);
+});
 t('الأسهم تحرّك العرض، و+/- تكبّر وتصغّر، F8/F9 تبدّل القيود', () => {
   setup();
   R(`V={x:100,y:100,s:40};W=400;H=700;`);
