@@ -12,7 +12,7 @@ const arcPtsShape=s=>{const n=Math.max(2,Math.min(144,Math.ceil(Math.abs(s.a1-s.
 
 const ellipsePts=s=>Array.from({length:72},(_,i)=>{const a=i*Math.PI/36,c=Math.cos(s.rot||0),n=Math.sin(s.rot||0),x=s.rx*Math.cos(a),y=s.ry*Math.sin(a);return[s.x+x*c-y*n,s.y+x*n+y*c]});
 
-const pts=s=>s.t==='ellipse'?ellipsePts(s):s.t==='arc'?arcPtsShape(s):s.t==='line'||s.t==='wall'||s.t==='dim'?[s.a,s.b]:s.p?s.p:s.t==='door'||s.t==='win'?[[s.x-Math.cos(s.a)*s.w/2,s.y-Math.sin(s.a)*s.w/2],[s.x+Math.cos(s.a)*s.w/2,s.y+Math.sin(s.a)*s.w/2]]:s.t==='text'||s.t==='north'?rc(nb(s)):rc(s);
+const pts=s=>s.t==='ellipse'?ellipsePts(s):s.t==='arc'?arcPtsShape(s):s.t==='line'||s.t==='wall'||s.t==='dim'?[s.a,s.b]:s.p?s.p:s.t==='door'||s.t==='door2'||s.t==='win'?[[s.x-Math.cos(s.a)*(s.t==='door2'?(s.w1+s.w2):s.w)/2,s.y-Math.sin(s.a)*(s.t==='door2'?(s.w1+s.w2):s.w)/2],[s.x+Math.cos(s.a)*(s.t==='door2'?(s.w1+s.w2):s.w)/2,s.y+Math.sin(s.a)*(s.t==='door2'?(s.w1+s.w2):s.w)/2]]:s.t==='text'||s.t==='north'?rc(nb(s)):rc(s);
 // مستطيل تقريبي حول نص أو سهم شمال (للتحديد والتدوير)
 const mcx=document.createElement('canvas').getContext('2d');
 
@@ -60,3 +60,4 @@ function build(a,b){
   else s={t:'rect',x,y,w,h};
   return Object.assign(s,{ly:cl,col:D.col||undefined,lw:D.lw});
 }
+
