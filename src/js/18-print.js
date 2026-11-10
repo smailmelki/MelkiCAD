@@ -31,7 +31,7 @@ function renderSheet(o){syncDims();
     g2.save();g2.beginPath();g2.rect(axp,ayp,awp,ahp);g2.clip();g2.setTransform(k,0,0,k,0,0);g2.direction='ltr';
     const c={bg:'#ffffff',grid:'#e5e7eb',major:'#cbd5e1',ln:'#111827',ac:'#b45309',dim:'#475569'};
     if(o.grid){g2.beginPath();for(let x=Math.floor(L.x0);x<=L.x0+L.bw+1;x++){const p=w2s(x,0)[0];g2.moveTo(p,0);g2.lineTo(p,Hp/k)}for(let y=Math.floor(L.y0);y<=L.y0+L.bh+1;y++){const p=w2s(0,y)[1];g2.moveTo(0,p);g2.lineTo(Wp/k,p)}g2.strokeStyle=c.major;g2.lineWidth=.6;g2.stroke()}
-    for(const pass of[0,1])shapes.forEach(s=>{if(shown(s)&&(s.t==='door'||s.t==='win')===!!pass)drawShape(s,false,false,c)});
+    for(const pass of[0,1])shapes.forEach(s=>{if(shown(s)&&(['door','door2','win'].includes(s.t))===!!pass)drawShape(s,false,false,c)});
     g2.restore();
     g2.setTransform(1,0,0,1,0,0);g2.strokeStyle='#111827';g2.lineWidth=mm(.5);
     g2.strokeRect(mm(L.m),mm(L.m),mm(L.pw-2*L.m),mm(L.ph-2*L.m));
@@ -101,3 +101,4 @@ function exportSheet(){
 }
 
 $('#shot').onclick=()=>{$$('.gm').forEach(x=>x.classList.remove('on'));$('#smenu').classList.remove('on');exportSheet()};
+

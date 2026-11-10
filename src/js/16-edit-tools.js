@@ -9,6 +9,7 @@
  * ================================================================== */
 
 // ---- أدوات التعديل المتقدمة: إزاحة، انعكاس، نسخ متكرر، قص، تمديد ----
+let editAction=null;
 function opSheet(title,fields,apply,extra){
   const sh=$('#sheet');
   sh.innerHTML=`<b>${title}</b>`+fields.map(x=>`<label>${x[1]}<input data-k="${x[0]}" dir="ltr" inputmode="decimal"></label>`).join('')+(extra||'')+'<div class="row"><button class="fl" id="opx">إلغاء</button><button class="fl" id="opk">تطبيق</button></div>';
@@ -37,7 +38,7 @@ function mirS(s,ax,c){
   if(s.t==='line'||s.t==='wall'||s.t==='dim'){t.a=mp(s.a);t.b=mp(s.b);if(s.t==='dim')t.off=-s.off}
   else if(s.p)t.p=s.p.map(mp);
   else if(s.t==='rect'||s.t==='furn'){const m=mp([s.x+s.w/2,s.y+s.h/2]);t.x=m[0]-s.w/2;t.y=m[1]-s.h/2;t.rot=-(s.rot||0)}
-  else if(s.t==='door'||s.t==='win'){const m=mp([s.x,s.y]);t.x=m[0];t.y=m[1];t.a=ax==='v'?Math.PI-s.a:-s.a;if(s.t==='door')t.f=-s.f}
+  else if(s.t==='door'||s.t==='door2'||s.t==='win'){const m=mp([s.x,s.y]);t.x=m[0];t.y=m[1];t.a=ax==='v'?Math.PI-s.a:-s.a;if(s.t==='door'||s.t==='door2')t.f=-s.f}
   else if(s.t==='arc'){const m=mp([s.x,s.y]);t.x=m[0];t.y=m[1];const fn=a=>ax==='v'?Math.PI-a:-a;t.a0=fn(s.a1);t.a1=fn(s.a0);while(t.a1<=t.a0)t.a1+=Math.PI*2}
   else{const m=mp([s.x,s.y]);t.x=m[0];t.y=m[1]}
   return t;
@@ -53,6 +54,7 @@ function mirrorSel(m){
 
 function opAction(a){
   $$('.gm').forEach(m=>m.classList.remove('on'));
+  editAction=a;upd();
   if(!sel.length){tool='select';upd();toast('حدّد أشكالًا أولًا ثم اختر الأداة');return}
   if(a==='offset'){
     const ts=sel.map(i=>shapes[i]).filter(s=>['line','wall','rect','circle','tri'].includes(s.t));
@@ -107,3 +109,4 @@ function extendAt(p){
   if(!best){toast('لا يوجد ما يمدّ إليه');return}
   snap();s[end]=best;save();
 }
+

@@ -51,6 +51,15 @@ function dxfBuild(){
   };
   const insert=(s,name,x,y,angle)=>{ent('INSERT',s);w(2,name);P3(10,[x,y]);w(41,1);w(42,1);w(43,1);w(50,n(-angle*180/Math.PI))};
   const makeCompositeBlock=s=>{
+    if(s.t==='door2'){
+      const name=['MKD_D2',enc(s.w1),enc(s.w2),enc(s.th||0),enc(s.f||1)].join('_');
+      addBlock(name,({line:bl,poly:bp})=>{
+        const total=s.w1+s.w2,f=s.f||1,of=(s.th||0)/2*f;
+        const leaf=(hx,span,dir)=>{const H=[hx,of],E=[hx,of+f*span],C=[hx+dir*span,of],arc=[],a0=Math.atan2(E[1]-H[1],E[0]-H[0]),a1=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));bl(H,E);for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+span*Math.cos(a),H[1]+span*Math.sin(a)])}bp(arc)};
+        leaf(-total/2,s.w1,1);leaf(total/2,s.w2,-1);
+      });
+      return name;
+    }
     if(s.t==='door'||s.t==='win'){
       const name=s.t==='door'?['MKD_D',enc(s.w),enc(s.th||0),enc(s.f||1),enc(s.h||1)].join('_'):['MKD_W',enc(s.w),enc(s.th||0)].join('_');
       addBlock(name,({line:bl,poly:bp})=>{
@@ -81,7 +90,7 @@ function dxfBuild(){
   if(!LY.length){w(0,'LAYER');w(2,'0');w(70,0);w(62,7);w(6,'CONTINUOUS')}
   LY.forEach((l,i)=>{w(0,'LAYER');w(2,lnames[i]);w(70,l.lock?4:0);w(62,l.vis===0?-aci(l.col):aci(l.col));w(6,'CONTINUOUS')});
   w(0,'ENDTAB');w(0,'ENDSEC');
-  shapes.forEach(s=>{if(s&&(s.t==='door'||s.t==='win'||s.t==='furn'))makeCompositeBlock(s)});
+  shapes.forEach(s=>{if(s&&(s.t==='door'||s.t==='door2'||s.t==='win'||s.t==='furn'))makeCompositeBlock(s)});
   if(blockDefs.length){w(0,'SECTION');w(2,'BLOCKS');blockDefs.forEach(B=>{for(let i=0;i<B.length;i+=2)w(B[i],B[i+1])});w(0,'ENDSEC')}
   w(0,'SECTION');w(2,'ENTITIES');
   shapes.forEach(s=>{
@@ -121,7 +130,7 @@ function dxfBuild(){
     }
     else if(s.t==='text'){const b=nb(s),a=s.a||0,u=[Math.cos(a),Math.sin(a)],dn=[-Math.sin(a),Math.cos(a)];txt(s,[s.x-u[0]*b.w/2+dn[0]*s.h*.35,s.y-u[1]*b.w/2+dn[1]*s.h*.35],s.h,a,s.txt||'')}
     else if(s.t==='north'){const r=s.h/2,a=s.a||0,c=[s.x,s.y],T=(u,v)=>rot(c,a,u,v);circ(s,c,r);poly(s,[T(0,-.9*r),T(.35*r,.6*r),T(0,.25*r),T(-.35*r,.6*r)],true);txt(s,T(-.15*r,-1.55*r),r*.5,a,'N')}
-    else if(s.t==='door'||s.t==='win'){
+    else if(s.t==='door'||s.t==='door2'||s.t==='win'){
       const name=makeCompositeBlock(s);insert(s,name,s.x,s.y,s.a||0);
     }
     else if(s.t==='furn'){
@@ -243,7 +252,8 @@ function dxfShapes(E,k){
     const e=E[i];
     if(e.t==='INSERT'){
       const name=g(e,2,'');
-      if(name.startsWith('MKD_D_')){const q=name.split('_');if(q.length===6){const w=decNum(q[2]),th=decNum(q[3]),f=decNum(q[4]),h=decNum(q[5]);if(w>0)mk({t:'door',x:X(N(e,10)),y:Y(N(e,20)),w,th,f,h,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
+      if(name.startsWith('MKD_D2_')){const q=name.split('_');if(q.length===6){const w1=decNum(q[2]),w2=decNum(q[3]),th=decNum(q[4]),f=decNum(q[5]);if(w1>0&&w2>0)mk({t:'door2',x:X(N(e,10)),y:Y(N(e,20)),w:w1+w2,w1,w2,th,f,h:1,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
+      else if(name.startsWith('MKD_D_')){const q=name.split('_');if(q.length===6){const w=decNum(q[2]),th=decNum(q[3]),f=decNum(q[4]),h=decNum(q[5]);if(w>0)mk({t:'door',x:X(N(e,10)),y:Y(N(e,20)),w,th,f,h,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
       else if(name.startsWith('MKD_W_')){const q=name.split('_');if(q.length===4){const w=decNum(q[2]),th=decNum(q[3]);if(w>0)mk({t:'win',x:X(N(e,10)),y:Y(N(e,20)),w,th,h:1,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
       else if(name.startsWith('MKD_F_')){const q=name.split('_');if(q.length===5){const k=q[2],w=decNum(q[3]),h=decNum(q[4]),a=-N(e,50)*Math.PI/180;if(w>0&&h>0)mk({t:'furn',k,x:X(N(e,10))-w/2,y:Y(N(e,20))-h/2,w,h,rot:a},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
       else skip.INSERT=(skip.INSERT||0)+1;
@@ -341,3 +351,4 @@ function dxfImport(txt){
   $('#opk').onclick=()=>{const r=dxfShapes(E,u);sh.classList.remove('on');newP('DXF',r.shapes,{LY:r.LY,cl:r.LY[0].id});fitImportedView(r.shapes);save();draw();toast(`تم استيراد ${r.shapes.length} عنصرًا من DXF`)};
   sh.classList.add('on');$('#ctx').style.display='none';
 }
+

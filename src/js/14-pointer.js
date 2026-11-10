@@ -20,6 +20,17 @@ $('#polyfinish').onclick=finishPolyline;$('#polycancel').onclick=()=>{polyDraft=
 
 cv.addEventListener('dblclick',e=>{if(tool==='polyline'&&polyDraft){e.preventDefault();finishPolyline()}});
 
+function updateDrawFlowPreview(p){
+  if(!drawFlow||!['second','next'].includes(drawFlow.stage))return;
+  const t=drawFlow.tool,anchor=t==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];if(!anchor)return;
+  let b=snapPt(p);
+  if(!mk&&['line','wall','dim','polyline'].includes(t)&&(S.ortho||(S.parallel||S.perpendicular)&&parallelRef))b=constrain(anchor,b);
+  if(t==='free')cur={t:'free',p:[anchor.slice(),b],ly:cl,col:D.col||undefined,lw:D.lw};
+  else if(t==='polyline')cur={t:'line',a:anchor.slice(),b,ly:cl,col:D.col||undefined,lw:D.lw};
+  else{cur=build(anchor,b);if(t==='dim'){cur.la=undefined;cur.lb=mk&&mk.ref||undefined}}
+  if((S.parallel||S.perpendicular)&&parallelRef&&['line','wall','polyline','dim'].includes(t))parallelGuide={origin:anchor.slice(),target:b.slice()};
+}
+
 cv.addEventListener('pointerdown',e=>{
   try{cv.setPointerCapture(e.pointerId)}catch(_){}  // قد يرمي في بعض المتصفحات/أنواع المؤشر؛ الرسم يعمل بدونه
   P.set(e.pointerId,pos(e));
@@ -65,9 +76,9 @@ cv.addEventListener('pointerdown',e=>{
     snap();shapes.push(s);sel=[shapes.length-1];g=null;mk=null;upd();draw();
     if(tool==='text'){opts();setTimeout(()=>{const t=$('#sheet [data-k="txt"]');if(t){t.focus();t.select()}},60)}
     return;
-  }else if(tool==='door'||tool==='win'){
+  }else if(tool==='door'||tool==='door2'||tool==='win'){
     const w=wallAt(s2w(...p),28/V.s);sel=[];
-    if(w){const s={t:tool,x:w.q[0],y:w.q[1],a:w.a,th:w.th,w:tool==='door'?.9:1.2,f:1,h:1,ly:cl,col:D.col||undefined,lw:D.lw};
+    if(w){const double=tool==='door2',w1=.75,w2=.75,s={t:tool,x:w.q[0],y:w.q[1],a:w.a,th:w.th,w:double?w1+w2:tool==='door'?.9:1.2,w1:double?w1:undefined,w2:double?w2:undefined,f:1,h:1,ly:cl,col:D.col||undefined,lw:D.lw};
       snap();shapes.push(s);sel=[shapes.length-1];g={k:'move',w0:s2w(...p),o:[copy(s)],moved:1}}
   }else{
     sel=[];const a=tool==='free'?s2w(...p):snapPt(s2w(...p));if(tool==='free')mk=null;
@@ -81,12 +92,12 @@ cv.addEventListener('pointermove',e=>{
   if(!P.has(e.pointerId)){
     if(e.pointerType!=='mouse')return;
     cpos=s2w(...p);mk=tool==='select'||tool==='pan'||tool==='trim'||tool==='extend'?null:osnap(cpos);
-    if(drawFlow&&['second','next'].includes(drawFlow.stage)&&(S.parallel||S.perpendicular)&&parallelRef&&['line','wall','polyline','dim'].includes(drawFlow.tool)){const anchor=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];if(anchor)parallelGuide={origin:anchor.slice(),target:cpos.slice()}}
-    else if(!drawFlow)parallelGuide=null;
+    if(drawFlow)updateDrawFlowPreview(cpos);
+    if(!drawFlow)parallelGuide=null;
     redraw();return;
   }
   P.set(e.pointerId,p);cpos=s2w(...p);
-  if(!g){if(e.pointerType==='mouse'){mk=tool==='select'||tool==='pan'||tool==='trim'||tool==='extend'?null:osnap(cpos);redraw()}return;}
+  if(!g){if(drawFlow){mk=osnap(cpos);updateDrawFlowPreview(cpos);redraw();return}if(e.pointerType==='mouse'){mk=tool==='select'||tool==='pan'||tool==='trim'||tool==='extend'?null:osnap(cpos);redraw()}return;}
   if(g.k==='pinch'){
     const[a,b]=[...P.values()];if(!b)return;
     const d=Math.hypot(a[0]-b[0],a[1]-b[1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
@@ -97,7 +108,7 @@ cv.addEventListener('pointermove',e=>{
     if(!g.moved&&(dx||dy)){g.moved=1;hist.push(g.before)}
     sel.forEach((j,n)=>mv(shapes[j],g.o[n],dx,dy));
     sel.forEach((j,n)=>{const s=shapes[j],o=g.o[n];if(s.t==='dim'&&s.circleId)delete s.circleId;if(s.t==='dim'&&(s.la||s.lb)){s.a=o.a;s.b=o.b;const L=len(o)||1;s.off=o.off+(dx*(-(o.b[1]-o.a[1]))+dy*(o.b[0]-o.a[0]))/L}});
-    sel.forEach(j=>{const s=shapes[j];if(s.t==='door'||s.t==='win'){const q=wallAt([s.x,s.y],28/V.s);if(q){s.x=q.q[0];s.y=q.q[1];s.a=q.a;s.th=q.th}}});
+    sel.forEach(j=>{const s=shapes[j];if(s.t==='door'||s.t==='door2'||s.t==='win'){const q=wallAt([s.x,s.y],28/V.s);if(q){s.x=q.q[0];s.y=q.q[1];s.a=q.a;s.th=q.th}}});
   }else if(g.k==='rot'){
     const w=s2w(...p);let d=Math.atan2(w[1]-g.c[1],w[0]-g.c[0])-g.a0;if(S.grid)d=Math.round(d/(Math.PI/12))*Math.PI/12;
     if(!g.moved&&d){g.moved=1;hist.push(g.before)}
@@ -146,3 +157,4 @@ cv.addEventListener('wheel',e=>{
   e.preventDefault();const p=pos(e),w=s2w(...p);
   V.s=clamp(V.s*(e.deltaY<0?1.1:.9),MIN_VIEW_SCALE,1200);V.x=p[0]-w[0]*V.s;V.y=p[1]-w[1]*V.s;redraw();saveSoon();
 },{passive:false});
+

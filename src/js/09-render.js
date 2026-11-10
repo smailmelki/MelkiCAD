@@ -56,7 +56,7 @@ function drawShape(s,on,prev,c){
   if(s.t==='dim')return drawDim(s,on,prev,c);
   if(s.t==='furn')return drawFurn(s,on,c);
   if(s.t==='text'||s.t==='north')return drawNote(s,on,c);
-  if(s.t==='door'||s.t==='win')return drawOpen(s,on,c);
+  if(s.t==='door'||s.t==='door2'||s.t==='win')return drawOpen(s,on,c);
   const Q=new Path2D(),col=s.col||layerOf(s).col||c.ln,lw=s.t==='wall'?Math.max(2,s.th*V.s):s.lw||2,closed=['rect','tri','polygon','circle','ellipse'].includes(s.t);
   if(s.t==='circle'){const r=w2s(s.x,s.y);Q.arc(r[0],r[1],s.r*V.s,0,7)}
   else if(s.t==='ellipse'){pts(s).forEach((q,i)=>{const r=w2s(...q);i?Q.lineTo(r[0],r[1]):Q.moveTo(r[0],r[1])});Q.closePath()}
@@ -116,7 +116,7 @@ function draw(){
     }
   }
   const picked=new Set(sel);
-  for(const pass of[0,1])shapes.forEach((s,i)=>{if(shown(s)&&(s.t==='door'||s.t==='win')===!!pass)drawShape(s,picked.has(i),false,c)});
+  for(const pass of[0,1])shapes.forEach((s,i)=>{if(shown(s)&&(['door','door2','win'].includes(s.t))===!!pass)drawShape(s,picked.has(i),false,c)});
   // أثناء الرسم الموازي: إبراز ضلع المرجع ورسم دليل متقطع ممتد عبر مساحة اللوحة.
   if(parallelGuide&&parallelRef&&parallelGuide.target&&referenceWithinTolerance(parallelGuide.origin,parallelGuide.target)){
     const rx=parallelRef.b[0]-parallelRef.a[0],ry=parallelRef.b[1]-parallelRef.a[1],len=Math.hypot(rx,ry),dx=S.perpendicular?-ry:rx,dy=S.perpendicular?rx:ry;
@@ -154,7 +154,7 @@ function draw(){
   if(ST.coord&&(mk||cpos)){const q=mk?mk.p:cpos;ctx.font=`400 11px ${FONT}`;ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText(`X ${fu(q[0])}   Y ${fu(-q[1])}  ${ul()}`,W-10,H-14)}
   if(mk)marker(c);
   if(tool==='polyline'){ctx.font=`400 13px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText('انقر لإضافة الرؤوس ثم اضغط إنهاء POLYLINE',W/2,20)}
-  if(tool==='door'||tool==='win'){ctx.font=`400 13px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText(`المس جدارًا لوضع ${tool==='door'?'الباب':'النافذة'} ثم اسحب لتحريكه`,W/2,20)}
+  if(tool==='door'||tool==='door2'||tool==='win'){ctx.font=`400 13px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText(`المس جدارًا لوضع ${tool==='door2'?'الباب المزدوج':tool==='door'?'الباب':'النافذة'} ثم اسحب لتحريكه`,W/2,20)}
   if(!shapes.length&&!cur&&!polyDraft){ctx.font=`400 15px ${FONT}`;ctx.textAlign='center';ctx.fillStyle=c.dim;ctx.fillText('اختر شكلًا من الأسفل ثم اسحب على اللوحة',W/2,H/2)}
   ctx.strokeStyle=c.dim;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(12,H-14);ctx.lineTo(12+L,H-14);ctx.stroke();
   ctx.font=`400 11px ${FONT}`;ctx.textAlign='left';ctx.fillStyle=c.dim;ctx.fillText(fl(gs),12,H-26);
@@ -189,3 +189,4 @@ const quickShot=()=>{
 };
 
 $('#ovx').onclick=()=>{$('#ov').hidden=true};
+
