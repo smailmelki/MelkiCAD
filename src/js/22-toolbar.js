@@ -17,12 +17,12 @@ function upd(){
   $$('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tool));
   $$('[data-fk]').forEach(b=>b.classList.toggle('on',tool==='furn'&&b.dataset.fk===furnKind));
   $$('[data-dm]').forEach(b=>b.classList.toggle('on',tool==='dim'&&b.dataset.dm===dimMode));
-  $$('[data-g]').forEach(b=>{const m=$('#'+b.dataset.g),it=m.querySelector(tool==='furn'?`[data-fk="${furnKind}"]`:tool==='dim'?`[data-dm="${dimMode}"]`:`[data-t="${tool}"]`);b.classList.toggle('on',!!it);b.classList.toggle('has-active',!!it);b.title=it?`الأداة الحالية: ${it.textContent.trim()}`:b.dataset.groupTitle||b.textContent.trim();if(b.dataset.g==='gdraw'){const icon=b.querySelector('svg'),selected=it&&it.querySelector('svg');if(icon)icon.innerHTML=selected?selected.innerHTML:b.dataset.defaultIcon}});
+  $$('[data-g]').forEach(b=>{const m=$('#'+b.dataset.g);let it=m.querySelector(tool==='furn'?`[data-fk="${furnKind}"]`:tool==='dim'?`[data-dm="${dimMode}"]`:`[data-t="${tool}"]`);if(b.dataset.g==='gedit'&&editAction&&['offset','mirror','array'].includes(editAction))it=m.querySelector(`[data-a="${editAction}"]`);b.classList.toggle('on',!!it);b.classList.toggle('has-active',!!it);b.title=it?`الأداة الحالية: ${it.textContent.trim()}`:b.dataset.groupTitle||b.textContent.trim();const icon=b.querySelector('svg'),selected=it&&it.querySelector('svg');if(icon&&b.dataset.defaultIcon)icon.innerHTML=selected?selected.innerHTML:b.dataset.defaultIcon});
   $$('[data-s]').forEach(b=>{b.classList.toggle('on',!!S[b.dataset.s]);b.setAttribute('aria-pressed',S[b.dataset.s]?'true':'false')});
   $('#snap').classList.toggle('on',Object.values(S).some(Boolean));
 }
 // ---- الأزرار ----
-$$('[data-t]').forEach(b=>b.onclick=()=>{if(polyDraft)finishPolyline();closeDrawFlow();tool=b.dataset.t;if(tool==='dim'){dimMode='linear';dimDraft=[]}sel=[];if(tool==='trim')toast('المس الجزء المراد قصه من خط أو جدار');if(tool==='extend')toast('المس قرب طرف الخط أو الجدار لتمديده');$('#sheet').classList.remove('on');$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();startDrawFlow(tool)});
+$$('[data-t]').forEach(b=>b.onclick=()=>{if(polyDraft)finishPolyline();closeDrawFlow();editAction=null;tool=b.dataset.t;if(tool==='dim'){dimMode='linear';dimDraft=[]}sel=[];if(tool==='trim')toast('المس الجزء المراد قصه من خط أو جدار');if(tool==='extend')toast('المس قرب طرف الخط أو الجدار لتمديده');$('#sheet').classList.remove('on');$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();startDrawFlow(tool)});
 
 $('#snap').onclick=()=>{$$('.gm').forEach(m=>m.classList.remove('on'));$('#smenu').classList.toggle('on')};
 
@@ -41,7 +41,7 @@ const GROUPS=[['gdraw','رسم','<path d="M4 20l4-1 11-11-3-3L5 16z"/>',['line',
 
 GROUPS.forEach(([id,label,icon,tools])=>{
   const gb=document.createElement('button'),menu=document.createElement('div');
-  gb.dataset.g=id;gb.dataset.groupTitle=label;if(id==='gdraw')gb.dataset.defaultIcon=icon;gb.className='tool-group';gb.setAttribute('aria-label',label);gb.innerHTML=`<svg viewBox="0 0 24 24">${icon}</svg><span>${label}</span>`;menu.className='gm';menu.id=id;
+  gb.dataset.g=id;gb.dataset.groupTitle=label;gb.dataset.defaultIcon=icon;gb.className='tool-group';gb.setAttribute('aria-label',label);gb.innerHTML=`<svg viewBox="0 0 24 24">${icon}</svg><span>${label}</span>`;menu.className='gm';menu.id=id;
   $(`nav [data-t="${tools[0]}"]`).before(gb);
   tools.forEach(t=>menu.append($(`nav [data-t="${t}"]`)));
   if(id==='gdim')menu.querySelector('[data-t="dim"]').dataset.dm='linear';
@@ -57,7 +57,7 @@ const DIM_TOOLS=[
 ];
 DIM_TOOLS.forEach(([mode,label,icon])=>{
   const b=document.createElement('button');b.dataset.dm=mode;b.innerHTML=`<svg viewBox="0 0 24 24">${icon}</svg>${label}`;
-  b.onclick=()=>{dimMode=mode;dimDraft=[];tool='dim';sel=[];closeDrawFlow();$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();toast(mode==='angular'?'حدّد رأس الزاوية ثم نقطتين على ضلعيها':mode==='radius'||mode==='diameter'?'المس دائرة لإظهار البعد':'حدّد نقطتي البعد ثم اسحب لتحديد موضع خط القياس')};
+  b.onclick=()=>{editAction=null;dimMode=mode;dimDraft=[];tool='dim';sel=[];closeDrawFlow();$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();toast(mode==='angular'?'حدّد رأس الزاوية ثم نقطتين على ضلعيها':mode==='radius'||mode==='diameter'?'المس دائرة لإظهار البعد':'حدّد نقطتي البعد ثم اسحب لتحديد موضع خط القياس')};
   $('#gdim').append(b);
 });
 
@@ -66,11 +66,11 @@ DIM_TOOLS.forEach(([mode,label,icon])=>{
 
 const fm=document.createElement('div');fm.className='gm';fm.id='gfurn';
 
-Object.keys(SYM).forEach(k=>{const b=document.createElement('button');b.dataset.fk=k;b.innerHTML=furnIcon(k)+SYM[k].n;b.onclick=()=>{furnKind=k;tool='furn';sel=[];closeDrawFlow();$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();startDrawFlow('furn')};fm.append(b)});
+Object.keys(SYM).forEach(k=>{const b=document.createElement('button');b.dataset.fk=k;b.innerHTML=furnIcon(k)+SYM[k].n;b.onclick=()=>{editAction=null;furnKind=k;tool='furn';sel=[];closeDrawFlow();$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();startDrawFlow('furn')};fm.append(b)});
 
 $('main').append(fm);
 
-const fbtn=document.createElement('button');fbtn.dataset.g='gfurn';fbtn.innerHTML='<svg viewBox="0 0 24 24"><path d="M3 12V8a2 2 0 012-2h14a2 2 0 012 2v4M3 12h18v5H3zM5 17v2M19 17v2"/></svg>أثاث';$('#lyb').before(fbtn);
+const fbtn=document.createElement('button');fbtn.dataset.g='gfurn';fbtn.dataset.groupTitle='أثاث';fbtn.dataset.defaultIcon='<path d="M3 12V8a2 2 0 012-2h14a2 2 0 012 2v4M3 12h18v5H3zM5 17v2M19 17v2"/>';fbtn.innerHTML=`<svg viewBox="0 0 24 24">${fbtn.dataset.defaultIcon}</svg>أثاث`;$('#lyb').before(fbtn);
 
 $$('[data-g]').forEach(b=>b.onclick=()=>{
   const m=$('#'+b.dataset.g),was=m.classList.contains('on');
