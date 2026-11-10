@@ -16,7 +16,7 @@ function grips(){
   const r=[],s=sel.length===1?shapes[sel[0]]:null,b=sel.map(i=>bx(shapes[i])),x0=Math.min(...b.map(q=>q.x)),x1=Math.max(...b.map(q=>q.X)),y0=Math.min(...b.map(q=>q.y)),top=w2s((x0+x1)/2,y0);
   if(!sel.every(i=>shapes[i].t==='door'||shapes[i].t==='win'))r.push({id:'rot',sp:[top[0],top[1]-34],top});
   const add=(id,p)=>r.push({id,sp:w2s(...p)});
-  if(s){if(s.t==='dim'){add('a',s.a);add('b',s.b);const d=dimPts(s);add('o',[(d[0][0]+d[1][0])/2,(d[0][1]+d[1][1])/2])}else if(s.t==='line'||s.t==='wall'){add('a',s.a);add('b',s.b)}else if(s.t==='tri')s.p.forEach((q,i)=>add(i,q));else if(s.t==='rect'||s.t==='furn')rc(s).forEach((q,i)=>add(i,q));else if(s.t==='circle')add('r',[s.x+s.r,s.y])}
+  if(s){if(s.t==='dim'){add('a',s.a);add('b',s.b);if(s.mode==='angular'){add('c',s.c);const a0=Math.atan2(s.a[1]-s.c[1],s.a[0]-s.c[0]),a1=Math.atan2(s.b[1]-s.c[1],s.b[0]-s.c[0]);let d=a1-a0;while(d<=-Math.PI)d+=Math.PI*2;while(d>Math.PI)d-=Math.PI*2;const m=a0+d/2;add('o',[s.c[0]+Math.cos(m)*(s.off||.6),s.c[1]+Math.sin(m)*(s.off||.6)])}else if(s.mode!=='radius'&&s.mode!=='diameter'){const d=dimPts(s);add('o',[(d[0][0]+d[1][0])/2,(d[0][1]+d[1][1])/2])}}else if(s.t==='line'||s.t==='wall'){add('a',s.a);add('b',s.b)}else if(s.t==='tri')s.p.forEach((q,i)=>add(i,q));else if(s.t==='rect'||s.t==='furn')rc(s).forEach((q,i)=>add(i,q));else if(s.t==='circle')add('r',[s.x+s.r,s.y])}
   return r;
 }
 // تحديد بإطار: من اليسار لليمين = داخلي (الأشكال داخل الإطار بالكامل)، من اليمين لليسار = بالتقاطع (كل ما يلمسه الإطار)
@@ -55,7 +55,16 @@ function hit(px,py){
     else if(s.t==='rect'||s.t==='furn'){const q=s2w(px,py),cx=s.x+s.w/2,cy=s.y+s.h/2,c=Math.cos(-(s.rot||0)),n=Math.sin(-(s.rot||0)),dx=q[0]-cx,dy=q[1]-cy,m=8/V.s;if(Math.abs(dx*c-dy*n)<=s.w/2+m&&Math.abs(dx*n+dy*c)<=s.h/2+m)return i}
     else if(s.t==='tri'){const q=s.p.map(r=>w2s(...r)),sg=(a,b)=>(px-b[0])*(a[1]-b[1])-(a[0]-b[0])*(py-b[1]),d=[sg(q[0],q[1]),sg(q[1],q[2]),sg(q[2],q[0])];if(!(d.some(v=>v<0)&&d.some(v=>v>0)))return i}
     else if(s.t==='text'||s.t==='north'){const n=nb(s),q=s2w(px,py),dx=q[0]-s.x,dy=q[1]-s.y,c=Math.cos(-n.rot),sn=Math.sin(-n.rot),m=8/V.s;if(Math.abs(dx*c-dy*sn)<=n.w/2+m&&Math.abs(dx*sn+dy*c)<=n.h/2+m)return i}
-    else if(s.t==='dim'){const q=dimPts(s).map(r=>w2s(...r));if(dseg(px,py,q[0][0],q[0][1],q[1][0],q[1][1])<16)return i}
+    else if(s.t==='dim'){
+      if(s.mode==='angular'){
+        const C=w2s(...s.c),A=w2s(...s.a),B=w2s(...s.b),a0=Math.atan2(A[1]-C[1],A[0]-C[0]),a1=Math.atan2(B[1]-C[1],B[0]-C[0]);
+        let delta=a1-a0;while(delta<=-Math.PI)delta+=Math.PI*2;while(delta>Math.PI)delta-=Math.PI*2;
+        if(dseg(px,py,C[0],C[1],A[0],A[1])<16||dseg(px,py,C[0],C[1],B[0],B[1])<16)return i;
+        let prev=[C[0]+Math.cos(a0)*(s.off||.6)*V.s,C[1]+Math.sin(a0)*(s.off||.6)*V.s];
+        for(let j=1;j<=32;j++){const t=a0+delta*j/32,q=[C[0]+Math.cos(t)*(s.off||.6)*V.s,C[1]+Math.sin(t)*(s.off||.6)*V.s];if(dseg(px,py,prev[0],prev[1],q[0],q[1])<16)return i;prev=q}
+        const m=a0+delta/2,tx=C[0]+Math.cos(m)*(s.off||.6)*V.s,ty=C[1]+Math.sin(m)*(s.off||.6)*V.s;if(Math.hypot(px-tx,py-ty)<22)return i;
+      }else{const A=w2s(...s.a),B=w2s(...s.b);if(dseg(px,py,A[0],A[1],B[0],B[1])<16||Math.hypot(px-(A[0]+B[0])/2,py-(A[1]+B[1])/2)<20)return i}
+    }
     else{const q=pts(s).map(r=>w2s(...r));for(let j=1;j<q.length;j++)if(dseg(px,py,q[j-1][0],q[j-1][1],q[j][0],q[j][1])<Math.max(16,(s.th||0)*V.s/2+8))return i}}
   return -1;
 }
