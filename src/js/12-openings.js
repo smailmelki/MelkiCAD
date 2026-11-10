@@ -16,11 +16,11 @@ function drawOpen(s,on,c){
   ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();
   if(s.t==='win'){ctx.lineWidth=Math.max(1.2,lw*.75);const hf=Math.max(4,(s.th||0)*V.s/2);[-hf,0,hf].forEach(v=>L(T(-w/2,v),T(w/2,v)));L(T(-w/2,-hf),T(-w/2,hf));L(T(w/2,-hf),T(w/2,hf));ctx.stroke()}
   else if(s.t==='door2'){
-    const f=s.f||1,of=(s.th||0)*V.s/2*f,reach=Math.PI/2-(Number.isFinite(s.oa)?clamp(s.oa,0,180):90)*Math.PI/180,leaf=(hx,span,dir)=>{const z=span*V.s,H=T(hx*V.s,of),E=T((hx+dir*span*Math.cos(reach))*V.s,of+f*span*Math.sin(reach)*V.s),C=T((hx+dir*span)*V.s,of);ctx.beginPath();L(H,E);ctx.stroke();const aE=Math.atan2(E[1]-H[1],E[0]-H[0]),aC=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=aC-aE;d=Math.atan2(Math.sin(d),Math.cos(d));ctx.beginPath();ctx.lineWidth=Math.max(1,lw*.6);ctx.globalAlpha=.7;ctx.arc(H[0],H[1],z,aE,aE+d,d<0);ctx.stroke();ctx.globalAlpha=1;ctx.lineWidth=lw};
+    const f=s.f||1,of=(s.th||0)*V.s/2*f,reach=(Number.isFinite(s.oa)?clamp(s.oa,0,180):90)*Math.PI/180,leaf=(hx,span,dir)=>{const z=span*V.s,H=T(hx*V.s,of),E=T((hx+dir*span*Math.cos(reach))*V.s,of+f*span*Math.sin(reach)*V.s),C=T((hx+dir*span)*V.s,of);ctx.beginPath();L(H,E);ctx.stroke();const aE=Math.atan2(E[1]-H[1],E[0]-H[0]),aC=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=aC-aE;d=Math.atan2(Math.sin(d),Math.cos(d));ctx.beginPath();ctx.lineWidth=Math.max(1,lw*.6);ctx.globalAlpha=.7;ctx.arc(H[0],H[1],z,aE,aE+d,d<0);ctx.stroke();ctx.globalAlpha=1;ctx.lineWidth=lw};
     leaf(-s.w1/2-s.w2/2,s.w1,1);leaf((s.w1+s.w2)/2,s.w2,-1);
   }
   else{
-    const hinge=s.h===-1?-1:1,hu=-hinge*w/2,of=(s.th||0)*V.s/2*(s.f||1),reach=Math.PI/2-(Number.isFinite(s.oa)?clamp(s.oa,0,180):90)*Math.PI/180,H=T(hu,of),E=T(hu+hinge*w*Math.cos(reach),of+(s.f||1)*w*Math.sin(reach)),C=T(hu+hinge*w,of);L(H,E);ctx.stroke();
+    const hinge=s.h===-1?-1:1,hu=-hinge*w/2,of=(s.th||0)*V.s/2*(s.f||1),reach=(Number.isFinite(s.oa)?clamp(s.oa,0,180):90)*Math.PI/180,H=T(hu,of),E=T(hu+hinge*w*Math.cos(reach),of+(s.f||1)*w*Math.sin(reach)),C=T(hu+hinge*w,of);L(H,E);ctx.stroke();
     const aE=Math.atan2(E[1]-H[1],E[0]-H[0]),aC=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=aC-aE;d=Math.atan2(Math.sin(d),Math.cos(d));
     ctx.beginPath();ctx.lineWidth=Math.max(1,lw*.6);ctx.globalAlpha=.7;ctx.arc(H[0],H[1],w,aE,aE+d,d<0);ctx.stroke();ctx.globalAlpha=1;
   }
