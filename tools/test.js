@@ -185,6 +185,11 @@ t('validateProjectData يصلح الطبقات المفقودة ويقصّ ال�
   eq(v.shapes[0].ly, 'a'); eq(v.cl, 'a'); eq(v.LY[0].name.length, 64);
   eq(v.shapes[1].txt.length, 10000);
 });
+t('validateProjectData يحفظ عرض جهتي الباب المزدوج', () => {
+  const v=R(`validateProjectData({shapes:[{t:'door2',x:1,y:2,w:1.4,w1:.6,w2:.8,h:1,a:0,th:.2,f:-1}]})`);
+  eq(v.shapes[0].w1,.6);eq(v.shapes[0].w2,.8);eq(v.shapes[0].w,1.4);eq(v.shapes[0].f,-1);
+  throws(()=>R(`validateProjectData({shapes:[{t:'door2',x:1,y:2,w:1.4,w1:0,w2:.8,h:1,a:0}]})`),'عرض الجهة غير الموجب مرفوض');
+});
 t('impText: JSON صحيح يُنشئ مشروعًا جديدًا بعدد العناصر الصحيح', () => {
   R(`impText(JSON.stringify({app:'plan',name:'اختبار',shapes:[{t:'rect',x:0,y:0,w:2,h:3},{t:'line',a:[0,0],b:[1,1]}]}))`);
   eq(R(`shapes.length`), 2); eq(R(`pname()`), 'اختبار');
@@ -234,6 +239,12 @@ t('DXF: الأبعاد الهندسية تُحفظ عند الاستيراد', (
   A.ctx.__txt = R(`dxfBuild()`);
   const l = R(`dxfShapes(dxfEntities(__txt),1).shapes.find(s=>s.t==='line')`);
   near(Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]), 4, 'طول الخط');
+});
+t('DXF: الباب المزدوج يحفظ عرض كل جهة', () => {
+  R(`newP('double-door',[{t:'door2',x:3,y:4,a:.25,w:1.4,w1:.6,w2:.8,th:.2,f:-1,h:1,ly:cl}],null)`);
+  A.ctx.__txt=R(`dxfBuild()`);
+  const d=R(`dxfShapes(dxfEntities(__txt),1).shapes.find(s=>s.t==='door2')`);
+  ok(!!d,'يُستورد الباب المزدوج');near(d.w1,.6);near(d.w2,.8);near(d.w,1.4);eq(d.f,-1);
 });
 t('makePDF ينتج ملفًا يبدأ بـ %PDF وينتهي بـ %%EOF', () => {
   const b = R(`makePDF(new Uint8Array([1,2,3]),10,10,210,297)`);
@@ -432,3 +443,4 @@ t('saveBlob: وصف نوع الملف يتبع الامتداد (وليس DXF د
   console.log(`\n${pass} نجح، ${fail} فشل`);
   process.exit(fail ? 1 : 0);
 })();
+
