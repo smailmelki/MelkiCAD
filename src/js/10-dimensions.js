@@ -34,7 +34,7 @@ function drawDim(s,on,prev,c){
     const A=w2s(...s.a),B=w2s(...s.b),M=mode==='diameter'?[(A[0]+B[0])/2,(A[1]+B[1])/2]:[(A[0]+B[0])/2,(A[1]+B[1])/2];
     if(on){ctx.globalAlpha=.2;ctx.lineWidth+=8;ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.stroke();ctx.globalAlpha=1;ctx.lineWidth=s.lw||1.5}
     ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.stroke();
-    const value=mode==='diameter'?2*len(s):len(s),txt=`${mode==='diameter'?'Ø':'R'} ${fl(value)}`;
+    const value=len(s),txt=`${mode==='diameter'?'Ø':'R'} ${fl(value)}`;
     ctx.font=`600 12px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';const tw=ctx.measureText(txt).width+10;ctx.globalAlpha=.9;ctx.fillStyle=c.bg;ctx.fillRect(M[0]-tw/2,M[1]-9,tw,18);ctx.globalAlpha=1;ctx.fillStyle=col;ctx.fillText(txt,M[0],M[1]);
   }else{
     const L=len(s);if(L<1e-6){ctx.restore();return}
