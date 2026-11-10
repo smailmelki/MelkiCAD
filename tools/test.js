@@ -275,7 +275,7 @@ t('دقة الأبعاد تحفظ 0–4 منازل وتستخدم وحدة ال�
   R(`ST.unit='cm';`);
   eq(R(`dimLabel({prec:0},1.23456)`), '123 cm');
   eq(R(`dimLabel({prec:3},1.23456)`), '123.456 cm');
-  eq(R(`dimLabel({prec:9},1.23456)`), '123.46 cm');
+  eq(R(`dimLabel({prec:9},1.23456)`), '123.4560 cm');
   R(`newP('precision',[{t:'dim',mode:'horizontal',a:[0,0],b:[1.23456,0],off:.3,prec:3,ly:cl}],null)`);
   const txt=R(`dxfBuild()`);
   ok(txt.includes('123.456 cm'),'قيمة البعد المصدّرة تستخدم الدقة المختارة');
