@@ -15,7 +15,7 @@ function opts(){
   if(s1){
     if(!['line','wall','dim','free','polyline','door','win','text','north','furn'].includes(s1.t))F.push(['name','الاسم',s1.name||'']);
     if(s1.t==='text')F.push(['txt','النص',s1.txt||'']);
-    if(s1.t==='dim')F.push(['off','الإزاحة ('+uA()+')',fu(s1.off)]);
+    if(s1.t==='dim'&&!['radius','diameter'].includes(s1.mode))F.push(['off',s1.mode==='angular'?'نصف قطر قوس الزاوية':'الإزاحة ('+uA()+')',fu(s1.off||.6)]);
     F.push(...dynSpec(s1));
 
   }
@@ -68,6 +68,7 @@ function dynSpec(s){
   const b=bx(s),cx=(b.x+b.X)/2,cy=(b.y+b.Y)/2;
   if(s.t==='rect')return [['w','العرض',fu(s.w)],['h','الارتفاع',fu(s.h)],['ang','الزاوية °',f(deg(s.rot||0))]];
   if(s.t==='circle')return [['r','نصف القطر',fu(s.r)]];
+  if(s.t==='dim'&&s.mode==='angular')return [];
   if(s.t==='line'||s.t==='wall'||s.t==='dim')return [['L','الطول',fu(len(s))],['ang','الزاوية °',f(dynAngle(s.b[0]-s.a[0],s.b[1]-s.a[1]))],...(s.t==='wall'?[['th','السماكة',fu(s.th)]]:[])];
   if(s.t==='arc')return [['r','نصف القطر',fu(s.r)],['a0','زاوية البداية °',f(deg(s.a0||0))],['a1','زاوية النهاية °',f(deg(s.a1||0))]];
   if(s.t==='ellipse')return [['rx','نصف المحور X',fu(s.rx)],['ry','نصف المحور Y',fu(s.ry)],['ang','زاوية الدوران °',f(deg(s.rot||0))]];
