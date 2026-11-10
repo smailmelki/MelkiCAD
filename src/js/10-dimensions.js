@@ -12,6 +12,7 @@
 // نقاط خط القياس بحسب نوع البعد.
 function dimPts(s){
   const mode=s.mode||'linear',L=len(s)||1;
+  if(mode==='radius'||mode==='diameter'||mode==='angular')return[s.a,s.b];
   if(mode==='horizontal')return[[s.a[0],s.a[1]+s.off],[s.b[0],s.a[1]+s.off]];
   if(mode==='vertical')return[[s.a[0]+s.off,s.a[1]],[s.a[0]+s.off,s.b[1]]];
   const nx=-(s.b[1]-s.a[1])/L*s.off,ny=(s.b[0]-s.a[0])/L*s.off;
