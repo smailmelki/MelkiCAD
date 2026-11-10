@@ -271,6 +271,17 @@ t('DXF: الباب المزدوج يحفظ عرض كل جهة', () => {
   const sd=R(`dxfShapes(dxfEntities(__txt),1).shapes.find(s=>s.t==='door')`);
   ok(!!sd,'يُستورد الباب المفرد');near(sd.oa,55,'زاوية فتح الباب المفرد');eq(sd.h,-1);
 });
+t('دقة الأبعاد تحفظ 0–4 منازل وتستخدم وحدة المشروع في العرض وDXF', () => {
+  R(`ST.unit='cm';`);
+  eq(R(`dimLabel({prec:0},1.23456)`), '123 cm');
+  eq(R(`dimLabel({prec:3},1.23456)`), '123.456 cm');
+  eq(R(`dimLabel({prec:9},1.23456)`), '123.4560 cm');
+  R(`newP('precision',[{t:'dim',mode:'horizontal',a:[0,0],b:[1.23456,0],off:.3,prec:3,ly:cl}],null)`);
+  const txt=R(`dxfBuild()`);
+  ok(txt.includes('123.456 cm'),'قيمة البعد المصدّرة تستخدم الدقة المختارة');
+  R(`ST.unit='m';`);
+});
+
 t('makePDF ينتج ملفًا يبدأ بـ %PDF وينتهي بـ %%EOF', () => {
   const b = R(`makePDF(new Uint8Array([1,2,3]),10,10,210,297)`);
   ok(b.size > 100 && b.type === 'application/pdf');

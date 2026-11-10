@@ -119,12 +119,12 @@ function dxfBuild(){
         txt(s,q,h,0,`${Math.abs(delta*180/Math.PI).toFixed(1).replace(/\\.0$/,'')}°`);
       }else if(mode==='radius'||mode==='diameter'){
         line(s,s.a,s.b);const m=[(s.a[0]+s.b[0])/2,(s.a[1]+s.b[1])/2],v=mode==='diameter'?len(s):len(s);
-        txt(s,m,h,0,`${mode==='diameter'?'Ø':'R'} ${f(v)}`);
+        txt(s,m,h,0,`${mode==='diameter'?'Ø':'R'} ${dimLabel(s,v)}`);
       }else{
         const d=dimPts(s),p=d[0],q=d[1];line(s,s.a,p);line(s,s.b,q);line(s,p,q);
         let ang=Math.atan2(q[1]-p[1],q[0]-p[0]);if(ang>Math.PI/2||ang<-Math.PI/2)ang+=Math.PI;
         const value=mode==='horizontal'?Math.abs(s.b[0]-s.a[0]):mode==='vertical'?Math.abs(s.b[1]-s.a[1]):len(s);
-        const str=f(value),ux=Math.cos(ang),uy=Math.sin(ang),tw=str.length*h*.55,m=[(p[0]+q[0])/2,(p[1]+q[1])/2];
+        const str=dimLabel(s,value),ux=Math.cos(ang),uy=Math.sin(ang),tw=str.length*h*.55,m=[(p[0]+q[0])/2,(p[1]+q[1])/2];
         txt(s,[m[0]-ux*tw/2+uy*h*.35,m[1]-uy*tw/2-ux*h*.35],h,ang,str);
       }
     }
