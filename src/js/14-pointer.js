@@ -96,7 +96,7 @@ cv.addEventListener('pointermove',e=>{
     const w=s2w(...p),dx=grid(w[0]-g.w0[0]),dy=grid(w[1]-g.w0[1]);
     if(!g.moved&&(dx||dy)){g.moved=1;hist.push(g.before)}
     sel.forEach((j,n)=>mv(shapes[j],g.o[n],dx,dy));
-    sel.forEach((j,n)=>{const s=shapes[j],o=g.o[n];if(s.t==='dim'&&(s.la||s.lb)){s.a=o.a;s.b=o.b;const L=len(o)||1;s.off=o.off+(dx*(-(o.b[1]-o.a[1]))+dy*(o.b[0]-o.a[0]))/L}});
+    sel.forEach((j,n)=>{const s=shapes[j],o=g.o[n];if(s.t==='dim'&&s.circleId)delete s.circleId;if(s.t==='dim'&&(s.la||s.lb)){s.a=o.a;s.b=o.b;const L=len(o)||1;s.off=o.off+(dx*(-(o.b[1]-o.a[1]))+dy*(o.b[0]-o.a[0]))/L}});
     sel.forEach(j=>{const s=shapes[j];if(s.t==='door'||s.t==='win'){const q=wallAt([s.x,s.y],28/V.s);if(q){s.x=q.q[0];s.y=q.q[1];s.a=q.a;s.th=q.th}}});
   }else if(g.k==='rot'){
     const w=s2w(...p);let d=Math.atan2(w[1]-g.c[1],w[0]-g.c[0])-g.a0;if(S.grid)d=Math.round(d/(Math.PI/12))*Math.PI/12;
@@ -105,7 +105,11 @@ cv.addEventListener('pointermove',e=>{
   }else if(g.k==='grip'){
     const s=shapes[g.i],o=g.o,id=g.gr.id,keep=shapes.splice(g.i,1)[0],q=snapPt(s2w(...p));shapes.splice(g.i,0,keep);
     if(!g.moved){g.moved=1;hist.push(g.before)}
-    if(s.t==='dim'){if(id==='o'){const L=len(s)||1,nx=-(s.b[1]-s.a[1])/L,ny=(s.b[0]-s.a[0])/L;s.off=(q[0]-s.a[0])*nx+(q[1]-s.a[1])*ny}else{s[id]=q;const L2=mk&&mk.ref&&mk.ref.s!==s?{id:sid(mk.ref.s),i:mk.ref.i,m:mk.ref.m||0}:undefined;if(id==='a')s.la=L2;else s.lb=L2}}else if(s.t==='line'||s.t==='wall'){const oth=s[id==='a'?'b':'a'];s[id]=mk?q:constrain(oth,q)}
+    if(s.t==='dim'){
+      if(id==='o'){if(s.mode==='angular')s.off=Math.max(.1,Math.hypot(q[0]-s.c[0],q[1]-s.c[1]));else{const L=len(s)||1,nx=-(s.b[1]-s.a[1])/L,ny=(s.b[0]-s.a[0])/L;s.off=(q[0]-s.a[0])*nx+(q[1]-s.a[1])*ny}}
+      else if(id==='c'){s.c=q}
+      else{s[id]=q;if(s.circleId)delete s.circleId;const L2=mk&&mk.ref&&mk.ref.s!==s?{id:sid(mk.ref.s),i:mk.ref.i,m:mk.ref.m||0}:undefined;if(id==='a')s.la=L2;else if(id==='b')s.lb=L2}
+    }else if(s.t==='line'||s.t==='wall'){const oth=s[id==='a'?'b':'a'];s[id]=mk?q:constrain(oth,q)}
     else if(s.t==='tri')s.p=o.p.map((r,i)=>i===id?q:r);
     else if(s.t==='circle')s.r=Math.max(.05,Math.hypot(q[0]-s.x,q[1]-s.y));
     else if(s.t==='rect'||s.t==='furn'){const opp=rc(o)[(id+2)%4],rt=-(o.rot||0),c=Math.cos(rt),n=Math.sin(rt),dx=q[0]-opp[0],dy=q[1]-opp[1],w=Math.max(.05,Math.abs(dx*c-dy*n)),h=Math.max(.05,Math.abs(dx*n+dy*c));s.w=w;s.h=h;s.x=(q[0]+opp[0])/2-w/2;s.y=(q[1]+opp[1])/2-h/2}
