@@ -51,7 +51,7 @@ function build(a,b){
   let s;
   if(tool==='line')s={t:'line',a,b};
   else if(tool==='wall')s={t:'wall',a,b,th:D.th||.2};
-  else if(tool==='dim')s={t:'dim',a,b,off:.6};
+  else if(tool==='dim')s={t:'dim',mode:dimMode==='aligned'?'linear':dimMode,a,b,off:.6};
   else if(tool==='circle')s={t:'circle',x:a[0],y:a[1],r:Math.hypot(b[0]-a[0],b[1]-a[1])};
   else if(tool==='arc'){let a1=Math.atan2(b[1]-a[1],b[0]-a[0]);if(a1<=0)a1+=Math.PI*2;s={t:'arc',x:a[0],y:a[1],r:Math.hypot(b[0]-a[0],b[1]-a[1]),a0:0,a1};}
   else if(tool==='ellipse')s={t:'ellipse',x:(a[0]+b[0])/2,y:(a[1]+b[1])/2,rx:Math.max(.025,w/2),ry:Math.max(.025,h/2),rot:0};
