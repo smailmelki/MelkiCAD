@@ -76,9 +76,9 @@ cv.addEventListener('pointerdown',e=>{
     snap();shapes.push(s);sel=[shapes.length-1];g=null;mk=null;upd();draw();
     if(tool==='text'){opts();setTimeout(()=>{const t=$('#sheet [data-k="txt"]');if(t){t.focus();t.select()}},60)}
     return;
-  }else if(tool==='door'||tool==='win'){
+  }else if(tool==='door'||tool==='door2'||tool==='win'){
     const w=wallAt(s2w(...p),28/V.s);sel=[];
-    if(w){const s={t:tool,x:w.q[0],y:w.q[1],a:w.a,th:w.th,w:tool==='door'?.9:1.2,f:1,h:1,ly:cl,col:D.col||undefined,lw:D.lw};
+    if(w){const double=tool==='door2',w1=.75,w2=.75,s={t:tool,x:w.q[0],y:w.q[1],a:w.a,th:w.th,w:double?w1+w2:tool==='door'?.9:1.2,w1:double?w1:undefined,w2:double?w2:undefined,f:1,h:1,ly:cl,col:D.col||undefined,lw:D.lw};
       snap();shapes.push(s);sel=[shapes.length-1];g={k:'move',w0:s2w(...p),o:[copy(s)],moved:1}}
   }else{
     sel=[];const a=tool==='free'?s2w(...p):snapPt(s2w(...p));if(tool==='free')mk=null;
@@ -108,7 +108,7 @@ cv.addEventListener('pointermove',e=>{
     if(!g.moved&&(dx||dy)){g.moved=1;hist.push(g.before)}
     sel.forEach((j,n)=>mv(shapes[j],g.o[n],dx,dy));
     sel.forEach((j,n)=>{const s=shapes[j],o=g.o[n];if(s.t==='dim'&&s.circleId)delete s.circleId;if(s.t==='dim'&&(s.la||s.lb)){s.a=o.a;s.b=o.b;const L=len(o)||1;s.off=o.off+(dx*(-(o.b[1]-o.a[1]))+dy*(o.b[0]-o.a[0]))/L}});
-    sel.forEach(j=>{const s=shapes[j];if(s.t==='door'||s.t==='win'){const q=wallAt([s.x,s.y],28/V.s);if(q){s.x=q.q[0];s.y=q.q[1];s.a=q.a;s.th=q.th}}});
+    sel.forEach(j=>{const s=shapes[j];if(s.t==='door'||s.t==='door2'||s.t==='win'){const q=wallAt([s.x,s.y],28/V.s);if(q){s.x=q.q[0];s.y=q.q[1];s.a=q.a;s.th=q.th}}});
   }else if(g.k==='rot'){
     const w=s2w(...p);let d=Math.atan2(w[1]-g.c[1],w[0]-g.c[0])-g.a0;if(S.grid)d=Math.round(d/(Math.PI/12))*Math.PI/12;
     if(!g.moved&&d){g.moved=1;hist.push(g.before)}
@@ -157,3 +157,4 @@ cv.addEventListener('wheel',e=>{
   e.preventDefault();const p=pos(e),w=s2w(...p);
   V.s=clamp(V.s*(e.deltaY<0?1.1:.9),MIN_VIEW_SCALE,1200);V.x=p[0]-w[0]*V.s;V.y=p[1]-w[1]*V.s;redraw();saveSoon();
 },{passive:false});
+
