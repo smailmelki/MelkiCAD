@@ -1,9 +1,8 @@
 /* ==================================================================
  * 15-properties.js
- * خصائص العنصر: لوحة الخيارات (اللون، السمك، الطبقة، التعبئة، القياسات) وشريط
- * الإدخال الرقمي الشامل dyn.
+ * خصائص العنصر: لوحة الخيارات (اللون، السمك، الطبقة، التعبئة، القياسات).
  *
- * يعرّف: opts، dynS، dynFields، hideDyn، dynAngle، dynSpec، showDyn، applyDyn
+ * يعرّف: opts، dynAngle، dynSpec، applyGeometryValues
  * يعتمد على: 01-core.js، 02-geometry.js، 05-persistence.js، 09-render.js،
  *            22-toolbar.js
  * ================================================================== */
@@ -62,11 +61,7 @@ function opts(){
 }
 
 $('#op').onclick=opts;
-// الإدخال الرقمي الشامل: قيم هندسية مناسبة لكل نوع من عناصر الرسم
-let dynS=null,dynFields=[];
-
-function hideDyn(){dynS=null;dynFields=[];const panel=$('#dyn'),host=$('#dynfields');if(panel)panel.classList.remove('on');if(host)host.innerHTML=''}
-
+// القيم الهندسية القابلة للتعديل لكل نوع من عناصر الرسم (تُعرض في لوحة الخصائص)
 function dynAngle(dx,dy){let a=deg(Math.atan2(-dy,dx));return (a+360)%360}
 
 function dynSpec(s){
@@ -90,9 +85,6 @@ function dynSpec(s){
   if(s.t==='text'||s.t==='north')return [['h','الحجم',fu(s.h)],['ang','زاوية الدوران °',f(deg(s.a||0))]];
   return [];
 }
-
-function showDyn(s){hideDyn()}
-
 
 function applyGeometryValues(s,get){
   const v=k=>{const n=num(get(k));return Number.isFinite(n)?n:NaN};

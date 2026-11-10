@@ -1,14 +1,17 @@
 // عامل الخدمة: يجعل التطبيق يعمل بلا إنترنت بعد أول تحميل ناجح.
-const VER='plan-v39';
+// يُستبدل رقم الإصدار تلقائيًا برقم الإيداع عند النشر وعند بناء APK (لا حاجة لرفعه يدويًا)
+const VER='plan-dev';
 const CORE=[
   './',
   'index.html',
   'manifest.json',
   'icon-192.png',
   'icon-512.png',
+  'icon-maskable-512.png',
   'css/base.css',
   'css/components.css',
   'css/nav-overlay.css',
+  'js/00-storage.js',
   'js/01-core.js',
   'js/02-geometry.js',
   'js/03-snap.js',
@@ -28,6 +31,7 @@ const CORE=[
   'js/17-dxf.js',
   'js/18-print.js',
   'js/19-areas.js',
+  'js/20-keyboard.js',
   'js/21-settings.js',
   'js/22-toolbar.js',
   'js/23-main.js'

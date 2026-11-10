@@ -21,7 +21,7 @@ function upd(){
   $('#snap').classList.toggle('on',Object.values(S).some(Boolean));
 }
 // ---- الأزرار ----
-$$('[data-t]').forEach(b=>b.onclick=()=>{if(polyDraft)finishPolyline();closeDrawFlow();tool=b.dataset.t;sel=[];hideDyn();if(tool==='trim')toast('المس الجزء المراد قصه من خط أو جدار');if(tool==='extend')toast('المس قرب طرف الخط أو الجدار لتمديده');$('#sheet').classList.remove('on');$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();startDrawFlow(tool)});
+$$('[data-t]').forEach(b=>b.onclick=()=>{if(polyDraft)finishPolyline();closeDrawFlow();tool=b.dataset.t;sel=[];if(tool==='trim')toast('المس الجزء المراد قصه من خط أو جدار');if(tool==='extend')toast('المس قرب طرف الخط أو الجدار لتمديده');$('#sheet').classList.remove('on');$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();startDrawFlow(tool)});
 
 $('#snap').onclick=()=>{$$('.gm').forEach(m=>m.classList.remove('on'));$('#smenu').classList.toggle('on')};
 
@@ -50,7 +50,7 @@ GROUPS.forEach(([id,label,icon,tools])=>{
 
 const fm=document.createElement('div');fm.className='gm';fm.id='gfurn';
 
-Object.keys(SYM).forEach(k=>{const b=document.createElement('button');b.dataset.fk=k;b.innerHTML=furnIcon(k)+SYM[k].n;b.onclick=()=>{furnKind=k;tool='furn';sel=[];hideDyn();closeDrawFlow();$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();startDrawFlow('furn')};fm.append(b)});
+Object.keys(SYM).forEach(k=>{const b=document.createElement('button');b.dataset.fk=k;b.innerHTML=furnIcon(k)+SYM[k].n;b.onclick=()=>{furnKind=k;tool='furn';sel=[];closeDrawFlow();$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();startDrawFlow('furn')};fm.append(b)});
 
 $('main').append(fm);
 

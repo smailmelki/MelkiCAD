@@ -3,7 +3,7 @@
  * الرسم على اللوحة: ألوان الثيم، رسم الأشكال والتعبئة والنصوص، إطار الرسم الكامل
  * draw، تغيير الحجم، ملاءمة العرض، ولقطة الشاشة.
  *
- * يعرّف: colors، tag، fillShape، drawNote، drawShape، marker، draw، resize، quickShot
+ * يعرّف: colors، tag، fillShape، drawNote، drawShape، marker، draw، redraw، resize، quickShot
  * يعتمد على: 01-core.js، 02-geometry.js، 04-selection.js، 05-persistence.js،
  *            06-layers.js، 10-dimensions.js، 11-furniture.js، 12-openings.js
  * ================================================================== */
@@ -115,7 +115,8 @@ function draw(){
       ctx.strokeStyle=major?c.major:c.grid;ctx.lineWidth=1;ctx.stroke();
     }
   }
-  for(const pass of[0,1])shapes.forEach((s,i)=>{if(shown(s)&&(s.t==='door'||s.t==='win')===!!pass)drawShape(s,sel.includes(i),false,c)});
+  const picked=new Set(sel);
+  for(const pass of[0,1])shapes.forEach((s,i)=>{if(shown(s)&&(s.t==='door'||s.t==='win')===!!pass)drawShape(s,picked.has(i),false,c)});
   // أثناء الرسم الموازي: إبراز ضلع المرجع ورسم دليل متقطع ممتد عبر مساحة اللوحة.
   if(parallelGuide&&parallelRef&&parallelGuide.target&&referenceWithinTolerance(parallelGuide.origin,parallelGuide.target)){
     const rx=parallelRef.b[0]-parallelRef.a[0],ry=parallelRef.b[1]-parallelRef.a[1],len=Math.hypot(rx,ry),dx=S.perpendicular?-ry:rx,dy=S.perpendicular?rx:ry;
@@ -158,6 +159,11 @@ function draw(){
   ctx.strokeStyle=c.dim;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(12,H-14);ctx.lineTo(12+L,H-14);ctx.stroke();
   ctx.font=`400 11px ${FONT}`;ctx.textAlign='left';ctx.fillStyle=c.dim;ctx.fillText(fl(gs),12,H-26);
 }
+
+// رسم مؤجَّل: يدمج طلبات الرسم المتتالية (حركة المؤشر والعجلة) في إطار واحد لكل تحديث للشاشة.
+// draw() يبقى متزامنًا للأماكن التي تحتاج النتيجة فورًا (لقطة الشاشة، التصدير).
+let drawQueued=0;
+function redraw(){if(drawQueued)return;drawQueued=requestAnimationFrame(()=>{drawQueued=0;draw()})}
 
 function resize(){dpr=devicePixelRatio||1;const r=$('main').getBoundingClientRect();W=r.width;H=r.height;cv.width=W*dpr;cv.height=H*dpr;draw()}
 

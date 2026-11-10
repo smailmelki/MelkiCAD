@@ -4,7 +4,7 @@
  *
  * يعرّف: settingsSheet
  * يعتمد على: 01-core.js، 05-persistence.js، 08-project-io.js، 09-render.js،
- *            22-toolbar.js
+ *            20-keyboard.js، 22-toolbar.js
  * ================================================================== */
 
 function settingsSheet(){
@@ -16,6 +16,8 @@ function settingsSheet(){
     +'<b>الإظهار</b><div class="chips" id="ct">'+[['grid','الشبكة'],['axes','المعلم والأصل'],['coord','الإحداثيات']].map(([k,l])=>`<button class="chip${ST[k]?' on':''}" data-k2="${k}">${l}</button>`).join('')+'</div>'
     +'<b>خصائص العرض</b><div class="chips"><button class="chip" id="showDims">إظهار الأبعاد</button><button class="chip" id="showAreas">إظهار المساحات</button></div>'
     +'<b>استيراد وتصدير</b><div class="chips"><button class="chip" id="pimport">استيراد مشروع / DXF</button><button class="chip" id="pexport">تصدير مشروع / DXF</button></div>'
+    +'<b>التخزين</b><div class="hint" id="stinfo">…</div>'
+    +'<b>مساعدة</b><div class="chips"><button class="chip" id="pkeys">اختصارات لوحة المفاتيح</button></div>'
     +'<button id="ok">تم</button>';
   const pick=(id,fn)=>sh.querySelectorAll(`#${id} .chip`).forEach(b=>{b.onclick=()=>{fn(b.dataset.v);sh.querySelectorAll(`#${id} .chip`).forEach(x=>x.classList.toggle('on',x===b));save();upd();draw()}});
   pick('cu',v=>{ST.unit=v});pick('cg',v=>{ST.gs=+v});
@@ -23,7 +25,8 @@ function settingsSheet(){
   $('#showDims').onclick=()=>{ST.showDims=ST.showDims?0:1;save();syncView();draw()};
   $('#showAreas').onclick=()=>{ST.showAreas=ST.showAreas?0:1;save();syncView();draw()};
   syncView();
-  $('#pimport').onclick=importChoice;$('#pexport').onclick=exportChoice;
+  $('#pimport').onclick=importChoice;$('#pexport').onclick=exportChoice;$('#pkeys').onclick=keysSheet;
+  Store.describe().then(t=>{const el=$('#stinfo');if(el)el.textContent=t});
   sh.querySelectorAll('#ct .chip').forEach(b=>{b.onclick=()=>{const k=b.dataset.k2;ST[k]=ST[k]?0:1;b.classList.toggle('on',!!ST[k]);save();draw()}});
   $('#ok').onclick=()=>{sh.classList.remove('on');upd()};
   sh.classList.add('on');$('#ctx').style.display='none';

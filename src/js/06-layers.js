@@ -17,11 +17,11 @@ function layerSheet(){
   sh.innerHTML='<div class="pl"></div><div class="row"><button class="fl" id="lnew">طبقة جديدة</button><button class="fl" id="lmv">نقل المحدد هنا</button><button class="fl" id="ldel">حذف الحالية</button></div><div class="row"><button class="fl" id="lmg">دمج الطبقات</button><button class="fl" id="lmc" hidden>إلغاء</button></div><button id="ok">تم</button>';
   let mm=0;const mg=new Set();
   const pl=sh.querySelector('.pl'),ch=()=>{const c0=LY.find(l=>l.id===cl);if(c0)c0.vis=1;sel=sel.filter(i=>ed(shapes[i]));save();upd();draw();fill()},
-    mk=(t,fn)=>{const b=document.createElement('button');b.textContent=t;b.onclick=fn;return b};
+    btn=(t,fn)=>{const b=document.createElement('button');b.textContent=t;b.onclick=fn;return b};
   const fill=()=>{pl.textContent='';LY.forEach(l=>{
     const r=document.createElement('div'),nm=document.createElement('input'),lc=document.createElement('input');r.className='lr'+(l.id===cl?' on':'');nm.value=l.name;nm.oninput=()=>{l.name=nm.value;save()};lc.type='color';lc.className='layer-color';lc.title='لون الطبقة';lc.value=l.col||'#15324b';lc.onchange=()=>{snap();l.col=lc.value;save();draw()};
-    if(mm&&l.id!==cl)r.append(mk(mg.has(l.id)?'☑':'☐',()=>{mg.has(l.id)?mg.delete(l.id):mg.add(l.id);mgUi()}));
-    r.append(mk(l.id===cl?'●':'○',()=>{cl=l.id;l.vis=1;mg.delete(cl);save();draw();mgUi()}),nm,lc,mk(l.vis!==0?'ظاهرة':'مخفية',()=>{if(l.id===cl&&l.vis!==0){toast('لا يمكن إخفاء الطبقة الحالية');return}snap();l.vis=l.vis!==0?0:1;ch()}),mk(l.lock?'مقفلة':'مفتوحة',()=>{snap();l.lock=l.lock?0:1;ch()}));
+    if(mm&&l.id!==cl)r.append(btn(mg.has(l.id)?'☑':'☐',()=>{mg.has(l.id)?mg.delete(l.id):mg.add(l.id);mgUi()}));
+    r.append(btn(l.id===cl?'●':'○',()=>{cl=l.id;l.vis=1;mg.delete(cl);save();draw();mgUi()}),nm,lc,btn(l.vis!==0?'ظاهرة':'مخفية',()=>{if(l.id===cl&&l.vis!==0){toast('لا يمكن إخفاء الطبقة الحالية');return}snap();l.vis=l.vis!==0?0:1;ch()}),btn(l.lock?'مقفلة':'مفتوحة',()=>{snap();l.lock=l.lock?0:1;ch()}));
     pl.append(r)})};
   fill();
   $('#lnew').onclick=()=>{snap();LY.push({id:uid(),name:`طبقة ${LY.length+1}`,vis:1,lock:0,col:'#15324b'});cl=LY[LY.length-1].id;save();fill()};

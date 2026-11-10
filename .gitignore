@@ -6,3 +6,5 @@ _site/
 android-wrapper/android/
 android-wrapper/www/
 android-wrapper/site/
+# اختبار الدخان
+test-results/

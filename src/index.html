@@ -28,7 +28,7 @@
   <canvas id="cv"></canvas>
   <div id="ctx"><button id="op">خصائص</button><button id="mv" aria-pressed="false">تحريك</button><button id="cp">نسخ</button><button id="ps">لصق</button><button id="rt">تدوير</button><button id="scale">تحجيم</button><button id="del">حذف</button><button id="all">الكل</button></div>
   <div id="sheet"></div>
-  <div id="polybar" style="position:absolute;top:58px;left:50%;transform:translateX(-50%);display:none;gap:6px;background:var(--ui);border:1px solid var(--bd);border-radius:10px;padding:4px;z-index:4"><button id="polyfinish">إنهاء POLYLINE</button><button id="polycancel">إلغاء</button></div>
+  <div id="polybar"><button id="polyfinish">إنهاء POLYLINE</button><button id="polycancel">إلغاء</button></div>
   <div id="drawInput" aria-live="polite"><div class="dihead"><span id="diTitle"></span><button id="diFinish" style="display:none">إنهاء</button><button id="diKey" title="إدخال رقمي (اختياري)" aria-label="إدخال رقمي" aria-pressed="false">⌨</button><button id="diClose" title="إلغاء الرسم" aria-label="إلغاء الرسم">✕</button></div><div id="diFields"><div class="dicoords" id="diCoords"><label><input id="diX" type="number" step="any" inputmode="decimal" autocomplete="off" aria-label="X" enterkeyhint="next"></label><label><input id="diY" type="number" step="any" inputmode="decimal" autocomplete="off" aria-label="Y" enterkeyhint="done"></label></div><div class="dicoords" id="diExtra"></div><button id="diSubmit" title="إدخال" aria-label="إدخال">✓</button></div></div>
   <div id="smenu"><button data-s="end">نهاية / ركن</button><button data-s="mid">منتصف</button><button data-s="int">تقاطع</button><button data-s="cen">مركز / ربع</button><button data-s="grid">شبكة</button><button data-s="ortho">تعامد أفقي / رأسي</button><button data-s="parallel">موازاة</button><button data-s="perpendicular">تعامد مع مرجع</button><button data-s="polar">زاوية 45°</button></div>
 </main>
@@ -60,11 +60,12 @@
 <div id="ov" hidden><img alt="المخطط"><p>اضغط مطولًا على الصورة لحفظها في هاتفك</p><button id="ovx">إغلاق</button></div>
 
 <!-- خريطة الملفات (بترتيب التحميل — الترتيب مهم لأن الملفات تتشارك نطاقًا عامًا واحدًا):
+  js/00-storage.js        طبقة التخزين: IndexedDB بذاكرة مؤقتة متزامنة وترحيل من localStorage
   js/01-core.js           الحالة العامة والمساعدات الأساسية
   js/02-geometry.js       هندسة الأشكال
   js/03-snap.js           الالتقاط (OSNAP)
   js/04-selection.js      التحديد
-  js/05-persistence.js    التخزين المحلي (localStorage) وسجل التراجع/الإعادة
+  js/05-persistence.js    حالة المشاريع والحفظ وسجل التراجع/الإعادة
   js/06-layers.js         الطبقات
   js/07-projects.js       إدارة المشاريع
   js/08-project-io.js     حفظ الملفات واستيراد/تصدير المشروع
@@ -79,10 +80,12 @@
   js/17-dxf.js            DXF
   js/18-print.js          الطباعة والتصدير
   js/19-areas.js          جدول المساحات
+  js/20-keyboard.js       اختصارات لوحة المفاتيح (للحاسوب)
   js/21-settings.js       الإعدادات
   js/22-toolbar.js        الشريط السفلي والقوائم
   js/23-main.js           نقطة البدء
 -->
+<script src="js/00-storage.js"></script>
 <script src="js/01-core.js"></script>
 <script src="js/02-geometry.js"></script>
 <script src="js/03-snap.js"></script>
@@ -102,6 +105,7 @@
 <script src="js/17-dxf.js"></script>
 <script src="js/18-print.js"></script>
 <script src="js/19-areas.js"></script>
+<script src="js/20-keyboard.js"></script>
 <script src="js/21-settings.js"></script>
 <script src="js/22-toolbar.js"></script>
 <script src="js/23-main.js"></script>

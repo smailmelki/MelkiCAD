@@ -121,8 +121,7 @@ function dxfBuild(){
 async function exportDXF(){
   let txt;try{txt=dxfBuild()}catch(e){toast('تعذّر إنشاء ملف DXF');return}
   const nm=pname().replace(/[^\p{L}\p{N} _.()-]+/gu,'').trim()||'plan';
-  let r=await saveBlob(nm+'.dxf',new Blob([txt],{type:'application/dxf'}));
-  if(r==='ext'){r=await saveBlob(nm+'.dxf.txt',new Blob([txt],{type:'text/plain'}));if(r==='ok')toast('حُفظ باسم ‎.dxf.txt — غيّر الامتداد إلى dxf قبل فتحه في أوتوكاد');return}
+  const r=await saveBlob(nm+'.dxf',new Blob([txt],{type:'application/dxf'}));
   if(r==='ok')toast('تم حفظ ملف DXF');else if(r==='err')toast('الحفظ غير متاح هنا');
 }
 

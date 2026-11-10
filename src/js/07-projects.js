@@ -12,7 +12,7 @@ const pname=()=>(PJ.find(p=>p.id===pid)||{}).name||'بدون اسم';
 
 function openP(id,nosave){
   if(!nosave)save();
-  pid=id;polyDraft=null;$('#polybar').style.display='none';const d=lsGet('p:'+id)||{};setLY(d);shapes=d.shapes||[];V=d.V||{x:24,y:24,s:40};sel=[];hist=nh();cur=null;save();upd();draw();
+  pid=id;polyDraft=null;$('#polybar').style.display='none';const d=kvGet('p:'+id)||{};setLY(d);shapes=d.shapes||[];V=d.V||{x:24,y:24,s:40};sel=[];hist=nh();cur=null;save();upd();draw();
 }
 
 function newP(name,sh,ly){
@@ -20,7 +20,7 @@ function newP(name,sh,ly){
 }
 
 function delP(){
-  try{localStorage.removeItem(K+'p:'+pid)}catch(e){}
+  kvDel('p:'+pid);
   if(PJ.length<2){shapes=[];setLY(null);V={x:24,y:24,s:40};sel=[];hist=nh();save();upd();draw();return}
   PJ=PJ.filter(p=>p.id!==pid);openP(PJ[0].id,1);
 }
