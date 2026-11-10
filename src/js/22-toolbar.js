@@ -16,6 +16,7 @@ function upd(){
   $('#op').disabled=$('#cp').disabled=$('#del').disabled=$('#rt').disabled=$('#scale').disabled=!n;$('#ps').disabled=!clip.length;
   $$('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tool));
   $$('[data-fk]').forEach(b=>b.classList.toggle('on',tool==='furn'&&b.dataset.fk===furnKind));
+  $$('[data-dm]').forEach(b=>b.classList.toggle('on',tool==='dim'&&b.dataset.dm===dimMode));
   $$('[data-g]').forEach(b=>{const m=$('#'+b.dataset.g),it=m.querySelector(tool==='furn'?`[data-fk="${furnKind}"]`:tool==='dim'?`[data-dm="${dimMode}"]`:`[data-t="${tool}"]`);b.classList.toggle('on',!!it);b.classList.toggle('has-active',!!it);b.title=it?`الأداة الحالية: ${it.textContent.trim()}`:b.dataset.groupTitle||b.textContent.trim()});
   $$('[data-s]').forEach(b=>{b.classList.toggle('on',!!S[b.dataset.s]);b.setAttribute('aria-pressed',S[b.dataset.s]?'true':'false')});
   $('#snap').classList.toggle('on',Object.values(S).some(Boolean));
@@ -43,6 +44,7 @@ GROUPS.forEach(([id,label,icon,tools])=>{
   gb.dataset.g=id;gb.dataset.groupTitle=label;gb.className='tool-group';gb.setAttribute('aria-label',label);gb.innerHTML=`<svg viewBox="0 0 24 24">${icon}</svg><span>${label}</span>`;menu.className='gm';menu.id=id;
   $(`nav [data-t="${tools[0]}"]`).before(gb);
   tools.forEach(t=>menu.append($(`nav [data-t="${t}"]`)));
+  if(id==='gdim')menu.querySelector('[data-t="dim"]').dataset.dm='linear';
   $('main').append(menu);
 });
 const DIM_TOOLS=[
