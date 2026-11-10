@@ -14,7 +14,7 @@ function upd(){
   $('#tot').textContent=`المساحة الكلية ${f(shapes.reduce((a,s)=>a+(shown(s)&&!s.ex?area(s):0),0))} م² ▾`;
   $('#undo').disabled=!hist.length;$('#redo').disabled=!redo.length;$('#ctx').style.display=tool==='select'||n?'flex':'none';
   $('#op').disabled=$('#cp').disabled=$('#del').disabled=$('#rt').disabled=$('#scale').disabled=!n;$('#ps').disabled=!clip.length;
-  $$$('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tool));
+  $$('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tool));
   $$('[data-fk]').forEach(b=>b.classList.toggle('on',tool==='furn'&&b.dataset.fk===furnKind));
   $$('[data-dm]').forEach(b=>b.classList.toggle('on',tool==='dim'&&b.dataset.dm===dimMode));
   $$('[data-g]').forEach(b=>{const m=$('#'+b.dataset.g),it=m.querySelector(tool==='furn'?`[data-fk="${furnKind}"]`:tool==='dim'?`[data-dm="${dimMode}"]`:`[data-t="${tool}"]`);b.classList.toggle('on',!!it);b.classList.toggle('has-active',!!it);b.title=it?`الأداة الحالية: ${it.textContent.trim()}`:b.dataset.groupTitle||b.textContent.trim()});
@@ -22,9 +22,9 @@ function upd(){
   $('#snap').classList.toggle('on',Object.values(S).some(Boolean));
 }
 // ---- الأزرار ----
-$$('[data-t]').forEach(b=>b.onclick=()=>{if(polyDraft)finishPolyline();closeDrawFlow();tool=b.dataset.t;if(tool==='dim'){dimMode='linear';dimDraft=[]}sel=[];if(tool==='trim')toast('المس الجزء المراد قصه من خط أو جدار');if(tool==='extend')toast('المس قرب طرف الخط أو الجدار لتمديده');$('#sheet').classList.remove('on');$$$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();startDrawFlow(tool)});
+$$('[data-t]').forEach(b=>b.onclick=()=>{if(polyDraft)finishPolyline();closeDrawFlow();tool=b.dataset.t;if(tool==='dim'){dimMode='linear';dimDraft=[]}sel=[];if(tool==='trim')toast('المس الجزء المراد قصه من خط أو جدار');if(tool==='extend')toast('المس قرب طرف الخط أو الجدار لتمديده');$$('#sheet').classList.remove('on');$$$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();startDrawFlow(tool)});
 
-$('#snap').onclick=()=>{$$$('.gm').forEach(m=>m.classList.remove('on'));$('#smenu').classList.toggle('on')};
+$$('#snap').onclick=()=>{$$$('.gm').forEach(m=>m.classList.remove('on'));$('#smenu').classList.toggle('on')};
 
 const SNAP_ICONS={end:'<svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14"/></svg>',mid:'<svg viewBox="0 0 24 24"><path d="M12 4L20 19H4Z"/></svg>',int:'<svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg>',cen:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>',grid:'<svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM12 4v16M4 12h16"/></svg>',ortho:'<svg viewBox="0 0 24 24"><path d="M5 5v14h14"/></svg>',parallel:'<svg viewBox="0 0 24 24"><path d="M7 4L3 20M17 4l-4 16"/></svg>',perpendicular:'<svg viewBox="0 0 24 24"><path d="M5 5v14h14M9 5h10v10"/></svg>',polar:'<svg viewBox="0 0 24 24"><path d="M4 20L20 4M4 20h16M4 20V4"/></svg>'};
 $$('[data-s]').forEach(b=>{if(!b.querySelector('.snap-ico'))b.insertAdjacentHTML('afterbegin',`<span class="snap-ico">${SNAP_ICONS[b.dataset.s]||''}</span>`);b.setAttribute('aria-pressed',S[b.dataset.s]?'true':'false');b.onclick=()=>{
@@ -66,7 +66,7 @@ DIM_TOOLS.forEach(([mode,label,icon])=>{
 
 const fm=document.createElement('div');fm.className='gm';fm.id='gfurn';
 
-Object.keys(SYM).forEach(k=>{const b=document.createElement('button');b.dataset.fk=k;b.innerHTML=furnIcon(k)+SYM[k].n;b.onclick=()=>{furnKind=k;tool='furn';sel=[];closeDrawFlow();$$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();startDrawFlow('furn')};fm.append(b)});
+Object.keys(SYM).forEach(k=>{const b=document.createElement('button');b.dataset.fk=k;b.innerHTML=furnIcon(k)+SYM[k].n;b.onclick=()=>{furnKind=k;tool='furn';sel=[];closeDrawFlow();$$('.gm').forEach(m=>m.classList.remove('on'));upd();draw();startDrawFlow('furn')};fm.append(b)});
 
 $('main').append(fm);
 
@@ -74,6 +74,6 @@ const fbtn=document.createElement('button');fbtn.dataset.g='gfurn';fbtn.innerHTM
 
 $$('[data-g]').forEach(b=>b.onclick=()=>{
   const m=$('#'+b.dataset.g),was=m.classList.contains('on');
-  $$$('.gm').forEach(x=>x.classList.remove('on'));$('#smenu').classList.remove('on');$('#sheet').classList.remove('on');
+  $$('.gm').forEach(x=>x.classList.remove('on'));$('#smenu').classList.remove('on');$('#sheet').classList.remove('on');
   if(!was)m.classList.add('on');upd();
 });
