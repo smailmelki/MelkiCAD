@@ -52,24 +52,40 @@ function drawDim(s,on,prev,c){
   ctx.restore();
 }
 let dimMode='linear',dimDraft=[];
+function nearestDimSegment(p){
+  let best=null,limit=24/Math.max(V.s,1e-9);
+  shapes.forEach(s=>{if(!shown(s)||s.t==='dim')return;segs(s).forEach((edge,i)=>{
+    const [a,b]=edge,dx=b[0]-a[0],dy=b[1]-a[1],l2=dx*dx+dy*dy;if(l2<1e-12)return;
+    const t=clamp(((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l2,0,1),q=[a[0]+dx*t,a[1]+dy*t],d=Math.hypot(q[0]-p[0],q[1]-p[1]);
+    if(d<limit){limit=d;best={s,i,a:a.slice(),b:b.slice(),p:q,t}}
+  })});
+  return best;
+}
 function dimensionPick(p){
   const q=snapPt(s2w(...p));
   if(dimMode==='angular'){
     dimDraft.push(q);
-    if(dimDraft.length===1)toast('حدّد نقطة على الضلع الأول');
+    if(dimDraft.length===1)toast('حدّد نقطة على الضلع الأول قرب رأس الزاوية');
     else if(dimDraft.length===2)toast('حدّد نقطة على الضلع الثاني');
     else{
-      const [c,a,b]=dimDraft;dimDraft=[];
-      const s={t:'dim',mode:'angular',c,a,b,off:.6,ly:cl,col:D.col||undefined,lw:D.lw};
-      if(valid(s)){snap();shapes.push(s);sel=[shapes.length-1];save();upd();draw()}else toast('النقاط متقاربة؛ أعد تحديد الزاوية');
+      const [centerPick,firstPick,secondPick]=dimDraft;dimDraft=[];
+      const e1=nearestDimSegment(firstPick),e2=nearestDimSegment(secondPick);
+      if(!e1||!e2||(e1.s===e2.s&&e1.i===e2.i)){toast('يجب اختيار ضلعين حقيقيين مختلفين يلتقيان عند رأس الزاوية');return true}
+      const intersections=xSS([e1.a,e1.b],[e2.a,e2.b]);
+      const c=intersections.sort((a,b)=>Math.hypot(a[0]-centerPick[0],a[1]-centerPick[1])-Math.hypot(b[0]-centerPick[0],b[1]-centerPick[1]))[0];
+      if(!c||Math.hypot((c[0]-centerPick[0])*V.s,(c[1]-centerPick[1])*V.s)>24){toast('النقطة الأولى يجب أن تكون عند تقاطع الضلعين الحقيقيين');return true}
+      const a=e1.p,b=e2.p,la=Math.hypot(a[0]-c[0],a[1]-c[1]),lb=Math.hypot(b[0]-c[0],b[1]-c[1]);
+      if(la<.1||lb<.1||Math.abs((a[0]-c[0])*(b[1]-c[1])-(a[1]-c[1])*(b[0]-c[0]))<1e-7){toast('اختر نقطتين متباعدتين على ضلعي الزاوية');return true}
+      const s={t:'dim',mode:'angular',c,a,b,off:.6,la:{s:e1.s,i:e1.i,t:e1.t},lb:{s:e2.s,i:e2.i,t:e2.t},ly:cl,col:D.col||undefined,lw:D.lw};
+      if(valid(s)){linkDim(s);snap();shapes.push(s);sel=[shapes.length-1];save();upd();draw()}else toast('تعذّر إنشاء بُعد الزاوية؛ أعد التحديد');
     }
     return true;
   }
   if(dimMode==='radius'||dimMode==='diameter'){
     const i=hit(p[0],p[1]),o=shapes[i];
     if(!o||o.t!=='circle'){toast('المس دائرة لإضافة بُعد نصف القطر أو القطر');return true}
-    const r=o.r,cx=o.x,cy=o.y;
-    const s=dimMode==='radius'?{t:'dim',mode:'radius',a:[cx,cy],b:[cx+r,cy]}:{t:'dim',mode:'diameter',a:[cx-r,cy],b:[cx+r,cy]};
+    const r=o.r,cx=o.x,cy=o.y,angle=dimMode==='radius'?-Math.PI/4:0,ux=Math.cos(angle),uy=Math.sin(angle);
+    const s=dimMode==='radius'?{t:'dim',mode:'radius',a:[cx,cy],b:[cx+r*ux,cy+r*uy],angle,circleId:sid(o)}:{t:'dim',mode:'diameter',a:[cx-r*ux,cy-r*uy],b:[cx+r*ux,cy+r*uy],angle,circleId:sid(o)};
     Object.assign(s,{ly:cl,col:D.col||undefined,lw:D.lw});
     snap();shapes.push(s);sel=[shapes.length-1];save();upd();draw();return true;
   }
@@ -78,17 +94,20 @@ function dimensionPick(p){
 // أبعاد مرتبطة: البُعد يحمل la/lb = {id,i,m} (شكل معرّف بـ id، رقم الرأس أو الضلع، m=1 لمنتصف الضلع) ويتحدّث مع كل رسم
 function sid(s){return s.id||(s.id=uid())}
 
-function linkDim(d){for(const k of['la','lb']){const r=d[k];if(r&&r.s)d[k]={id:sid(r.s),i:r.i,m:r.m||0};else delete d[k]}}
+function linkDim(d){for(const k of['la','lb']){const r=d[k];if(r&&r.s)d[k]={id:sid(r.s),i:r.i,m:r.m||0,...(r.t!==undefined?{t:r.t}:{})};else delete d[k]}}
 
 function syncDims(){
-  const ds=shapes.filter(s=>s.t==='dim'&&(s.la||s.lb));if(!ds.length)return;
+  const ds=shapes.filter(s=>s.t==='dim'&&(s.la||s.lb||s.circleId));if(!ds.length)return;
   const by=new Map();shapes.forEach(s=>{if(s.id)by.set(s.id,s)});
-  const pt=L=>{const s=by.get(L.id);if(!s)return null;const P=pts(s);if(L.m){const A=P[L.i],B=P[(L.i+1)%P.length];return A&&B?[(A[0]+B[0])/2,(A[1]+B[1])/2]:null}return P[L.i]||null};
-  ds.forEach(d=>{if(d.la){const p=pt(d.la);if(p)d.a=p.slice()}if(d.lb){const p=pt(d.lb);if(p)d.b=p.slice()}});
+  const pt=L=>{const s=by.get(L.id);if(!s)return null;const P=pts(s);if(L.t!==undefined){const A=P[L.i],B=P[L.i+1];return A&&B?[A[0]+(B[0]-A[0])*L.t,A[1]+(B[1]-A[1])*L.t]:null}if(L.m){const A=P[L.i],B=P[(L.i+1)%P.length];return A&&B?[(A[0]+B[0])/2,(A[1]+B[1])/2]:null}return P[L.i]||null};
+  ds.forEach(d=>{
+    if(d.circleId){const o=by.get(d.circleId);if(o&&o.t==='circle'){const a=d.angle||0,ux=Math.cos(a),uy=Math.sin(a);if(d.mode==='radius'){d.a=[o.x,o.y];d.b=[o.x+o.r*ux,o.y+o.r*uy]}else if(d.mode==='diameter'){d.a=[o.x-o.r*ux,o.y-o.r*uy];d.b=[o.x+o.r*ux,o.y+o.r*uy]}}}
+    if(d.la){const p=pt(d.la);if(p)d.a=p.slice()}if(d.lb){const p=pt(d.lb);if(p)d.b=p.slice()}
+  });
 }
 
 function fixLinks(src,out){
   const map=new Map();
   src.forEach((s,i)=>{if(s.id){out[i].id=uid();map.set(s.id,out[i].id)}});
-  out.forEach(d=>{if(d.t==='dim')for(const k of['la','lb']){if(d[k]){if(map.has(d[k].id))d[k]={...d[k],id:map.get(d[k].id)};else delete d[k]}}});
+  out.forEach(d=>{if(d.t==='dim'){for(const k of['la','lb']){if(d[k]){if(map.has(d[k].id))d[k]={...d[k],id:map.get(d[k].id)};else delete d[k]}}if(d.circleId){if(map.has(d.circleId))d.circleId=map.get(d.circleId);else delete d.circleId}}});
 }
