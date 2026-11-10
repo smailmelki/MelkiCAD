@@ -17,7 +17,7 @@ function upd(){
   $$('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tool));
   $$('[data-fk]').forEach(b=>b.classList.toggle('on',tool==='furn'&&b.dataset.fk===furnKind));
   $$('[data-dm]').forEach(b=>b.classList.toggle('on',tool==='dim'&&b.dataset.dm===dimMode));
-  $$('[data-g]').forEach(b=>{const m=$('#'+b.dataset.g),it=m.querySelector(tool==='furn'?`[data-fk="${furnKind}"]`:tool==='dim'?`[data-dm="${dimMode}"]`:`[data-t="${tool}"]`);b.classList.toggle('on',!!it);b.classList.toggle('has-active',!!it);b.title=it?`الأداة الحالية: ${it.textContent.trim()}`:b.dataset.groupTitle||b.textContent.trim()});
+  $$('[data-g]').forEach(b=>{const m=$('#'+b.dataset.g),it=m.querySelector(tool==='furn'?`[data-fk="${furnKind}"]`:tool==='dim'?`[data-dm="${dimMode}"]`:`[data-t="${tool}"]`);b.classList.toggle('on',!!it);b.classList.toggle('has-active',!!it);b.title=it?`الأداة الحالية: ${it.textContent.trim()}`:b.dataset.groupTitle||b.textContent.trim();if(b.dataset.g==='gdraw'){const icon=b.querySelector('svg'),selected=it&&it.querySelector('svg');if(icon)icon.innerHTML=selected?selected.innerHTML:b.dataset.defaultIcon}});
   $$('[data-s]').forEach(b=>{b.classList.toggle('on',!!S[b.dataset.s]);b.setAttribute('aria-pressed',S[b.dataset.s]?'true':'false')});
   $('#snap').classList.toggle('on',Object.values(S).some(Boolean));
 }
@@ -41,7 +41,7 @@ const GROUPS=[['gdraw','رسم','<path d="M4 20l4-1 11-11-3-3L5 16z"/>',['line',
 
 GROUPS.forEach(([id,label,icon,tools])=>{
   const gb=document.createElement('button'),menu=document.createElement('div');
-  gb.dataset.g=id;gb.dataset.groupTitle=label;gb.className='tool-group';gb.setAttribute('aria-label',label);gb.innerHTML=`<svg viewBox="0 0 24 24">${icon}</svg><span>${label}</span>`;menu.className='gm';menu.id=id;
+  gb.dataset.g=id;gb.dataset.groupTitle=label;if(id==='gdraw')gb.dataset.defaultIcon=icon;gb.className='tool-group';gb.setAttribute('aria-label',label);gb.innerHTML=`<svg viewBox="0 0 24 24">${icon}</svg><span>${label}</span>`;menu.className='gm';menu.id=id;
   $(`nav [data-t="${tools[0]}"]`).before(gb);
   tools.forEach(t=>menu.append($(`nav [data-t="${t}"]`)));
   if(id==='gdim')menu.querySelector('[data-t="dim"]').dataset.dm='linear';
@@ -77,3 +77,4 @@ $$('[data-g]').forEach(b=>b.onclick=()=>{
   $$('.gm').forEach(x=>x.classList.remove('on'));$('#smenu').classList.remove('on');$('#sheet').classList.remove('on');
   if(!was)m.classList.add('on');upd();
 });
+
