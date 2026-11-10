@@ -95,7 +95,10 @@ function applyGeometryValues(s,get){
     const w=nu(get('w')),h=nu(get('h')),a=angle('ang');
     if(w>0)s.w=w;if(h>0)s.h=h;if(a!==null)s.rot=a;
   }else if(s.t==='circle'){const r=nu(get('r'));if(r>0)s.r=r}
-  else if(s.t==='line'||s.t==='wall'||s.t==='dim'){
+  else if(s.t==='dim'&&(s.mode==='radius'||s.mode==='diameter')){
+    const L=nu(get('L')),a=angle('ang'),oldL=len(s)||1,l=L>0?L:oldL,ang=a===null?Math.atan2(-(s.b[1]-s.a[1]),s.b[0]-s.a[0]):a;
+    if(L>0||a!==null){if(s.mode==='radius'){s.b=[s.a[0]+l*Math.cos(ang),s.a[1]-l*Math.sin(ang)]}else{const cx=(s.a[0]+s.b[0])/2,cy=(s.a[1]+s.b[1])/2,dx=Math.cos(ang)*l/2,dy=-Math.sin(ang)*l/2;s.a=[cx-dx,cy-dy];s.b=[cx+dx,cy+dy]}delete s.circleId}
+  }else if(s.t==='line'||s.t==='wall'||s.t==='dim'){
     const L=nu(get('L')),a=angle('ang'),d=len(s)||1;
     if(L>0||a!==null){const q=a===null?Math.atan2(-(s.b[1]-s.a[1]),s.b[0]-s.a[0]):a,l=L>0?L:d;s.b=[s.a[0]+l*Math.cos(q),s.a[1]-l*Math.sin(q)];if(s.t==='dim'){s.lb=undefined}}
     if(s.t==='wall'){const th=nu(get('th'));if(th>0)s.th=th}
