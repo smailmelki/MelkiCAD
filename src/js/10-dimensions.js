@@ -102,6 +102,7 @@ function syncDims(){
   const pt=L=>{const s=by.get(L.id);if(!s)return null;const P=pts(s);if(L.t!==undefined){const A=P[L.i],B=P[L.i+1];return A&&B?[A[0]+(B[0]-A[0])*L.t,A[1]+(B[1]-A[1])*L.t]:null}if(L.m){const A=P[L.i],B=P[(L.i+1)%P.length];return A&&B?[(A[0]+B[0])/2,(A[1]+B[1])/2]:null}return P[L.i]||null};
   ds.forEach(d=>{
     if(d.circleId){const o=by.get(d.circleId);if(o&&o.t==='circle'){const a=d.angle||0,ux=Math.cos(a),uy=Math.sin(a);if(d.mode==='radius'){d.a=[o.x,o.y];d.b=[o.x+o.r*ux,o.y+o.r*uy]}else if(d.mode==='diameter'){d.a=[o.x-o.r*ux,o.y-o.r*uy];d.b=[o.x+o.r*ux,o.y+o.r*uy]}}}
+    if(d.mode==='angular'&&d.la&&d.lb){const sa=by.get(d.la.id),sb=by.get(d.lb.id),ea=sa&&segs(sa)[d.la.i],eb=sb&&segs(sb)[d.lb.i],cross=ea&&eb?xSS(ea,eb):[];if(cross.length)d.c=cross[0].slice()}
     if(d.la){const p=pt(d.la);if(p)d.a=p.slice()}if(d.lb){const p=pt(d.lb);if(p)d.b=p.slice()}
   });
 }
