@@ -54,8 +54,8 @@ function dxfBuild(){
     if(s.t==='door2'){
       const name=['MKD_D2',enc(s.w1),enc(s.w2),enc(s.th||0),enc(s.f||1),enc(s.oa===undefined?90:s.oa)].join('_');
       addBlock(name,({line:bl,poly:bp})=>{
-        const total=s.w1+s.w2,f=s.f||1,of=(s.th||0)/2*f,reach=(Number.isFinite(s.oa)?Math.max(0,Math.min(180,s.oa)):90)*Math.PI/180;
-        const leaf=(hx,span,dir)=>{const H=[hx,of],E=[hx+dir*span*Math.cos(reach),of+f*span*Math.sin(reach)],C=[hx+dir*span,of],arc=[],a0=Math.atan2(E[1]-H[1],E[0]-H[0]),a1=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));bl(H,E);for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+span*Math.cos(a),H[1]+span*Math.sin(a)])}bp(arc)};
+        const total=s.w1+s.w2,f=s.f||1,of=(s.th||0)/2*f;
+        const leaf=(hx,span,dir)=>{const H=[hx,of],v=doorLeafVector(span,dir,f,s.oa),E=[hx+v[0],of+v[1]],C=[hx+dir*span,of],arc=[],a0=Math.atan2(E[1]-H[1],E[0]-H[0]),a1=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));bl(H,E);for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+span*Math.cos(a),H[1]+span*Math.sin(a)])}bp(arc)};
         leaf(-total/2,s.w1,1);leaf(total/2,s.w2,-1);
       });
       return name;
@@ -65,7 +65,7 @@ function dxfBuild(){
       addBlock(name,({line:bl,poly:bp})=>{
         const w2=s.w,th=s.th||0;
         if(s.t==='win'){const hf=Math.max(.05,th/2);[-hf,0,hf].forEach(v=>bl([-w2/2,v],[w2/2,v]));bl([-w2/2,-hf],[-w2/2,hf]);bl([w2/2,-hf],[w2/2,hf])}
-        else{const f=s.f||1,h=s.h===-1?-1:1,hu=-h*w2/2,of=th/2*f,reach=(Number.isFinite(s.oa)?Math.max(0,Math.min(180,s.oa)):90)*Math.PI/180,H=[hu,of],E=[hu+h*w2*Math.cos(reach),of+f*w2*Math.sin(reach)],C=[hu+h*w2,of],arc=[],a0=Math.atan2(E[1]-H[1],E[0]-H[0]),a1=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));bl(H,E);for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+w2*Math.cos(a),H[1]+w2*Math.sin(a)])}bp(arc)}
+        else{const f=s.f||1,h=s.h===-1?-1:1,hu=-h*w2/2,of=th/2*f,H=[hu,of],v=doorLeafVector(w2,h,f,s.oa),E=[hu+v[0],of+v[1]],C=[hu+h*w2,of],arc=[],a0=Math.atan2(E[1]-H[1],E[0]-H[0]),a1=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));bl(H,E);for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+w2*Math.cos(a),H[1]+w2*Math.sin(a)])}bp(arc)}
       });
       return name;
     }
