@@ -23,7 +23,7 @@ function rc(s){const cx=s.x+s.w/2,cy=s.y+s.h/2,c=Math.cos(s.rot||0),n=Math.sin(s
 const rp=(q,c,a)=>{const co=Math.cos(a),si=Math.sin(a),dx=q[0]-c[0],dy=q[1]-c[1];return[c[0]+dx*co-dy*si,c[1]+dx*si+dy*co]};
 
 function rotS(s,o,c,a){
-  if(s.t==='line'||s.t==='wall'||s.t==='dim'){s.a=rp(o.a,c,a);s.b=rp(o.b,c,a)}
+  if(s.t==='line'||s.t==='wall'||s.t==='dim'){s.a=rp(o.a,c,a);s.b=rp(o.b,c,a);if(s.t==='dim'&&o.c)s.c=rp(o.c,c,a);if(s.t==='dim'&&o.angle!==undefined)s.angle=o.angle+a}
   else if(s.p)s.p=o.p.map(q=>rp(q,c,a));
   else if(s.t==='rect'||s.t==='furn'){const m=rp([o.x+o.w/2,o.y+o.h/2],c,a);s.x=m[0]-o.w/2;s.y=m[1]-o.h/2;s.rot=(o.rot||0)+a}
   else if(s.t==='ellipse'){const m=rp([o.x,o.y],c,a);s.x=m[0];s.y=m[1];s.rot=(o.rot||0)+a}
@@ -40,7 +40,7 @@ const valid=s=>s.t==='line'||s.t==='wall'||s.t==='dim'?len(s)>=.1:s.t==='circle'
 
 const segs=s=>s.t==='line'||s.t==='wall'?[[s.a,s.b]]:s.t==='arc'||s.t==='ellipse'?(()=>{const p=pts(s);return p.slice(1).map((q,i)=>[p[i],q])})():s.t==='tri'||s.t==='polygon'?s.p.map((q,i)=>[q,s.p[(i+1)%s.p.length]]):s.t==='polyline'||s.t==='free'?s.p.slice(1).map((q,i)=>[s.p[i],q]):s.t==='rect'?pts(s).map((q,i,a)=>[q,a[(i+1)%4]]):[];
 
-const mv=(s,o,dx,dy)=>{if(s.t==='line'||s.t==='wall'||s.t==='dim'){s.a=[o.a[0]+dx,o.a[1]+dy];s.b=[o.b[0]+dx,o.b[1]+dy]}else if(s.p)s.p=o.p.map(q=>[q[0]+dx,q[1]+dy]);else{s.x=o.x+dx;s.y=o.y+dy}};
+const mv=(s,o,dx,dy)=>{if(s.t==='line'||s.t==='wall'||s.t==='dim'){s.a=[o.a[0]+dx,o.a[1]+dy];s.b=[o.b[0]+dx,o.b[1]+dy];if(s.t==='dim'&&o.c)s.c=[o.c[0]+dx,o.c[1]+dy]}else if(s.p)s.p=o.p.map(q=>[q[0]+dx,q[1]+dy]);else{s.x=o.x+dx;s.y=o.y+dy}};
 
 const copy=o=>{const t=JSON.parse(JSON.stringify(o));if(t&&!Array.isArray(t))delete t.id;return t};
 
