@@ -42,6 +42,7 @@ function offS(s,d){
 function mirS(s,ax,c){
   const t=copy(s),mp=q=>ax==='v'?[2*c-q[0],q[1]]:[q[0],2*c-q[1]];
   if(s.t==='line'||s.t==='wall'||s.t==='dim'){t.a=mp(s.a);t.b=mp(s.b);if(s.t==='dim')t.off=-s.off}
+  else if(s.t==='rect'&&s.cornerBase){t.p=s.p.map(mp);t.cornerBase=s.cornerBase.map(mp);const m=mp([s.x+s.w/2,s.y+s.h/2]);t.x=m[0]-s.w/2;t.y=m[1]-s.h/2;t.rot=ax==='v'?-(s.rot||0):-(s.rot||0)}
   else if(s.p){t.p=s.p.map(mp);if(s.cornerBase)t.cornerBase=s.cornerBase.map(mp)}
   else if(s.t==='rect'||s.t==='furn'){const m=mp([s.x+s.w/2,s.y+s.h/2]);t.x=m[0]-s.w/2;t.y=m[1]-s.h/2;t.rot=-(s.rot||0)}
   else if(s.t==='door'||s.t==='door2'||s.t==='win'){const m=mp([s.x,s.y]);t.x=m[0];t.y=m[1];t.a=ax==='v'?Math.PI-s.a:-s.a;if(s.t==='door'||s.t==='door2')t.f=-s.f}
