@@ -262,6 +262,14 @@ function corneredPath(base,mods){
   return{p:out};
 }
 
+function resizeCornerGeometry(s,old){
+  if(!old.cornerBase)return;
+  const oc=[old.x+old.w/2,old.y+old.h/2],nc=[s.x+s.w/2,s.y+s.h/2],oa=-(old.rot||0),na=s.rot||0,co=Math.cos(oa),so=Math.sin(oa),cn=Math.cos(na),sn=Math.sin(na),sx=s.w/(old.w||s.w),sy=s.h/(old.h||s.h);
+  const base=old.cornerBase.map(q=>{const dx=q[0]-oc[0],dy=q[1]-oc[1],lx=(dx*co-dy*so)*sx,ly=(dx*so+dy*co)*sy;return[nc[0]+lx*cn-ly*sn,nc[1]+lx*sn+ly*cn]});
+  const scale=(Math.abs(sx)+Math.abs(sy))/2,mods=Object.fromEntries(Object.entries(old.cornerMods||{}).map(([k,m])=>[k,m.type==='fillet'?{...m,r:m.r*scale}:{...m,d1:m.d1*scale,d2:m.d2*scale}]));
+  const built=corneredPath(base,mods);if(!built.err){s.cornerBase=base;s.cornerMods=mods;s.p=built.p}
+}
+
 function applyShapeCorner(i,index,mode){
   const s=shapes[i],base=(s.cornerBase||pts(s)).map(q=>q.slice()),mods=Object.assign({},s.cornerMods||{});
   const key=String(index);
