@@ -30,7 +30,7 @@ function dxfBuild(){
   const lnames=LY.map((l,i)=>clean(l.name,i));
   if(!lnames.length)lnames.push('0');
   const lay=s=>{const i=LY.findIndex(l=>l.id===s.ly);return i<0?'0':lnames[i]};
-  const ent=(t,s)=>{w(0,t);w(8,lay(s));w(62,256)};
+  const ent=(t,s)=>{w(0,t);w(8,lay(s));w(62,256);if(isDrawLineShape(s)){const lt=s.linetype||layerOf(s).linetype||'continuous';w(6,({dashed:'DASHED',dotted:'DOTTED',dashdot:'DASHDOT',center:'CENTER',hidden:'HIDDEN'})[lt]||'CONTINUOUS')}};
   const P3=(c,q)=>{w(c,n(q[0]));w(c+10,Yf(q[1]));w(c+20,0)};
   const line=(s,a,b)=>{ent('LINE',s);P3(10,a);P3(11,b)};
   const poly=(s,P,closed)=>{if(!P||P.length<2)return;ent('POLYLINE',s);w(66,1);w(10,0);w(20,0);w(30,0);w(70,closed?1:0);P.forEach(q=>{w(0,'VERTEX');w(8,lay(s));P3(10,q)});w(0,'SEQEND');w(8,lay(s))};
@@ -84,11 +84,12 @@ function dxfBuild(){
   w(9,'$LUPREC');w(70,4);
   w(0,'ENDSEC');
   w(0,'SECTION');w(2,'TABLES');
-  w(0,'TABLE');w(2,'LTYPE');w(70,1);w(0,'LTYPE');w(2,'CONTINUOUS');w(70,0);w(3,'Solid line');w(72,65);w(73,0);w(40,0);w(0,'ENDTAB');
+  w(0,'TABLE');w(2,'LTYPE');w(70,1);w(0,'LTYPE');w(2,'CONTINUOUS');w(70,0);w(3,'Solid line');w(72,65);w(73,0);w(40,0);
+  [['DASHED','Dashed',[.45,-.22]],['DOTTED','Dotted',[.08,-.18]],['DASHDOT','Dash dot',[.45,-.16,.08,-.16]],['CENTER','Center',[.8,-.16,.12,-.16]],['HIDDEN','Hidden',[.22,-.14]]].forEach(([name,desc,p])=>{w(0,'LTYPE');w(2,name);w(70,0);w(3,desc);w(72,65);w(73,p.length);w(40,p.reduce((a,v)=>a+Math.abs(v),0));p.forEach(v=>w(49,v))});w(0,'ENDTAB');
   w(0,'TABLE');w(2,'STYLE');w(70,1);w(0,'STYLE');w(2,'STANDARD');w(70,0);w(40,0);w(41,1);w(50,0);w(71,0);w(42,.2);w(3,'txt');w(4,'');w(0,'ENDTAB');
   w(0,'TABLE');w(2,'LAYER');w(70,Math.max(1,LY.length));
   if(!LY.length){w(0,'LAYER');w(2,'0');w(70,0);w(62,7);w(6,'CONTINUOUS')}
-  LY.forEach((l,i)=>{w(0,'LAYER');w(2,lnames[i]);w(70,l.lock?4:0);w(62,l.vis===0?-aci(l.col):aci(l.col));w(6,'CONTINUOUS')});
+  LY.forEach((l,i)=>{w(0,'LAYER');w(2,lnames[i]);w(70,l.lock?4:0);w(62,l.vis===0?-aci(l.col):aci(l.col));w(6,({dashed:'DASHED',dotted:'DOTTED',dashdot:'DASHDOT',center:'CENTER',hidden:'HIDDEN'})[l.linetype]||'CONTINUOUS')});
   w(0,'ENDTAB');w(0,'ENDSEC');
   shapes.forEach(s=>{if(s&&(s.t==='door'||s.t==='door2'||s.t==='win'||s.t==='furn'))makeCompositeBlock(s)});
   if(blockDefs.length){w(0,'SECTION');w(2,'BLOCKS');blockDefs.forEach(B=>{for(let i=0;i<B.length;i+=2)w(B[i],B[i+1])});w(0,'ENDSEC')}
@@ -160,7 +161,7 @@ function dxfEntities(txt){
     P.push([code,a[i+1].trim()]);i+=2;
   }
   if(!P.length)throw new Error('ملف DXF فارغ');
-  const E=[];E.layers=new Map();E.meta={insunits:null,acadver:null};
+  const E=[];E.layers=new Map();E.linetypes=new Map();E.meta={insunits:null,acadver:null};
   E.blocks=new Map();
   let section='',table='',cur=null,blockName=null;
   for(let i=0;i<P.length;i++){
@@ -176,10 +177,13 @@ function dxfEntities(txt){
     }else if(section==='TABLES'){
       if(c===0&&v==='TABLE'){table=P[i+1]?.[1]||'';i++}
       else if(c===0&&v==='ENDTAB'){table='';cur=null}
-      else if(c===0&&v==='LAYER'&&table==='LAYER'){cur={name:'0',color:7}}
+      else if(c===0&&v==='LTYPE'&&table==='LTYPE'){cur={name:'CONTINUOUS',pattern:[]}}
+      else if(c===0&&v==='LAYER'&&table==='LAYER'){cur={name:'0',color:7,linetype:'CONTINUOUS'}}
+      else if(cur&&table==='LTYPE'){if(c===2){cur.name=v;E.linetypes.set(v,cur)}else if(c===49)cur.pattern.push(Number(v)||0)}
       else if(cur&&table==='LAYER'){
         if(c===2){if(E.layers.get('0')===cur&&cur.name==='0')E.layers.delete('0');cur.name=v;if(!E.layers.has(v))E.layers.set(v,cur)}
         else if(c===62)cur.color=Number(v);
+        else if(c===6)cur.linetype=v;
         else if(c===70)cur.flags=Number(v);
       }
     }else if(section==='BLOCKS'){
@@ -201,7 +205,7 @@ function dxfShapes(E,k){
   const layerColor=nm=>E.layers?.get(nm)?.color||7;
   const lay=nm=>{
     nm=String(nm||'0').slice(0,64);
-    if(!lm.has(nm)){const ac=layerColor(nm);lm.set(nm,{id:uid(),name:nm,vis:ac<0?0:1,lock:0,col:COL[Math.abs(ac)]})}
+    if(!lm.has(nm)){const ac=layerColor(nm),src=E.layers?.get(nm);lm.set(nm,{id:uid(),name:nm,vis:ac<0?0:1,lock:0,col:COL[Math.abs(ac)],linetype:({DASHED:'dashed',DOTTED:'dotted',DASHDOT:'dashdot',CENTER:'center',HIDDEN:'hidden'})[src?.linetype]})}
     return lm.get(nm).id;
   };
   (E.layers||new Map()).forEach((v,nm)=>lay(nm));
@@ -216,6 +220,7 @@ function dxfShapes(E,k){
   const mk=(o,e)=>{
     if(out.length>=30000)return;
     o.ly=lay(g(e,8,'0'));
+    const importedLt=({DASHED:'dashed',DOTTED:'dotted',DASHDOT:'dashdot',CENTER:'center',HIDDEN:'hidden'})[String(g(e,6,'CONTINUOUS')).toUpperCase()];if(importedLt&&isDrawLineShape(o))o.linetype=importedLt;
     const raw=g(e,62,null);
     // لون الطبقة يبقى موروثًا من الطبقة؛ لا نحوله إلى لون مستقل للعنصر.
     if(raw!==null&&Number(raw)!==256){const c=COL[Math.abs(Number(raw))];if(c)o.col=c}
