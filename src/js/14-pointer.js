@@ -155,7 +155,7 @@ cv.addEventListener('pointermove',e=>{
     else if(s.t==='polyline'||s.t==='polygon')s.p=o.p.map((r,i)=>i===id?q:r);
     else if(s.t==='arc')arcGripDrag(s,o,id,q);
     else if(s.t==='circle')s.r=Math.max(.05,Math.hypot(q[0]-s.x,q[1]-s.y));
-    else if(s.t==='rect'||s.t==='furn'){const opp=rc(o)[(id+2)%4],rt=-(o.rot||0),c=Math.cos(rt),n=Math.sin(rt),dx=q[0]-opp[0],dy=q[1]-opp[1],w=Math.max(.05,Math.abs(dx*c-dy*n)),h=Math.max(.05,Math.abs(dx*n+dy*c));s.w=w;s.h=h;s.x=(q[0]+opp[0])/2-w/2;s.y=(q[1]+opp[1])/2-h/2}
+    else if(s.t==='rect'||s.t==='furn'){const opp=rc(o)[(id+2)%4],rt=-(o.rot||0),c=Math.cos(rt),n=Math.sin(rt),dx=q[0]-opp[0],dy=q[1]-opp[1],w=Math.max(.05,Math.abs(dx*c-dy*n)),h=Math.max(.05,Math.abs(dx*n+dy*c));s.w=w;s.h=h;s.x=(q[0]+opp[0])/2-w/2;s.y=(q[1]+opp[1])/2-h/2;if(o.cornerBase)resizeCornerGeometry(s,o)}
   }else if(g.k==='box'){if(Math.hypot(p[0]-g.a[0],p[1]-g.a[1])>6){box={x0:g.a[0],y0:g.a[1],x1:p[0],y1:p[1]};sel=boxSel()}}
   else if(g.k==='draw'){
     let b=tool==='free'?s2w(...p):snapPt(s2w(...p));if(tool==='dim'&&dimMode==='horizontal')b[1]=g.a[1];if(tool==='dim'&&dimMode==='vertical')b[0]=g.a[0];if(!mk&&(tool==='line'||tool==='wall'||tool==='dim'))b=constrain(g.a,b);
