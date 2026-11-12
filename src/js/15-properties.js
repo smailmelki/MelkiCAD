@@ -103,7 +103,7 @@ function applyGeometryValues(s,get){
   const angle=k=>{const n=v(k);return Number.isFinite(n)?rad(n):null};
   if(s.t==='rect'){
     const w=nu(get('w')),h=nu(get('h')),a=angle('ang');
-    if(w>0)s.w=w;if(h>0)s.h=h;if(a!==null)s.rot=a;
+    if(w>0)s.w=w;if(h>0)s.h=h;if(a!==null)s.rot=a;if(old.cornerBase)resizeCornerGeometry(s,old);
   }else if(s.t==='circle'){const r=nu(get('r'));if(r>0)s.r=r}
   else if(s.t==='dim'&&(s.mode==='radius'||s.mode==='diameter')){
     const L=nu(get('L')),a=angle('ang'),oldL=len(s)||1,l=L>0?L:oldL,ang=a===null?Math.atan2(-(s.b[1]-s.a[1]),s.b[0]-s.a[0]):a;
