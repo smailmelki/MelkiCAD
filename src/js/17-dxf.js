@@ -96,6 +96,16 @@ function dxfBuild(){
   w(0,'SECTION');w(2,'ENTITIES');
   shapes.forEach(s=>{
     if(!s||typeof s!=='object')return;
+    // تصدير الخط المزدوج كمسارين هندسيين مستقلين في DXF، دون تغيير بيانات المشروع الأصلية.
+    if(s.doubleLine&&isDrawLineShape(s)){
+      const half=Math.max(.01,Number(s.doubleLineGap)||.1)/2;
+      if(s.t==='circle'){circ(s,[s.x,s.y],Math.max(.001,s.r-half));circ(s,[s.x,s.y],s.r+half)}
+      else{
+        const P=s.t==='arc'?arcPtsShape(s):s.t==='rect'?rc(s):pts(s),closed=['rect','tri','polygon','ellipse'].includes(s.t)||!!s.closed;
+        if(P&&P.length>1)for(const d of[-1,1])poly(s,offsetLinePoints(P,half*d,closed),closed);
+      }
+      return;
+    }
     if(s.t==='line')line(s,s.a,s.b);
     else if(s.t==='wall'){
       const L=len(s);if(L>1e-9){const ux=(s.b[0]-s.a[0])/L,uy=(s.b[1]-s.a[1])/L,h=(s.th||.2)/2,nx=-uy*h,ny=ux*h;
