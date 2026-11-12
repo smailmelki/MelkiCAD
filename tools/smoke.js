@@ -94,5 +94,111 @@ const assert = (c, m) => { console.log((c ? '✓ ' : '✗ ') + m); if (!c) proce
     await c.close();
   }
 
+  // الخط مضمَّن محليًا: لا طلبات خارجية، ويعمل التطبيق بعد قطع الإنترنت
+  {
+    const FONT = '400 14px "IBM Plex Sans Arabic"';
+    const c = await b.newContext({ viewport: { width: 420, height: 820 }, serviceWorkers: 'allow' });
+    const q = await c.newPage(); const ext = [], errs = [];
+    q.on('request', r => { if (/^https?:/.test(r.url())) { const h = new URL(r.url()).hostname; if (h !== 'localhost' && h !== '127.0.0.1') ext.push(r.url()); } });
+    q.on('pageerror', e => errs.push(String(e)));
+    await q.goto(url); await q.evaluate(() => navigator.serviceWorker.ready); await q.waitForTimeout(1000);
+    const fontState = () => q.evaluate(async f => { await document.fonts.load(f); return [...document.fonts].filter(x => x.family.includes('IBM Plex')).map(x => x.status); }, FONT);
+    assert(ext.length === 0, 'لا طلبات إلى مواقع خارجية' + (ext.length ? ': ' + ext.join(',') : ''));
+    assert((await fontState()).includes('loaded'), 'الخط IBM Plex Sans Arabic يُحمَّل من الملف المحلي');
+    assert(await q.evaluate(async () => { const k = await caches.keys(); return !!(await (await caches.open(k[0])).match('fonts/IBMPlexSansArabic-Regular.ttf')); }), 'ملف الخط في كاش عامل الخدمة');
+    await c.setOffline(true); await q.reload(); await q.waitForTimeout(1200);
+    assert((await fontState()).includes('loaded') && await q.evaluate(() => !!document.querySelector('nav')), 'بلا إنترنت: إعادة التحميل من الكاش والخط محمَّل');
+    assert(errs.length === 0, 'لا أخطاء JS بلا إنترنت');
+    await c.close();
+  }
+
+  // الرسم الموجَّه (الشريط الرقمي ظاهر): السحب باللمس يرسم مباشرة، واللمستان تعملان، ولا تركيز تلقائي يفتح لوحة المفاتيح باللمس.
+  {
+    const { p: f, errors: fe } = await mk('block');
+    const ptr = (type, id, x, y, pt = 'touch') => f.evaluate(([type, id, x, y, pt]) => { const cv = document.querySelector('#cv'), r = cv.getBoundingClientRect(); cv.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: pt, clientX: r.left + x, clientY: r.top + y, bubbles: true, isPrimary: true })); }, [type, id, x, y, pt]);
+    const st = () => f.evaluate(() => ({ n: shapes.length, flow: !!drawFlow, stage: drawFlow && drawFlow.stage, ae: document.activeElement && document.activeElement.id }));
+    await f.evaluate(() => { S.grid = 0; S.end = S.mid = S.int = S.cen = 0; diSetOpen(true, false); });
+    const tapTool = () => f.evaluate(() => { const b = document.querySelector('[data-t="line"]'); b.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'touch', bubbles: true })); b.click(); });
+    await tapTool();
+    await f.waitForTimeout(120); let s0 = await st(); assert(s0.ae !== 'diX' && s0.ae !== 'diY', 'الرسم الموجَّه: الضغط على زر الأداة باللمس لا يفتح لوحة المفاتيح');
+    const n0 = (await st()).n;
+    await ptr('pointerdown', 1, 100, 300); await ptr('pointermove', 1, 180, 320); await ptr('pointermove', 1, 260, 340); await ptr('pointerup', 1, 260, 340);
+    let s = await st(); assert(s.n === n0 + 1 && !s.flow, 'الرسم الموجَّه: سحب الإصبع يرسم الخط مباشرة ويُنهي الرسم الموجَّه');
+    await tapTool();
+    await ptr('pointerdown', 2, 100, 400); await ptr('pointerup', 2, 101, 401);
+    s = await st(); assert(s.flow && s.stage === 'second' && s.n === n0 + 1, 'الرسم الموجَّه: لمسة قصيرة تثبّت النقطة الأولى فقط');
+    await f.waitForTimeout(120); s = await st(); assert(s.ae !== 'diX' && s.ae !== 'diY', 'الرسم الموجَّه: لا تركيز تلقائي على حقول الإدخال باللمس');
+    await ptr('pointerdown', 2, 260, 420); await ptr('pointerup', 2, 260, 420);
+    s = await st(); assert(s.n === n0 + 2 && !s.flow, 'الرسم الموجَّه: اللمسة الثانية تُكمل الخط');
+    assert(fe.length === 0, 'الرسم الموجَّه بلا أخطاء JS');
+  }
+
+  // أدوات التعديل الجديدة باللمس: تدوير زاوية، تفكيك/ربط، ونقل بنقطة أساس (سحب وإفلات) مع التراجع.
+  {
+    const { p: f, errors: fe } = await mk('block');
+    const ptr = (type, id, x, y) => f.evaluate(([type, id, x, y]) => { const cv = document.querySelector('#cv'), r = cv.getBoundingClientRect(); cv.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: 'touch', clientX: r.left + x, clientY: r.top + y, bubbles: true, isPrimary: true })); }, [type, id, x, y]);
+    const W = (x, y) => f.evaluate(([x, y]) => w2s(x, y), [x, y]);
+    const tap = async (id, q) => { await ptr('pointerdown', id, q[0], q[1]); await ptr('pointerup', id, q[0], q[1]); };
+    await f.evaluate(() => { S.grid = 0; S.end = S.mid = S.int = S.cen = 0; V = { x: 100, y: 100, s: 40 }; shapes = [{ t: 'line', a: [0, 0], b: [6, 0], ly: cl }, { t: 'line', a: [0, 0], b: [0, 6], ly: cl }]; FILLET_R = 1; document.querySelector('[data-t="fillet"]').click(); document.querySelector('#opx').click(); });
+    await tap(1, await W(3, 0)); await tap(2, await W(0, 3));
+    let s = await f.evaluate(() => ({ n: shapes.length, t: shapes[2] && shapes[2].t })); assert(s.n === 3 && s.t === 'arc', 'تدوير زاوية باللمس: يُضاف قوس عند الزاوية');
+    await f.evaluate(() => document.querySelector('#undo').click()); s = await f.evaluate(() => shapes.length); assert(s === 2, 'تدوير زاوية: التراجع بخطوة واحدة');
+    await f.evaluate(() => { cornerFirst = null; tool = 'select'; shapes = [{ t: 'rect', x: 0, y: 0, w: 4, h: 3, ly: cl }]; sel = [0]; opAction('explode'); });
+    s = await f.evaluate(() => shapes.length); assert(s === 4, 'تفكيك: المستطيل ← 4 خطوط');
+    await f.evaluate(() => opAction('join')); s = await f.evaluate(() => shapes.length + shapes[0].t); assert(s === '1polygon', 'ربط: الخطوط الأربعة ← مضلع مغلق');
+    await f.evaluate(() => { shapes = [{ t: 'line', a: [0, 0], b: [2, 0], ly: cl }, { t: 'circle', x: 5, y: 5, r: 1, ly: cl }]; sel = [0, 1]; opAction('bmove'); });
+    await tap(3, await W(0, 0)); const d = await W(3, 2); await ptr('pointerdown', 4, d[0] - 40, d[1] - 30); await ptr('pointermove', 4, d[0], d[1]); await ptr('pointerup', 4, d[0], d[1]);
+    s = await f.evaluate(() => ({ a: shapes[0].a.map(v => Math.round(v * 1000) / 1000), flow: !!moveFlow })); assert(s.a.join() === '3,2' && !s.flow, 'نقل بنقطة أساس: الإزاحة (3,2) تُطبَّق وينتهي التدفق');
+    await f.evaluate(() => document.querySelector('#undo').click()); s = await f.evaluate(() => shapes[0].a.join()); assert(s === '0,0', 'نقل بنقطة أساس: التراجع بخطوة واحدة');
+    assert(fe.length === 0, 'أدوات التعديل الجديدة بلا أخطاء JS');
+  }
+
+  // الدفعة الثانية باللمس: مقابض رؤوس المتعدد (سحب/إضافة/حذف)، شدّ بإطار، وكسر، مع التراجع.
+  {
+    const { p: f, errors: fe } = await mk('block');
+    const ptr = (type, id, x, y) => f.evaluate(([type, id, x, y]) => { const cv = document.querySelector('#cv'), r = cv.getBoundingClientRect(); cv.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: 'touch', clientX: r.left + x, clientY: r.top + y, bubbles: true, isPrimary: true })); }, [type, id, x, y]);
+    const W = (x, y) => f.evaluate(([x, y]) => w2s(x, y), [x, y]);
+    const tap = async (id, q) => { await ptr('pointerdown', id, q[0], q[1]); await ptr('pointerup', id, q[0], q[1]); };
+    const drag = async (id, a, b) => { await ptr('pointerdown', id, a[0], a[1]); await ptr('pointermove', id, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2); await ptr('pointermove', id, b[0], b[1]); await ptr('pointerup', id, b[0], b[1]); };
+    const undo = () => f.evaluate(() => document.querySelector('#undo').click());
+    const rnd = v => Math.round(v * 1000) / 1000;
+    await f.evaluate(() => { S.grid = 0; S.end = S.mid = S.int = S.cen = 0; V = { x: 100, y: 150, s: 40 }; shapes = [{ t: 'polyline', p: [[0, 0], [4, 0], [4, 3]], ly: cl }]; tool = 'select'; sel = [0]; upd(); draw(); });
+    await drag(1, await W(4, 0), await W(5, 1));
+    let s = await f.evaluate(() => shapes[0].p.map(q => q.map(v => Math.round(v * 1000) / 1000).join()).join(' ')); assert(s === '0,0 5,1 4,3', 'مقبض رأس المتعدد: السحب يحرّك الرأس');
+    await undo(); s = await f.evaluate(() => shapes[0].p[1].join()); assert(s === '4,0', 'مقبض رأس المتعدد: التراجع بخطوة واحدة');
+    await f.evaluate(() => { sel = [0]; upd(); draw(); });
+    await drag(2, await W(2, 0), await W(2, -1));
+    s = await f.evaluate(() => ({ n: shapes[0].p.length, m: shapes[0].p[1].map(v => Math.round(v * 1000) / 1000).join() })); assert(s.n === 4 && s.m === '2,-1', 'سحب مقبض منتصف الضلع يضيف رأسًا جديدًا');
+    await undo(); s = await f.evaluate(() => shapes[0].p.length); assert(s === 3, 'إضافة الرأس: التراجع بخطوة واحدة');
+    await f.evaluate(() => { sel = [0]; upd(); draw(); });
+    await tap(3, await W(4, 0));
+    s = await f.evaluate(() => ({ vis: document.querySelector('#vdel').style.display !== 'none' })); assert(s.vis, 'لمسة على رأس تُظهر زر «حذف رأس»');
+    await f.evaluate(() => document.querySelector('#vdel').click());
+    s = await f.evaluate(() => shapes[0].p.map(q => q.join()).join(' ')); assert(s === '0,0 4,3', 'حذف الرأس النشط');
+    await undo(); s = await f.evaluate(() => shapes[0].p.length); assert(s === 3, 'حذف الرأس: التراجع بخطوة واحدة');
+    // قوس: سحب مقبض النهاية يغيّر الزاوية
+    await f.evaluate(() => { shapes = [{ t: 'arc', x: 0, y: 0, r: 3, a0: 0, a1: Math.PI / 2, ly: cl }]; sel = [0]; upd(); draw(); });
+    await drag(4, await W(0, 3), await W(-3, 0));
+    s = await f.evaluate(() => Math.round((shapes[0].a1 - shapes[0].a0) * 1000) / 1000); assert(Math.abs(s - Math.round(Math.PI * 1000) / 1000) < .01, 'مقبض نهاية القوس: السحب إلى 180° يجعل المدى نصف دائرة');
+    // شدّ: إطار حول الضلع الأيمن لمستطيل ثم سحبه لليمين
+    await f.evaluate(() => { shapes = [{ t: 'rect', x: 0, y: 0, w: 4, h: 3, ly: cl }]; sel = []; opAction('stretch'); });
+    await drag(5, await W(3.5, -0.5), await W(4.5, 3.5));
+    s = await f.evaluate(() => ({ st: moveFlow && moveFlow.stage, hits: moveFlow && moveFlow.hits })); assert(s.st === 'base' && s.hits === 1, 'شدّ: رسم الإطار ينقل إلى مرحلة نقطة الأساس');
+    await tap(6, await W(4, 1.5));
+    const d = await W(6, 1.5); await ptr('pointerdown', 7, d[0], d[1]); await ptr('pointermove', 7, d[0], d[1]); await ptr('pointerup', 7, d[0], d[1]);
+    s = await f.evaluate(() => ({ t: shapes[0].t, w: Math.round(shapes[0].w * 1000) / 1000, flow: !!moveFlow })); assert(s.t === 'rect' && s.w === 6 && !s.flow, 'شدّ: الضلع الأيمن للمستطيل يتحرك فيصير عرضه 6 ويبقى مستطيلًا');
+    await undo(); s = await f.evaluate(() => shapes[0].w); assert(s === 4, 'شدّ: التراجع بخطوة واحدة');
+    // كسر عند نقطة
+    await f.evaluate(() => { shapes = [{ t: 'line', a: [0, 0], b: [6, 0], ly: cl }]; sel = []; opAction('brk1'); });
+    await tap(8, await W(2, 0));
+    s = await f.evaluate(() => shapes.map(q => q.a.join() + '>' + q.b.join()).join(' | ')); assert(s === '0,0>2,0 | 2,0>6,0', 'كسر عند نقطة: الخط ينقسم إلى قطعتين');
+    await undo(); s = await f.evaluate(() => shapes.length); assert(s === 1, 'كسر: التراجع بخطوة واحدة');
+    // كسر بين نقطتين
+    await f.evaluate(() => { shapes = [{ t: 'line', a: [0, 0], b: [6, 0], ly: cl }]; sel = []; opAction('brk2'); });
+    await tap(9, await W(2, 0)); await tap(10, await W(4, 0));
+    s = await f.evaluate(() => shapes.map(q => q.a.join() + '>' + q.b.join()).join(' | ')); assert(s === '0,0>2,0 | 4,0>6,0', 'كسر بين نقطتين: يُحذف الجزء بينهما');
+    assert(fe.length === 0, 'أدوات الدفعة الثانية بلا أخطاء JS: ' + fe.join(' ; '));
+  }
+
   await b.close();
 })();

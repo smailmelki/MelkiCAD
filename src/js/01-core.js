@@ -16,11 +16,11 @@ const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s),cv=$('#c
 
 const FONT='"IBM Plex Sans Arabic",system-ui,sans-serif',COLS=['','#dc2626','#ea580c','#16a34a','#2563eb','#9333ea','#0d9488','#6b7280'];
 
-const NM={end:'نهاية',mid:'منتصف',int:'تقاطع',cen:'مركز',qua:'ربع'};
+const NM={end:'نهاية',mid:'منتصف',int:'تقاطع',cen:'مركز',qua:'ربع',per:'عمودي',nea:'أقرب نقطة'};
 
 let shapes=[],redo=[],hist=nh(),sel=[],clip=[],tool='rect',cur=null,polyDraft=null,g=null,box=null,mk=null,V={x:24,y:24,s:40},dpr=1,W=0,H=0;
 
-let polygonSides=6;let S={end:1,mid:1,int:1,cen:1,grid:1,ortho:0,polar:0,parallel:0,perpendicular:0,dyn:1},D={col:'',lw:2},ST={unit:'m',gs:0,axes:1,coord:1,grid:1,showDims:0,showAreas:0},cpos=null,furnKind='bed2',fileHintT=0;
+let polygonSides=6;let S={end:1,mid:1,int:1,cen:1,per:0,nea:0,grid:1,ortho:0,polar:0,parallel:0,perpendicular:0,dyn:1},D={col:'',lw:2},ST={unit:'m',gs:0,axes:1,coord:1,grid:1,showDims:0,showAreas:0},cpos=null,furnKind='bed2',fileHintT=0;
 
 // تهريب نص قبل وضعه داخل innerHTML (أسماء الطبقات والمشاريع قد تأتي من ملف مستورد)
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -30,6 +30,10 @@ const toast=m=>{const t=$('#tt');if(!t)return;t.textContent=m;t.classList.add('o
 const P=new Map();
 
 let drawFlow=null;
+// نقل/نسخ/شدّ بنقطة أساس (16-edit-tools.js) وأول خط في تدوير/شطف الزاوية؛ في الحالة الأساسية لتُقرأ من أي ملف عند الرسم
+let moveFlow=null,cornerFirst=null;
+// كسر (16-edit-tools.js): النمط 'pt' عند نقطة أو 'two' بين نقطتين، وأول نقطة مثبّتة؛ ورأس المتعدد النشط (يُحذف بزر «حذف رأس»)
+let breakFirst=null,breakMode='pt',vtxActive=null;
 
 const f=n=>(Math.round(n*100)/100).toFixed(2).replace(/\.?0+$/,'');
 
@@ -53,4 +57,7 @@ const uk=()=>ST.unit==='cm'?100:1,ul=()=>ST.unit==='cm'?'cm':'m',uA=()=>ST.unit=
 
 const grid=v=>S.grid?Math.round(v/step())*step():v;
 // تراجع/إعادة: كل حالة تحفظ الأشكال والطبقات معًا، وأي إجراء جديد يمسح قائمة الإعادة
-function nh(){redo=[];const h=[];h.push=function(x){redo=[];return Array.prototype.push.call(this,x)};return h}
+// سقف حجم لقطات التراجع (مجموع الأحرف): كل لقطة تحمل المشروع كاملًا، فمشروع بحجم 4 م.ب كان يحجز مئات الميغابايتات في 100 لقطة.
+// المشاريع الصغيرة لا تتأثر (تبقى 100 خطوة)؛ الكبيرة تحتفظ بعدد أقل من الخطوات الأحدث.
+const HIST_BUDGET=40e6;
+function nh(){redo=[];const h=[];h.push=function(x){redo=[];const n=Array.prototype.push.call(this,x);let t=0;for(let i=0;i<this.length;i++)t+=this[i].length;while(t>HIST_BUDGET&&this.length>1)t-=this.shift().length;return n};return h}

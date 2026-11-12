@@ -4,7 +4,7 @@
  * التحقق من صلاحية الشكل، وإنشاء الشكل من نقطتين (build).
  *
  * يعرّف: arcPtsShape، ellipsePts، pts، mcx، nb، rc، rp، rotS، plen، area، bx، valid،
- *        segs، mv، copy، dseg، build
+ *        segs، mv، copy، dseg، build، bounds، cullBox
  * يعتمد على: 01-core.js، 05-persistence.js
  * ================================================================== */
 
@@ -34,7 +34,37 @@ const plen=p=>p.reduce((a,q,i)=>i?a+Math.hypot(q[0]-p[i-1][0],q[1]-p[i-1][1]):0,
 
 const area=s=>s.t==='rect'?s.w*s.h:s.t==='circle'?Math.PI*s.r*s.r:s.t==='ellipse'?Math.PI*s.rx*s.ry:['tri','polygon'].includes(s.t)?Math.abs(s.p.reduce((a,q,i)=>a+q[0]*s.p[(i+1)%s.p.length][1]-s.p[(i+1)%s.p.length][0]*q[1],0))/2:0;
 
-const bx=s=>{const q=s.t==='circle'?[[s.x-s.r,s.y-s.r],[s.x+s.r,s.y+s.r]]:pts(s),x=q.map(r=>r[0]),y=q.map(r=>r[1]);return{x:Math.min(...x),y:Math.min(...y),X:Math.max(...x),Y:Math.max(...y)}};
+// حدود الشكل بحلقة عادية بلا مصفوفات وسيطة (الانتشار Math.min(...arr) بطيء ويفشل مع آلاف النقاط)
+const bx=s=>{
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  if(s.t==='circle'){x0=s.x-s.r;y0=s.y-s.r;x1=s.x+s.r;y1=s.y+s.r}
+  else{const q=pts(s);for(let i=0;i<q.length;i++){const r=q[i],x=r[0],y=r[1];if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
+  return{x:x0,y:y0,X:x1,Y:y1}
+};
+// حدود مجموعة أشكال (بديل Math.min(...arr) الذي ينهار عند عشرات الآلاف من العناصر)
+function bounds(list){let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;for(let i=0;i<list.length;i++){const b=bx(list[i]);if(b.x<x0)x0=b.x;if(b.y<y0)y0=b.y;if(b.X>x1)x1=b.X;if(b.Y>y1)y1=b.Y}return{x:x0,y:y0,X:x1,Y:y1}}
+// صندوق حدود سريع في o=[x0,y0,x1,y1] بلا إنشاء مصفوفات، لاستبعاد ما هو خارج الشاشة أو بعيد عن المؤشر.
+// يُرجع 1 إن كان الصندوق مطابقًا للشكل، و2 إن كان أكبر منه (أقواس، قطوع، مستطيل مدوّر، نص) فلا يكون أصغر أبدًا،
+// وfalse للأنواع التي لا نستبعدها (أبعاد، أثاث، أبواب، نوافذ، سهم شمال).
+function cullBox(s,o){
+  const t=s.t;
+  if(t==='line'||t==='wall'){const a=s.a,b=s.b;if(!a||!b)return false;o[0]=Math.min(a[0],b[0]);o[1]=Math.min(a[1],b[1]);o[2]=Math.max(a[0],b[0]);o[3]=Math.max(a[1],b[1]);return 1}
+  if(t==='polyline'||t==='free'||t==='polygon'||t==='tri'){
+    const p=s.p;if(!p||!p.length)return false;
+    let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+    for(let i=0;i<p.length;i++){const q=p[i],x=q[0],y=q[1];if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+    o[0]=x0;o[1]=y0;o[2]=x1;o[3]=y1;return 1;
+  }
+  if(t==='circle'){o[0]=s.x-s.r;o[1]=s.y-s.r;o[2]=s.x+s.r;o[3]=s.y+s.r;return 1}
+  if(t==='arc'){o[0]=s.x-s.r;o[1]=s.y-s.r;o[2]=s.x+s.r;o[3]=s.y+s.r;return 2}
+  if(t==='ellipse'){const r=Math.max(s.rx,s.ry);o[0]=s.x-r;o[1]=s.y-r;o[2]=s.x+r;o[3]=s.y+r;return 2}
+  if(t==='rect'){
+    if(!s.rot){o[0]=Math.min(s.x,s.x+s.w);o[1]=Math.min(s.y,s.y+s.h);o[2]=Math.max(s.x,s.x+s.w);o[3]=Math.max(s.y,s.y+s.h);return 1}
+    const cx=s.x+s.w/2,cy=s.y+s.h/2,r=Math.hypot(s.w,s.h)/2;o[0]=cx-r;o[1]=cy-r;o[2]=cx+r;o[3]=cy+r;return 2;
+  }
+  if(t==='text'){const px=Math.max(6,s.h*V.s),r=((s.txt||'').length+2)*px/V.s;o[0]=s.x-r;o[1]=s.y-r;o[2]=s.x+r;o[3]=s.y+r;return 2}
+  return false;
+}
 
 const valid=s=>s.t==='line'||s.t==='wall'||s.t==='dim'?len(s)>=.1:s.t==='circle'?s.r>=.05:s.t==='arc'?s.r>=.05&&s.a1>s.a0&&s.a1-s.a0<=Math.PI*2:s.t==='ellipse'?s.rx>=.05&&s.ry>=.05:['free','polyline','polygon','tri'].includes(s.t)?Array.isArray(s.p)&&s.p.length>=(s.t==='tri'?3:2)&&plen(s.p)>=.2:s.w>=.1&&s.h>=.1;
 

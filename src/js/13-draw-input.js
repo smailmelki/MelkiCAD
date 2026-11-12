@@ -2,7 +2,7 @@
  * 13-draw-input.js
  * الإدخال الرقمي الاختياري للرسم: شريط صغير أسفل اللوحة يعرض الخطوة الحالية (مثل سطر الأوامر في AutoCAD). الرسم باللمس هو الأساس، وزر لوحة الأرقام يفتح حقول الإحداثيات أو الأبعاد عند الحاجة فقط.
  *
- * يعرّف: drawNames، diOpen، diSetOpen، drawPointFromInputs، drawInputOpen، drawInputStage، sidesSheet،
+ * يعرّف: drawNames، DRAG_FLOW_TOOLS، FLOW_TAP_PX، lastPtrType، diAutoFocus، diOpen، diSetOpen، drawPointFromInputs، drawInputOpen، drawInputStage، sidesSheet،
  *        startDrawFlow، closeDrawFlow، addDrawPoint، commitSinglePoint،
  *        commitParamShape، commitPointShape، finishDrawFlow
  * يعتمد على: 01-core.js، 02-geometry.js، 03-snap.js، 05-persistence.js،
@@ -13,14 +13,23 @@
 // ---- الإدخال الرقمي الاختياري: الشريط مطويّ افتراضيًا (يعرض الخطوة فقط)، وزر ⌨ يفتح الحقول ----
 const drawNames={line:'خط',wall:'جدار',dim:'بُعد',rect:'مستطيل',circle:'دائرة',arc:'قوس',ellipse:'شكل بيضاوي',tri:'مثلث',polygon:'مضلع',polyline:'متعدد الخطوط',free:'رسم حر',furn:'أثاث',text:'نص',north:'سهم الشمال',door:'باب',win:'نافذة'};
 let diOpen=false; // يبقى مفتوحًا بين الأشكال إذا اختار المستخدم الإدخال الرقمي
+// الأدوات التي يمكن رسمها بالسحب المباشر حتى والشريط الرقمي ظاهر (بقية الأدوات تعتمد على اللمس النقطي)،
+// وأقصى حركة بالبكسل تُعدّ لمسة قصيرة (تثبيت النقطة الأولى) لا سحبًا.
+const DRAG_FLOW_TOOLS=['line','wall','rect','circle','arc','ellipse','tri','polygon','free'];
+const FLOW_TAP_PX=10;
+let lastPtrType=(typeof matchMedia==='function'&&matchMedia('(pointer: coarse)').matches)?'touch':'mouse'; // mouse | touch | pen: آخر مؤشر استُخدم في الصفحة كلها (أزرار الأدوات تُضغط قبل اللمس على اللوحة)
+document.addEventListener('pointerdown',e=>{lastPtrType=e.pointerType||'mouse'},true);
+// التركيز التلقائي على حقل الإدخال يفتح لوحة المفاتيح على الهاتف فتقطع الرسم باللمس؛ لذا لا يحدث إلا مع الفأرة،
+// أو إذا كان المستخدم يكتب أصلًا داخل الشريط. زر ⌨ يركّز دائمًا لأنه طلب صريح.
+function diAutoFocus(){const a=typeof document!=='undefined'?document.activeElement:null;return lastPtrType==='mouse'||!!(a&&typeof a.closest==='function'&&a.closest('#drawInput'))}
 function diSetOpen(o,focus){const panel=$('#drawInput'),key=$('#diKey'),enabled=!!S.dyn;panel.style.display=enabled?'':'none';if(key)key.hidden=!enabled;o=!!o&&enabled;diOpen=o;panel.classList.toggle('open',o);if(key){key.classList.toggle('on',o);key.setAttribute('aria-pressed',o?'true':'false')}if(o&&focus)setTimeout(()=>{const f=drawFlow&&drawFlow.stage==='params'?$('#diExtra input'):$('#diX');if(f)f.focus({preventScroll:true})},30)}
 
 
-function drawPointFromInputs(){const x=num($('#diX').value),y=num($('#diY').value);if(!Number.isFinite(x)||!Number.isFinite(y)){toast('أدخل إحداثيي X وY بشكل صحيح');return null}return [nu(x),nu(y)]}
+function drawPointFromInputs(){const x=num($('#diX').value),y=num($('#diY').value);if(!Number.isFinite(x)||!Number.isFinite(y)){toast('أدخل إحداثيي X وY بشكل صحيح');return null}return [nu(x),-nu(y)]}   // Y للأعلى موجب كما في شريط الإحداثيات (داخليًا الأسفل موجب)
 
 function drawInputOpen(){return !!drawFlow}
 
-function drawInputStage(stage){if(!drawFlow)return;drawFlow.stage=stage;const t=drawFlow.tool,multi=['polyline','free'].includes(t),params=stage==='params',L=` (${ul()})`;$('#diTitle').textContent=`${drawNames[t]||'رسم'} · ${stage==='first'?'حدّد النقطة الأولى':stage==='second'?'حدّد النقطة الثانية':params?'حدّد الحجم أو اكتبه':'حدّد النقطة التالية'}`;$('#diFinish').style.display=multi&&drawFlow.points.length>=2?'':'none';$('#diCoords').style.display=params?'none':'flex';const specs={circle:[['r','نصف القطر'+L,fu(1)]],arc:[['r','نصف القطر'+L,fu(1)],['a0','من °',0],['a1','إلى °',90]],ellipse:[['rx','المحور X'+L,fu(2)],['ry','المحور Y'+L,fu(1)],['rot','دوران °',0]],polygon:[['r','نصف القطر'+L,fu(1)],['sides','الأضلاع',polygonSides],['ang','بداية °',0]]};$('#diExtra').innerHTML=params?(specs[t]||[]).map(([k,label,v])=>`<label><i>${label}</i><input data-param="${k}" type="number" step="any" inputmode="decimal" value="${v}"></label>`).join(''):'';$('#diExtra').style.display=params?'flex':'none';$('#diX').placeholder='X'+L;$('#diY').placeholder='Y'+L;$('#diX').value='';$('#diY').value='';$('#drawInput').classList.add('on');diSetOpen(diOpen,true)}
+function drawInputStage(stage){if(!drawFlow)return;drawFlow.stage=stage;const t=drawFlow.tool,multi=['polyline','free'].includes(t),params=stage==='params',L=` (${ul()})`;$('#diTitle').textContent=`${drawNames[t]||'رسم'} · ${stage==='first'?(DRAG_FLOW_TOOLS.includes(t)?'اسحب للرسم أو المس البداية':'حدّد النقطة الأولى'):stage==='second'?'حدّد النقطة الثانية':params?'حدّد الحجم أو اكتبه':'حدّد النقطة التالية'}`;$('#diFinish').style.display=multi&&drawFlow.points.length>=2?'':'none';$('#diCoords').style.display=params?'none':'flex';const specs={circle:[['r','نصف القطر'+L,fu(1)]],arc:[['r','نصف القطر'+L,fu(1)],['a0','من °',0],['a1','إلى °',90]],ellipse:[['rx','المحور X'+L,fu(2)],['ry','المحور Y'+L,fu(1)],['rot','دوران °',0]],polygon:[['r','نصف القطر'+L,fu(1)],['sides','الأضلاع',polygonSides],['ang','بداية °',0]]};$('#diExtra').innerHTML=params?(specs[t]||[]).map(([k,label,v])=>`<label><i>${label}</i><input data-param="${k}" type="number" step="any" inputmode="decimal" value="${v}"></label>`).join(''):'';$('#diExtra').style.display=params?'flex':'none';$('#diX').placeholder='X'+L;$('#diY').placeholder='Y'+L;$('#diX').value='';$('#diY').value='';$('#drawInput').classList.add('on');diSetOpen(diOpen,diAutoFocus())}
 
 function sidesSheet(done){
   const sh=$('#sheet');
@@ -57,8 +66,8 @@ function commitPointShape(){if(!drawFlow||drawFlow.points.length<2)return;const 
 
 function finishDrawFlow(){if(!drawFlow)return;const t=drawFlow.tool;if(t==='polyline'||t==='free'){const p=drawFlow.points;if(p.length>=2){const s={t,p:copy(p),ly:cl,col:D.col||undefined,lw:D.lw};if(valid(s)){snap();shapes.push(s);sel=[shapes.length-1];closeDrawFlow();save();upd();draw();return}}toast('أضف نقطتين على الأقل قبل الإنهاء');return}closeDrawFlow()}
 
-$('#diSubmit').onclick=()=>{if(!drawFlow)return;if(drawFlow.stage==='params'){commitParamShape();return}const p=drawPointFromInputs();if(p)addDrawPoint(p,true)};
+$('#diSubmit').onclick=()=>{if(moveFlow){moveFlowSubmit();draw();return}if(!drawFlow)return;if(drawFlow.stage==='params'){commitParamShape();return}const p=drawPointFromInputs();if(p)addDrawPoint(p,true)};
 
-$('#diFinish').onclick=finishDrawFlow;$('#diKey').onclick=()=>diSetOpen(!diOpen,true);$('#diClose').onclick=()=>{closeDrawFlow();cur=null;polyDraft=null;$('#polybar').style.display='none';draw()};
+$('#diFinish').onclick=()=>{if(moveFlow){closeMoveFlow();draw();return}finishDrawFlow()};$('#diKey').onclick=()=>diSetOpen(!diOpen,true);$('#diClose').onclick=()=>{if(moveFlow){closeMoveFlow();cur=null;draw();return}closeDrawFlow();cur=null;polyDraft=null;$('#polybar').style.display='none';draw()};
 
 $('#diX').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#diY').focus()}});$('#diY').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#diSubmit').click()}});$('#diExtra').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#diSubmit').click()}});

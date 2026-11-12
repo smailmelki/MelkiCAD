@@ -6,6 +6,7 @@
  *  4) لا ملفات .orig/.rej ولا بقايا لـ 20-backup
  *  5) لا تعريفات مكررة بين الملفات (النطاق العام مشترك فيُستبدل الأول بصمت)، وخريطة الملفات في index.html كاملة
  *  6) سطر VER في sw.js سليم (يُختم تلقائيًا عند النشر)، وكل أيقونات manifest موجودة
+ *  7) كل url(...) في CSS موجود ومخزَّن في CORE، ولا روابط خارجية (خطوط/سكربتات) تعطّل العمل بلا إنترنت
  * الاستخدام:  node tools/check.js            */
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const src = path.join(__dirname, '..', 'src');
@@ -54,6 +55,19 @@ try {
   for (const i of mf.icons || []) if (!fs.existsSync(path.join(src, i.src))) errs.push(`manifest.json: أيقونة غير موجودة ${i.src}`);
   for (const i of mf.icons || []) if (!core.includes(i.src)) errs.push(`manifest.json: الأيقونة ${i.src} غير موجودة في CORE بـ sw.js`);
 } catch (e) { errs.push('manifest.json: ' + e.message); }
+
+// 7) مراجع url(...) في CSS وروابط خارجية في index.html
+for (const cssFile of fs.readdirSync(path.join(src, 'css')).filter(f => f.endsWith('.css'))) {
+  for (const m of rd('css/' + cssFile).matchAll(/url\(\s*['"]?([^'")]+?)['"]?\s*\)/g)) {
+    const u = m[1];
+    if (/^https?:/.test(u)) { errs.push(`css/${cssFile}: مرجع خارجي ${u} (لن يعمل بلا إنترنت)`); continue; }
+    if (/^(data:|#)/.test(u)) continue;
+    const rel = path.posix.normalize('css/' + u.split(/[?#]/)[0]);
+    if (!fs.existsSync(path.join(src, rel))) errs.push(`css/${cssFile}: الملف غير موجود ${rel}`);
+    else if (!core.includes(rel)) errs.push(`css/${cssFile}: ${rel} غير موجود في CORE بـ sw.js`);
+  }
+}
+for (const m of html.matchAll(/<(?:link|script)\b[^>]*\b(?:href|src)=["'](https?:\/\/[^"']+)["']/g)) errs.push(`index.html: مرجع خارجي ${m[1]} (لن يعمل بلا إنترنت)`);
 
 if (errs.length) { console.error('✗ فشل الفحص:\n - ' + errs.join('\n - ')); process.exit(1); }
 console.log(`✓ سليم: ${jsFiles.length} ملف JS، ${core.length} مدخلة في CORE، ${refs.length} مرجع في index.html`);

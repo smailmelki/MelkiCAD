@@ -323,8 +323,7 @@ function fitImportedView(items){
   const geom=items.filter(s=>s.t!=='text'&&s.t!=='north');
   const use=geom.length?geom:items;
   if(!use.length)return;
-  const B=use.map(bx),x0=Math.min(...B.map(b=>b.x)),x1=Math.max(...B.map(b=>b.X)),
-    y0=Math.min(...B.map(b=>b.y)),y1=Math.max(...B.map(b=>b.Y));
+  const B=bounds(use),x0=B.x,x1=B.X,y0=B.y,y1=B.Y;
   const cx=(x0+x1)/2,cy=(y0+y1)/2;
   const sw=Math.max(x1-x0,.5),sh=Math.max(y1-y0,.5);
   const aw=Math.max(120,W-100),ah=Math.max(120,H-100);
@@ -336,7 +335,7 @@ function fitImportedView(items){
 function dxfImport(txt){
   const E=dxfEntities(txt),meta=E.meta||{},probe=dxfShapes(E,1);
   if(!probe.shapes.length){toast('لا توجد أشكال مدعومة في الملف');return}
-  const R=probe.shapes.map(bx),ext=Math.max(Math.max(...R.map(q=>q.X))-Math.min(...R.map(q=>q.x)),Math.max(...R.map(q=>q.Y))-Math.min(...R.map(q=>q.y)));
+  const RB=bounds(probe.shapes),ext=Math.max(RB.X-RB.x,RB.Y-RB.y);
   const units={1:.0254,2:.3048,4:.001,5:.01,6:1,7:1000,10:.9144,14:.1};
   const labels={1:'بوصة',2:'قدم',4:'مليمتر',5:'سنتيمتر',6:'متر',7:'كيلومتر',10:'ياردة',14:'ديسيمتر'};
   const hasUnit=Object.prototype.hasOwnProperty.call(units,meta.insunits);
@@ -347,8 +346,9 @@ function dxfImport(txt){
   const info=()=>{$('#dxi').textContent=`${probe.shapes.length} عنصر مدعوم · ${hasUnit?'الوحدة المعلنة في DXF: '+(labels[meta.insunits]||'غير شائعة'):'لم يحدد الملف وحدة القياس؛ تم تقديرها مبدئيًا'} · الحجم بعد التحويل ≈ ${f(ext*u)} م${sk?' · عناصر متجاهلة: '+sk:''}`};
   info();
   sh.querySelectorAll('#dxu .chip').forEach(b=>{b.onclick=()=>{u=+b.dataset.v;sh.querySelectorAll('#dxu .chip').forEach(x=>x.classList.toggle('on',x===b));info()}});
-  $('#dxx').onclick=()=>{sh.classList.remove('on');upd()};
-  $('#opk').onclick=()=>{const r=dxfShapes(E,u);sh.classList.remove('on');newP('DXF',r.shapes,{LY:r.LY,cl:r.LY[0].id});fitImportedView(r.shapes);save();draw();toast(`تم استيراد ${r.shapes.length} عنصرًا من DXF`)};
+  // الأزرار تحمل E وprobe (كل محتوى DXF المفكوك) في إغلاقاتها؛ تفريغ اللوحة يحرّرها بدل بقائها في الذاكرة حتى فتح لوحة أخرى
+  $('#dxx').onclick=()=>{sh.classList.remove('on');sh.innerHTML='';upd()};
+  $('#opk').onclick=()=>{const r=u===1?probe:dxfShapes(E,u);sh.classList.remove('on');sh.innerHTML='';newP('DXF',r.shapes,{LY:r.LY,cl:r.LY[0].id});fitImportedView(r.shapes);save();draw();toast(`تم استيراد ${r.shapes.length} عنصرًا من DXF`)};
   sh.classList.add('on');$('#ctx').style.display='none';
 }
 

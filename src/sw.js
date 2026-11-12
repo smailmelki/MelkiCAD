@@ -8,6 +8,7 @@ const CORE=[
   'icon-192.png',
   'icon-512.png',
   'icon-maskable-512.png',
+  'fonts/IBMPlexSansArabic-Regular.ttf',
   'css/base.css',
   'css/components.css',
   'css/nav-overlay.css',
@@ -66,13 +67,6 @@ self.addEventListener('fetch',event=>{
         }).catch(()=>cached);
         return cached||fresh;
       })
-    );
-  }else if(/fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)){
-    event.respondWith(
-      caches.match(request).then(cached=>cached||fetch(request).then(response=>{
-        caches.open(VER).then(cache=>cache.put(request,response.clone()));
-        return response;
-      }).catch(()=>cached))
     );
   }
 });

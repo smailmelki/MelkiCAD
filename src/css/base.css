@@ -1,4 +1,7 @@
 /* base.css — الأساس: متغيرات الثيم الفاتح والداكن، إعادة الضبط، الرأس، اللوحة (canvas)، وشريط السياق. */
+/* الخط مضمَّن محليًا (يعمل بلا إنترنت ومن أول تشغيل). الاسم مطابق لما يستخدمه بقية CSS وثابت FONT في 01-core.js.
+   الملف بوزن Regular فقط؛ الوزن 600 يُعرض بتغليظ اصطناعي من المتصفح (انظر README لإضافة SemiBold). */
+@font-face{font-family:"IBM Plex Sans Arabic";src:url(../fonts/IBMPlexSansArabic-Regular.ttf) format("truetype");font-weight:400;font-style:normal;font-display:swap}
 :root{--bg:#eef2f5;--cv:#f7f9fb;--grid:#e1e8ee;--major:#c8d4de;--ln:#15324b;--ac:#b45309;--dim:#5b6f80;--ui:#fff;--tx:#15324b;--bd:#cfd9e1;color-scheme:light}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101820;--cv:#131d27;--grid:#1c2a37;--major:#2a3d4f;--ln:#e6edf3;--ac:#fbbf24;--dim:#8da3b5;--ui:#1a2531;--tx:#e6edf3;--bd:#2c3b4a;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#101820;--cv:#131d27;--grid:#1c2a37;--major:#2a3d4f;--ln:#e6edf3;--ac:#fbbf24;--dim:#8da3b5;--ui:#1a2531;--tx:#e6edf3;--bd:#2c3b4a;color-scheme:dark}
