@@ -188,7 +188,7 @@ function drawShapes(picked,c){
       }
       // في الملفات الكبيرة: الدوائر والمستطيلات الصغيرة جدًا (بلا تعبئة ولا اسم ولا قياسات) تدخل الدفعة أيضًا
       const small=heavy&&!on&&!ST.showDims&&!ST.showAreas&&!s.fk&&!s.name&&(o[2]-o[0])*vs<8&&(o[3]-o[1])*vs<8;
-      if(!on&&!ST.showDims&&(OPEN_FAST.has(s.t)||(small&&(s.t==='circle'||(s.t==='rect'&&!s.rot))))){
+      if(!on&&!s.doubleLine&&!ST.showDims&&(OPEN_FAST.has(s.t)||(small&&(s.t==='circle'||(s.t==='rect'&&!s.rot))))){
         const col=s.col||l.col||c.ln,lw=s.lw||2,lt=isDrawLineShape(s)?effectiveLineType(s):'continuous',key=col+'|'+lw+'|'+lt;
         let G=groups.get(key);if(!G){G={col,lw,lt,list:[],tiny:[]};groups.set(key,G)}
         G.list.push(s);G.tiny.push(heavy&&(s.t==='polyline'||s.t==='free'||s.t==='arc')&&(o[2]-o[0])*vs<6&&(o[3]-o[1])*vs<6);continue;
