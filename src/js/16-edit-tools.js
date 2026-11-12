@@ -319,10 +319,17 @@ function applyCorner(i,j,res){
   sel=[i,j].concat(n?[shapes.length-1]:[]);save();
 }
 function cornerPick(p){
+  // أولوية لرؤوس الأشكال المغلقة حتى بعد تدويرها/شطفها، لأن موضع الرأس الأصلي لم يعد على الحد.
+  let ci=-1,ck=-1,cd=Infinity;
+  for(let j=0;j<shapes.length;j++){
+    const s=shapes[j];if(!ed(s)||!['rect','tri','polygon'].includes(s.t))continue;
+    const base=s.cornerBase||pts(s);
+    for(let k=0;k<base.length;k++){const q=w2s(...base[k]),d=Math.hypot(q[0]-p[0],q[1]-p[1]);if(d<cd){cd=d;ci=j;ck=k}}
+  }
+  if(ci>=0&&cd<=36){cornerShapePick(ci,shapes[ci],p);return}
   const i=hit(p[0],p[1]),s=shapes[i],w=s2w(p[0],p[1]);
-  if(!s){toast('المس زاوية أو خطًا');return}
-  if(['rect','tri','polygon'].includes(s.t)) {cornerShapePick(i,s,p);return}
-  if(s.t!=='line'&&s.t!=='wall'){toast('الأداة تعمل على رؤوس المستطيل والمثلث والمضلع أو على خطين');return}
+  if(!s){toast('المس رأس زاوية في شكل مغلق أو خطًا');return}
+  if(s.t!=='line'&&s.t!=='wall'){toast('المس أحد رؤوس المستطيل أو المثلث أو المضلع');return}
   if(!cornerFirst||!shapes[cornerFirst.i]){cornerFirst={i,w};sel=[i];toast('المس الخط الثاني');return}
   if(cornerFirst.i===i){toast('اختر خطًا آخر');return}
   const f=cornerFirst,A=shapes[f.i],res=tool==='fillet'?filletCalc(A,s,f.w,w,FILLET_R):chamferCalc(A,s,f.w,w,CHAMFER_D1,CHAMFER_D2);
