@@ -16,9 +16,9 @@ const TOOL_KEYS={KeyV:'select',KeyH:'pan',KeyL:'line',KeyW:'wall',KeyR:'rect',Ke
 
 const KEY_HELP=[
   ['Ctrl+Z','تراجع'],['Ctrl+Y','إعادة'],['Ctrl+C / X / V','نسخ / قص / لصق'],['Ctrl+A','تحديد الكل'],
-  ['Delete','حذف المحدد'],['Esc','إلغاء الرسم أو التحديد'],['Enter','إنهاء المتعدد POLYLINE'],
+  ['Delete','حذف المحدد (أو الرأس النشط)'],['Esc','إلغاء الرسم أو التحديد'],['Enter','إنهاء المتعدد POLYLINE'],
   ['V','تحديد'],['H','تحريك العرض'],['L','خط'],['W','جدار'],['R','مستطيل'],['C','دائرة'],['A','قوس'],['E','بيضاوي'],
-  ['G','مضلع'],['P','متعدد POLYLINE'],['F','رسم حر'],['T','نص'],['D','بُعد'],['M','تحريك المحدد'],
+  ['G','مضلع'],['P','متعدد POLYLINE'],['F','رسم حر'],['T','نص'],['D','بُعد'],['M','تحريك المحدد'],['X','تفكيك المحدد'],['J','ربط المحدد'],['S','شدّ (Stretch) بإطار'],['B','كسر عند نقطة'],
   ['F3','تشغيل/إيقاف الالتقاط بالنقاط'],['F8','تعامد أفقي / رأسي'],['F9','شبكة'],['F10','زاوية 45°'],
   ['الأسهم','تحريك العرض (Shift أسرع)'],['+ / -','تكبير / تصغير'],['0 أو Home','ملاءمة الرسم'],
   ['Ctrl+S','حفظ المشروع JSON'],['Ctrl+P','طباعة / تصدير'],['?','هذه القائمة']
@@ -46,6 +46,10 @@ const toggleSnap=k=>{S[k]=S[k]?0:1;upd();save();draw();toast(`${{ortho:'التع
 function escapeStep(){
   if(!$('#io').hidden){press('#iox');return}
   if(!$('#ov').hidden){press('#ovx');return}
+  if(moveFlow){press('#diClose');return}
+  if(cornerFirst){cornerFirst=null;sel=[];upd();draw();return}
+  if(breakFirst){breakFirst=null;sel=[];upd();draw();return}
+  if(vtxSel()){vtxActive=null;upd();draw();return}
   if(drawFlow){press('#diClose');return}
   if(polyDraft){press('#polycancel');return}
   if($$('.gm.on').length||$('#smenu').classList.contains('on')){$$('.gm').forEach(m=>m.classList.remove('on'));$('#smenu').classList.remove('on');upd();return}
@@ -73,7 +77,7 @@ function onKey(e){
     return;
   }
   if(e.altKey)return;
-  if(k==='Delete'||k==='Backspace'){if(sel.length){stop();press('#del')}return}
+  if(k==='Delete'||k==='Backspace'){if(vtxSel()){stop();press('#vdel')}else if(sel.length){stop();press('#del')}return}
   if(k==='Enter'){
     if(polyDraft){stop();finishPolyline()}
     else if(drawFlow&&['polyline','free'].includes(drawFlow.tool)){stop();finishDrawFlow()}
@@ -91,6 +95,9 @@ function onKey(e){
   if(k==='F10'){stop();toggleSnap('polar');return}
   if(k==='F3'){stop();const on=['end','mid','int','cen'].some(x=>S[x]);['end','mid','int','cen'].forEach(x=>{S[x]=on?0:1});upd();save();draw();toast(`الالتقاط بالنقاط: ${on?'متوقف':'مفعّل'}`);return}
   if(k==='KeyM'){if(sel.length){stop();press('#mv')}return}
+  if((k==='KeyX'||k==='KeyJ')&&!e.shiftKey){if(sel.length){stop();opAction(k==='KeyX'?'explode':'join')}return}
+  if(k==='KeyS'&&!e.shiftKey){stop();opAction('stretch');return}
+  if(k==='KeyB'&&!e.shiftKey){stop();opAction('brk1');return}
   if(TOOL_KEYS[k]&&!e.shiftKey){stop();press(`[data-t="${TOOL_KEYS[k]}"]`)}
 }
 

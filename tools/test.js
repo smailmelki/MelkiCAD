@@ -308,7 +308,8 @@ t('الحفظ المؤجَّل لا يلوّث مشروعًا آخر عند ال
   const a = R(`pid`);
   R(`shapes.push({t:'line',a:[0,0],b:[3,3],ly:cl});V.s=77;saveSoon();`);
   R(`newP('ب',[],null)`);                         // newP يستدعي save() أولًا
-  eq(R(`kvGet('p:${a}').V.s`), 77, 'بيانات أ حُفظت قبل التبديل');
+  eq(R(`kvGet('v:${a}').s`), 77, 'عرض أ حُفظ قبل التبديل');
+  eq(R(`kvGet('p:${a}').shapes.length`), 2, 'بيانات أ حُفظت قبل التبديل');
   eq(R(`saveTimer`), 0, 'لا مؤقّت معلّق');
   eq(R(`kvGet('p:'+pid).shapes.length`), 0, 'ب لم يتأثر');
 });
@@ -428,6 +429,152 @@ t('معاينة الإدخال الرقمي تستخدم Snap وتظهر أثن�
   ok(/#drawInput button,#drawInput input\{pointer-events:auto\}/.test(css),'الأزرار والحقول الرقمية تبقى تفاعلية');
   R(`drawFlow=null;cur=null;S.grid=0;`);
 });
+t('الرسم الموجَّه: التركيز التلقائي لحقل الإدخال للفأرة فقط، والسحب مسموح لأدوات الأشكال', () => {
+  R(`lastPtrType='touch'`); ok(!R(`diAutoFocus()`), 'باللمس لا يُفتح حقل الإدخال تلقائيًا (لوحة المفاتيح تقطع الرسم)');
+  R(`lastPtrType='pen'`); ok(!R(`diAutoFocus()`), 'بالقلم كذلك');
+  R(`lastPtrType='mouse'`); ok(R(`diAutoFocus()`), 'بالفأرة يبقى الإدخال السريع');
+  for (const k of ['line', 'wall', 'rect', 'circle', 'arc', 'ellipse', 'tri', 'polygon', 'free']) ok(R(`DRAG_FLOW_TOOLS.includes('${k}')`), k + ' يقبل السحب المباشر');
+  for (const k of ['polyline', 'text', 'north']) ok(!R(`DRAG_FLOW_TOOLS.includes('${k}')`), k + ' يبقى باللمس النقطي');
+});
+t('الأداء: bx يطابق الصيغة القديمة، وbounds وcullBox لا يفشلان مع عشرات الآلاف', () => {
+  const old = s => { const q = s.t === 'circle' ? [[s.x - s.r, s.y - s.r], [s.x + s.r, s.y + s.r]] : pts(s), x = q.map(r => r[0]), y = q.map(r => r[1]); return { x: Math.min(...x), y: Math.min(...y), X: Math.max(...x), Y: Math.max(...y) } };
+  R(`globalThis.__old=${old.toString()}`);
+  const kinds = `[{t:'line',a:[1,2],b:[-3,5]},{t:'wall',a:[0,0],b:[4,-2],th:.2},{t:'rect',x:1,y:1,w:3,h:2},{t:'rect',x:1,y:1,w:3,h:2,rot:.7},{t:'circle',x:2,y:3,r:1.5},{t:'arc',x:0,y:0,r:2,a0:0,a1:2},{t:'ellipse',x:1,y:1,rx:3,ry:1,rot:.4},{t:'tri',p:[[0,0],[4,0],[2,3]]},{t:'polyline',p:[[0,0],[1,5],[-2,2],[7,1]]},{t:'free',p:[[0,0],[1,1],[2,0]]},{t:'polygon',p:[[0,0],[3,0],[3,3],[0,3]]}]`;
+  ok(R(`${kinds}.every(s=>{const a=bx(s),b=__old(s);return a.x===b.x&&a.y===b.y&&a.X===b.X&&a.Y===b.Y})`), 'bx يعطي نفس الحدود لكل الأنواع');
+  // cullBox لا يكون أصغر من الحدود الحقيقية أبدًا، ومطابق لها حين يُرجع 1
+  ok(R(`${kinds}.every(s=>{const o=[0,0,0,0],k=cullBox(s,o),b=bx(s);if(!k)return true;const e=1e-9;return o[0]<=b.x+e&&o[1]<=b.y+e&&o[2]>=b.X-e&&o[3]>=b.Y-e&&(k!==1||(Math.abs(o[0]-b.x)<e&&Math.abs(o[2]-b.X)<e&&Math.abs(o[1]-b.y)<e&&Math.abs(o[3]-b.Y)<e))})`), 'cullBox يغطي الشكل، ومطابق له حين يُعلن ذلك');
+  ok(!R(`cullBox({t:'dim',a:[0,0],b:[1,1],off:1},[0,0,0,0])`), 'الأبعاد لا تُستبعد');
+  // أكثر من ~125 ألف عنصر كانت تُسقط Math.min(...arr)
+  const n = R(`(()=>{const L=Array.from({length:200000},(_,i)=>({t:'line',a:[i,0],b:[i+1,1]}));const b=bounds(L);return [b.x,b.X,b.y,b.Y].join()})()`);
+  eq(n, '0,200000,0,1', 'bounds على 200 ألف شكل بلا انهيار');
+  eq(R(`(()=>{const b=bounds([]);return [b.x,b.X].join()})()`), 'Infinity,-Infinity', 'bounds لقائمة فارغة كالسابق');
+});
+t('الأداء: سجل التراجع محدود بالحجم لا بالعدد فقط', () => {
+  R(`hist=nh();`);
+  R(`for(let i=0;i<10;i++)hist.push('x'.repeat(15e6))`);
+  ok(R(`hist.length<=3`), 'مشروع كبير يحتفظ بعدد أقل من اللقطات (' + R(`hist.length`) + ')');
+  ok(R(`hist.at(-1).length===15e6`), 'اللقطة الأحدث باقية');
+  R(`hist=nh();for(let i=0;i<150;i++)snap()`);
+  eq(R(`hist.length`), 100, 'المشروع الصغير: السقف القديم 100 خطوة كما كان');
+  R(`hist=nh()`);
+});
+t('الأداء: لقطة التراجع الكسولة تُؤخذ عند أول وصول فقط', () => {
+  R(`globalThis.__calls=0;const __o=snapStr;globalThis.__restore=()=>{};`);
+  R(`shapes=[{t:'line',a:[0,0],b:[1,1],ly:cl}];const __g=lazyBefore({k:'draw'});globalThis.__g=__g`);
+  const before = R(`JSON.stringify(Object.keys(__g))`);
+  eq(before, '["k"]', 'before ليست خاصية قابلة للعدّ (لا تُنسخ ولا تُسلسل)');
+  R(`shapes.push({t:'line',a:[2,2],b:[3,3],ly:cl})`);
+  const a = R(`__g.before`); R(`shapes.push({t:'line',a:[4,4],b:[5,5],ly:cl})`);
+  eq(R(`__g.before===${JSON.stringify(a)}`), true, 'تُحسب مرة واحدة وتثبت');
+  eq(JSON.parse(a).s.length, 2, 'اللقطة تعكس الحالة وقت أول وصول');
+});
+t('الأداء: osnap بلا التقاط مفعّل لا يمسح الأشكال، ومع الكثافة يبقى النتيجة الصحيحة', () => {
+  R(`S.end=S.mid=S.int=S.cen=0;shapes=[{t:'line',a:[0,0],b:[2,0],ly:cl}]`);
+  eq(R(`osnap([0,0])`), null, 'كل أنواع الالتقاط مغلقة: لا نتيجة');
+  R(`S.end=1;S.mid=1;S.int=1;S.cen=1;V={x:0,y:0,s:40}`);
+  eq(R(`osnap([0.01,0.01]).k`), 'end', 'التقاط نهاية الخط');
+  // تقاطع خطين متعامدين
+  R(`shapes=[{t:'line',a:[-2,0],b:[2,0],ly:cl},{t:'line',a:[0,-2],b:[0,2],ly:cl}]`);
+  eq(R(`osnap([0.01,0.01]).k`), 'int', 'تقاطع خطين');
+  // 300 خطًا متقاطعًا قرب النقطة: لا يتجمّد ويُرجع التقاطع المركزي
+  R(`shapes=Array.from({length:300},(_,i)=>{const a=i*Math.PI/300;return{t:'line',a:[-5*Math.cos(a),-5*Math.sin(a)],b:[5*Math.cos(a),5*Math.sin(a)],ly:cl}})`);
+  const t0 = Date.now(); const k = R(`osnap([0.01,0.01]).k`); const dt = Date.now() - t0;
+  eq(k, 'int', 'تقاطع مركزي بين خطوط كثيرة'); ok(dt < 1500, 'زمن osnap مع 300 شكل متقاطع معقول (' + dt + ' مللي ثانية)');
+});
+t('الأداء: تحديد الإطار يعطي النتيجة نفسها بعد الرفض السريع', () => {
+  R(`S.grid=0;V={x:0,y:0,s:10};shapes=[{t:'rect',x:1,y:1,w:3,h:2,ly:cl},{t:'circle',x:20,y:20,r:2,ly:cl},{t:'line',a:[5,5],b:[50,5],ly:cl},{t:'rect',x:100,y:100,w:3,h:2,ly:cl},{t:'polyline',p:[[2,2],[3,3],[4,2]],ly:cl}]`);
+  // إطار من اليسار لليمين من (0,0) إلى (40,40) متر = داخلي
+  R(`box={x0:0,y0:0,x1:400,y1:400}`); eq(R(`boxSel().join()`), '0,1,4', 'داخلي: المستطيل والدائرة وخط polyline فقط (الخط الطويل يخرج منه)');
+  R(`box={x0:400,y0:400,x1:0,y1:0}`); eq(R(`boxSel().join()`), '0,1,2,4', 'بالتقاطع: يضيف الخط الطويل ولا يضيف البعيد');
+  R(`box=null`);
+});
+t('Fillet: زاوية قائمة بنصف قطر 1، والقوس يمرّ بين نقطتي التماس من جهة الزاوية', () => {
+  const r = JSON.parse(R(`JSON.stringify(filletCalc({a:[0,0],b:[10,0]},{a:[0,0],b:[0,10]},[5,0],[0,5],1))`));
+  eq(r.a1.end + r.a2.end, 'aa', 'يتحرك طرفا البداية (الجهة القريبة من الزاوية)');
+  ok(Math.abs(r.a1.pt[0] - 1) < 1e-9 && Math.abs(r.a1.pt[1]) < 1e-9, 'نقطة التماس الأولى (1,0)');
+  ok(Math.abs(r.a2.pt[0]) < 1e-9 && Math.abs(r.a2.pt[1] - 1) < 1e-9, 'نقطة التماس الثانية (0,1)');
+  ok(Math.abs(r.arc.x - 1) < 1e-9 && Math.abs(r.arc.y - 1) < 1e-9 && r.arc.r === 1, 'المركز (1,1)');
+  // منتصف القوس هو أقرب نقطة منه إلى الزاوية: (1-√½, 1-√½)
+  const mid = (r.arc.a0 + r.arc.a1) / 2, mx = r.arc.x + Math.cos(mid), my = r.arc.y + Math.sin(mid);
+  ok(Math.abs(mx - (1 - Math.SQRT1_2)) < 1e-9 && Math.abs(my - (1 - Math.SQRT1_2)) < 1e-9, 'القوس الصغير نحو الزاوية');
+  ok(Math.abs((r.arc.a1 - r.arc.a0) - Math.PI / 2) < 1e-9, 'مقدار القوس 90°');
+});
+t('Fillet/Chamfer: الجهة الملموسة هي الباقية، وصفر يصل الخطين، والأخطاء واضحة', () => {
+  // T: خط أفقي طويل وخط رأسي يقطعه في (5,0)
+  const A = '{a:[0,0],b:[10,0]}', B = '{a:[5,-5],b:[5,5]}';
+  let r = JSON.parse(R(`JSON.stringify(filletCalc(${A},${B},[2,0],[5,3],0))`));
+  eq(r.a1.end, 'b', 'اللمس على يسار التقاطع ← يتحرك الطرف الأيمن'); eq(r.a2.end, 'a', 'اللمس على الجزء العلوي ← يتحرك الطرف السفلي');
+  ok(r.a1.pt[0] === 5 && r.a1.pt[1] === 0 && !r.arc, 'نصف قطر 0: وصل عند (5,0) بلا قوس');
+  r = JSON.parse(R(`JSON.stringify(filletCalc(${A},${B},[8,0],[5,-3],0))`)); eq(r.a1.end + r.a2.end, 'ab', 'اللمس على اليمين والأسفل ← الطرفان الآخران');
+  ok(JSON.parse(R(`JSON.stringify(filletCalc({a:[0,0],b:[10,0]},{a:[0,1],b:[10,1]},[1,0],[1,1],1))`)).err.includes('متوازيان'), 'خطان متوازيان: رسالة خطأ');
+  ok(JSON.parse(R(`JSON.stringify(filletCalc({a:[0,0],b:[2,0]},{a:[0,0],b:[0,2]},[1,0],[0,1],5))`)).err.includes('كبير'), 'نصف قطر أكبر من الجزء الباقي: خطأ');
+  // امتداد: خط لا يصل إلى الآخر يُمدّ عند نصف قطر 0
+  r = JSON.parse(R(`JSON.stringify(filletCalc({a:[0,0],b:[3,0]},{a:[5,-4],b:[5,4]},[1,0],[5,2],0))`)); ok(r.a1.end === 'b' && r.a1.pt[0] === 5, 'التمديد إلى نقطة الالتقاء خارج الخط');
+  const c = JSON.parse(R(`JSON.stringify(chamferCalc({a:[0,0],b:[10,0]},{a:[0,0],b:[0,10]},[5,0],[0,5],2,3))`));
+  ok(c.a1.pt[0] === 2 && c.a2.pt[1] === 3 && c.line.a[0] === 2 && c.line.b[1] === 3, 'شطف 2×3');
+  ok(JSON.parse(R(`JSON.stringify(chamferCalc({a:[0,0],b:[10,0]},{a:[0,0],b:[0,10]},[5,0],[0,5],2,0))`)).err.includes('صفر'), 'مسافة صفر وأخرى موجبة: خطأ');
+  ok(!JSON.parse(R(`JSON.stringify(chamferCalc({a:[0,0],b:[10,0]},{a:[0,0],b:[0,10]},[5,0],[0,5],0,0))`)).line, 'صفران = وصل بلا شطف');
+});
+t('Fillet بين جدارين: بنصف قطر 0 فقط', () => {
+  R(`S.grid=0;V={x:0,y:0,s:40};tool='fillet';cornerFirst=null;FILLET_R=1;shapes=[{t:'wall',a:[0,0],b:[6,0],th:.2,ly:cl},{t:'wall',a:[0,0],b:[0,6],th:.2,ly:cl}];sel=[]`);
+  R(`cornerPick(w2s(3,0));cornerPick(w2s(0,3))`);
+  eq(R(`shapes.length`), 2, 'مع نصف قطر موجب: لا قوس ولا تعديل للجدران'); eq(R(`shapes[0].a[0]`), 0, 'الجدار لم يتغيّر');
+  R(`cornerFirst=null;FILLET_R=0;cornerPick(w2s(3,0));cornerPick(w2s(0,3))`);
+  eq(R(`shapes.length`), 2, 'نصف قطر 0: وصل الجدارين بلا إضافات'); R(`cornerFirst=null;FILLET_R=.3;tool='select'`);
+});
+t('Explode: أنواع مدعومة وحقول محفوظة، والمقفل لا يُفكَّك', () => {
+  const n = k => R(`(explodeShape(${k})||[]).length`);
+  eq(n(`{t:'rect',x:0,y:0,w:2,h:1}`), 4, 'مستطيل'); eq(n(`{t:'rect',x:0,y:0,w:2,h:1,rot:.5}`), 4, 'مستطيل مُدار');
+  eq(n(`{t:'tri',p:[[0,0],[1,0],[0,1]]}`), 3, 'مثلث'); eq(n(`{t:'polygon',p:[[0,0],[1,0],[1,1],[0,1]]}`), 4, 'مضلع مغلق');
+  eq(n(`{t:'polyline',p:[[0,0],[1,0],[2,1]]}`), 2, 'متعدد مفتوح: بلا ضلع إغلاق');
+  eq(n(`{t:'circle',x:0,y:0,r:1}`), 0, 'الدائرة لا تُفكَّك'); eq(n(`{t:'line',a:[0,0],b:[1,1]}`), 0, 'الخط لا يُفكَّك');
+  eq(R(`explodeShape({t:'polygon',p:[[0,0],[1,0],[1,1]],ly:'L',col:'#f00',lw:3})[0].lw`), 3, 'السماكة محفوظة');
+  R(`shapes=[{t:'rect',x:0,y:0,w:1,h:1,ly:cl},{t:'line',a:[5,5],b:[6,6],ly:cl}];sel=[0,1];hist=nh()`);
+  R(`explodeSel()`); eq(R(`shapes.length`), 5, 'مستطيل ← 4 خطوط + الخط الأصلي'); eq(R(`sel.length`), 4, 'تُحدَّد الخطوط الناتجة فقط'); eq(R(`hist.length`), 1, 'خطوة تراجع واحدة');
+  R(`LY[0].lock=1;shapes=[{t:'rect',x:0,y:0,w:1,h:1,ly:LY[0].id}];sel=[0];hist=nh();explodeSel()`);
+  eq(R(`shapes.length`), 1, 'شكل على طبقة مقفلة لا يُفكَّك'); eq(R(`hist.length`), 0, 'ولا خطوة تراجع'); R(`LY[0].lock=0`);
+});
+t('Explode: الأبعاد المربوطة بالشكل المفكَّك تُفكّ روابطها', () => {
+  R(`shapes=[{t:'rect',x:0,y:0,w:2,h:1,ly:cl,id:'R1'},{t:'dim',a:[0,0],b:[2,0],off:.5,la:{id:'R1',i:0,m:0},lb:{id:'R1',i:0,m:1},ly:cl}];sel=[0];hist=nh();explodeSel()`);
+  eq(R(`shapes.at(-1).t`), 'dim', 'البعد باقٍ'); ok(R(`!shapes.at(-1).la&&!shapes.at(-1).lb`), 'لا روابط معلّقة بهوية محذوفة');
+});
+t('Join: سلسلة، اتجاهات معكوسة، إغلاق، وأجزاء منفصلة', () => {
+  const J = (l, tol = 1e-3) => JSON.parse(R(`JSON.stringify(joinChains(${JSON.stringify(l)},${tol}))`));
+  let r = J([[[0, 0], [1, 0]], [[2, 0], [1, 0]], [[2, 0], [3, 1]]]);
+  eq(r.length, 1, 'ثلاثة أجزاء بأطراف مقلوبة ← سلسلة واحدة'); eq(r[0].pts.length, 4, '4 نقاط'); eq(r[0].pts[0].join() + '|' + r[0].pts[3].join(), '0,0|3,1', 'الترتيب صحيح');
+  r = J([[[0, 0], [2, 0]], [[2, 0], [2, 2]], [[2, 2], [0, 0]]]); ok(r[0].closed && r[0].pts.length === 3, 'ثلاثة خطوط تعود للبداية ← مغلق 3 رؤوس');
+  r = J([[[0, 0], [1, 0]], [[5, 5], [6, 5]]]); eq(r.length, 2, 'أجزاء غير متصلة تبقى منفصلة'); ok(r.every(c => c.members.length === 1), 'بلا دمج');
+  r = J([[[0, 0], [1, 0]], [[1.0004, 0], [2, 0]]], 1e-3); eq(r.length, 1, 'ضمن المسامحة 1 مم يصلان'); r = J([[[0, 0], [1, 0]], [[1.01, 0], [2, 0]]], 1e-3); eq(r.length, 2, 'فوق المسامحة لا يصلان');
+  // الربط من البداية: الجزء الثاني يتصل ببداية السلسلة
+  r = J([[[2, 0], [3, 0]], [[0, 0], [2, 0]]]); eq(r[0].pts.map(q => q[0]).join(), '0,2,3', 'الإضافة من جهة البداية');
+});
+t('Join: حدود الشكل والتراجع وروابط الأبعاد', () => {
+  R(`V={x:0,y:0,s:40};hist=nh();shapes=[{t:'line',a:[0,0],b:[1,0],ly:cl,col:'#0f0',lw:2,id:'A'},{t:'line',a:[1,0],b:[1,1],ly:cl},{t:'circle',x:9,y:9,r:1,ly:cl},{t:'dim',a:[0,0],b:[1,0],off:.3,la:{id:'A',i:0,m:0},ly:cl}];sel=[0,1,2]`);
+  R(`joinSel()`); eq(R(`shapes.length`), 3, 'خطان ← متعدد واحد، والدائرة والبعد باقيان'); eq(R(`shapes[0].t`), 'polyline', 'متعدد مفتوح'); eq(R(`shapes[0].col`), '#0f0', 'يرث لون أول جزء');
+  ok(R(`!shapes.find(s=>s.t==='dim').la`), 'رابط البعد بالخط المحذوف سقط'); eq(R(`hist.length`), 1, 'خطوة تراجع واحدة'); eq(R(`sel.join()`), '0', 'تُحدَّد النتيجة');
+  R(`shapes=[{t:'line',a:[0,0],b:[1,0],ly:cl},{t:'line',a:[5,5],b:[6,5],ly:cl}];sel=[0,1];hist=nh()`); R(`joinSel()`); eq(R(`shapes.length`), 2, 'غير المتلامسين: لا تغيير'); eq(R(`hist.length`), 0, 'ولا خطوة تراجع');
+});
+t('النقل/النسخ بنقطة أساس: الإزاحة، الأبواب، التراجع، وعناصر لم تعد موجودة', () => {
+  R(`S.grid=0;V={x:0,y:0,s:40};hist=nh();shapes=[{t:'line',a:[0,0],b:[2,0],ly:cl},{t:'rect',x:1,y:1,w:1,h:1,ly:cl}];sel=[0,1];moveFlowStart('move')`);
+  ok(R(`!!moveFlow&&moveFlow.stage==='base'&&tool==='select'`), 'يبدأ بنقطة الأساس'); R(`moveFlowPoint([1,1],true)`); eq(R(`moveFlow.stage`), 'dest', 'ثم الوصول');
+  R(`moveFlowPoint([4,3],true)`); ok(R(`shapes[0].a.join()==='3,2'&&shapes[0].b.join()==='5,2'&&shapes[1].x===4&&shapes[1].y===3`), 'إزاحة (3,2) لكل المحدد'); ok(R(`!moveFlow`), 'ينتهي النقل'); eq(R(`hist.length`), 1, 'خطوة تراجع واحدة');
+  R(`sel=[1];moveFlowStart('copy');moveFlowPoint([0,0],true);moveFlowPoint([2,0],true);moveFlowPoint([5,0],true)`);
+  eq(R(`shapes.length`), 4, 'نسختان'); ok(R(`shapes[2].x===6&&shapes[3].x===9`), 'في موضعيهما'); ok(R(`!!moveFlow&&moveFlow.n===2`), 'النسخ يتكرر'); eq(R(`hist.length`), 3, 'خطوة تراجع لكل نسخة');
+  R(`moveFlowPoint([0,0],true)`); eq(R(`shapes.length`), 4, 'مرحلة الوصول: إزاحة صفر لا تنسخ');
+  R(`closeMoveFlow()`);
+  // الأشكال لم تعد موجودة (تراجع/تبديل مشروع): لا انهيار ويُلغى التدفق
+  R(`shapes=[{t:'line',a:[0,0],b:[1,0],ly:cl}];sel=[0];moveFlowStart('move');moveFlowPoint([0,0],true);shapes=[{t:'line',a:[9,9],b:[9,9],ly:cl}];moveFlowPoint([3,3],true)`);
+  ok(R(`!moveFlow&&shapes[0].a.join()==='9,9'`), 'عناصر غير موجودة: يُلغى بلا أثر');
+  // مقفل: لا يُنقل
+  R(`LY[0].lock=1;shapes=[{t:'line',a:[0,0],b:[1,0],ly:LY[0].id}];sel=[0];moveFlowStart('move')`); ok(R(`!moveFlow`), 'طبقة مقفلة: لا يبدأ النقل'); R(`LY[0].lock=0`);
+});
+t('النقل بنقطة أساس: الإدخال الرقمي (Y للأعلى) ورفض القيم الفارغة', () => {
+  R(`hist=nh();shapes=[{t:'circle',x:1,y:1,r:.5,ly:cl}];sel=[0];moveFlowStart('move')`);
+  R(`document.querySelector('#diX').value='';document.querySelector('#diY').value='';moveFlowSubmit()`); eq(R(`moveFlow.stage`), 'base', 'أساس بلا قيم: يبقى في المرحلة');
+  R(`$('#diX').value='0';$('#diY').value='0';moveFlowSubmit()`); eq(R(`moveFlow.stage`), 'dest', 'الأساس (0,0)');
+  R(`$('#diX').value='2';$('#diY').value='5';moveFlowSubmit()`); ok(R(`shapes[0].x===3&&shapes[0].y===-4`), 'ΔX=2 وΔY=5 للأعلى ← y يقلّ 5'); ok(R(`!moveFlow`), 'ينتهي');
+  R(`shapes=[{t:'circle',x:1,y:1,r:.5,ly:cl}];sel=[0];moveFlowStart('move');moveFlowPoint([0,0],true);$('#diX').value='';$('#diY').value='';moveFlowSubmit()`); ok(R(`!!moveFlow&&shapes[0].x===1`), 'إزاحة فارغة: لا تغيير'); R(`closeMoveFlow()`);
+});
 t('الأسهم تحرّك العرض، و+/- تكبّر وتصغّر، F8/F9 تبدّل القيود', () => {
   setup();
   R(`V={x:100,y:100,s:40};W=400;H=700;`);
@@ -450,6 +597,157 @@ t('قائمة الاختصارات تُبنى بلا أخطاء وتغطي كل 
   ok(tools.length >= 10);
   const help = R(`KEY_HELP.map(r=>r[0]).join('|')`);
   ok(/Ctrl\+Z/.test(help) && /F8/.test(help));
+});
+
+// ---------- الدفعة الثانية: مقابض الرؤوس، شدّ، كسر، التقاط عمودي وأقرب نقطة، واتجاه Y ----------
+const resetB2 = () => R(`(()=>{shapes=[];sel=[];hist=nh();redo=[];V={x:0,y:0,s:40};S.grid=0;S.end=S.mid=S.int=S.cen=0;S.per=0;S.nea=0;drawFlow=null;polyDraft=null;moveFlow=null;g=null;tool='select';vtxActive=null;breakFirst=null;ST.unit='m'})()`);
+const jr = code => JSON.parse(R(`JSON.stringify(${code})`));
+t('إدخال الإحداثيات رقميًا: Y للأعلى موجب كما في شريط الإحداثيات', () => {
+  resetB2(); R(`$('#diX').value='2';$('#diY').value='3'`);
+  const p = jr(`drawPointFromInputs()`); eq(p, [2, -3], 'Y=3 يُخزَّن -3 ليظهر 3 في الشريط');
+  R(`ST.unit='cm'`); R(`$('#diX').value='200';$('#diY').value='100'`); eq(jr(`drawPointFromInputs()`), [2, -1], 'بالسنتيمتر أيضًا'); R(`ST.unit='m'`);
+});
+t('الالتقاط العمودي: قدم العمود من نقطة الارتكاز على الضلع، ولا يظهر خارج الضلع ولا بلا ارتكاز', () => {
+  resetB2(); R(`shapes=[{t:'line',a:[0,5],b:[10,5],ly:cl}];S.per=1;drawFlow={tool:'line',stage:'second',points:[[3,0]]}`);
+  let o = jr(`osnap([3.1,5.05])`); ok(o && o.k === 'per', 'يلتقط عموديًا'); near(o.p[0], 3); near(o.p[1], 5);
+  R(`drawFlow={tool:'line',stage:'second',points:[[-2,0]]}`); eq(jr(`osnap([-2,5])`), null, 'القدم خارج الضلع: لا التقاط');
+  R(`drawFlow=null`); eq(jr(`osnap([3,5])`), null, 'بلا نقطة ارتكاز لا التقاط عمودي');
+  R(`shapes=[{t:'circle',x:0,y:0,r:2,ly:cl}];drawFlow={tool:'line',stage:'second',points:[[10,0]]}`);
+  o = jr(`osnap([2.05,0.02])`); ok(o && o.k === 'per'); near(o.p[0], 2); near(o.p[1], 0);
+  R(`drawFlow=null`);
+});
+t('الالتقاط العمودي: ارتكاز سحب المقبض هو الطرف الآخر، وفي النقل بنقطة هو الأساس', () => {
+  resetB2(); R(`g={k:'grip',gr:{id:'b'},o:{t:'line',a:[1,1],b:[5,1]}}`); eq(jr(`snapAnchor()`), [1, 1]);
+  R(`g={k:'grip',gr:{id:2},o:{t:'polyline',p:[[0,0],[1,0],[1,3]]}}`); eq(jr(`snapAnchor()`), [1, 0]);
+  R(`g=null;moveFlow={stage:'dest',base:[7,7]}`); eq(jr(`snapAnchor()`), [7, 7]); R(`moveFlow=null`);
+});
+t('أقرب نقطة: أقرب نقطة على الضلع، ولا تتقدّم أبدًا على نقطة التقاط حقيقية', () => {
+  resetB2(); R(`shapes=[{t:'line',a:[0,0],b:[10,0],ly:cl}];S.nea=1`);
+  let o = jr(`osnap([4.02,0.2])`); ok(o && o.k === 'nea'); near(o.p[0], 4.02); near(o.p[1], 0);
+  eq(jr(`osnap([4.02,2])`), null, 'أبعد من 22 بكسل: لا التقاط');
+  R(`S.end=1`); o = jr(`osnap([0.3,0.1])`); eq(o.k, 'end', 'نهاية الخط أقوى من أقرب نقطة'); R(`S.end=0;S.nea=0`);
+});
+t('مقابض المتعدد: رأس لكل نقطة ودائرة منتصف للأضلاع الطويلة فقط، والمضلع له ضلع إغلاق', () => {
+  resetB2(); R(`shapes=[{t:'polyline',p:[[0,0],[4,0],[4,0.5],[8,0.5]],ly:cl}];sel=[0]`);
+  let gr = jr(`grips().filter(q=>q.kind)`); eq(gr.filter(q => q.kind === 'v').length, 4); eq(gr.filter(q => q.kind === 'm').map(q => q.id), ['m0', 'm2'], 'الضلع القصير (0.5 م = 20 بكسل) بلا مقبض منتصف');
+  eq(gr.find(q => q.id === 'm0').ins, 1); eq(gr.find(q => q.id === 'm2').ins, 3);
+  R(`shapes=[{t:'polygon',p:[[0,0],[4,0],[4,3]],ly:cl}];sel=[0]`); gr = jr(`grips().filter(q=>q.kind==='m')`); eq(gr.map(q => q.id), ['m0', 'm1', 'm2']); eq(gr[2].ins, 3, 'ضلع الإغلاق يُدرج في آخر القائمة');
+  R(`shapes=[{t:'arc',x:0,y:0,r:2,a0:0,a1:1.5,ly:cl}];sel=[0]`); eq(jr(`grips().filter(q=>q.id!=='rot').map(q=>q.id)`), ['a0', 'a1', 'ar']);
+});
+t('مقابض المتعدد الكبير: تُعرض الظاهرة فقط وبسقف', () => {
+  resetB2(); R(`W=400;H=700;shapes=[{t:'polyline',p:Array.from({length:5000},(_,i)=>[i*0.02,Math.sin(i/50)]),ly:cl}];sel=[0]`);
+  const n = jr(`grips().length`); ok(n > 1 && n <= 902, 'العدد محدود: ' + n);
+});
+t('سحب مقبض القوس: النهايتان تدوّران حول المركز والطرف الآخر ثابت، والمنتصف يغيّر نصف القطر', () => {
+  resetB2(); const o = `{t:'arc',x:0,y:0,r:2,a0:0,a1:Math.PI/2}`;
+  let s = jr(`(()=>{const o=${o},s=copy(o);arcGripDrag(s,o,'a1',[-3,0]);return s})()`); near(s.a0, 0); near(s.a1, Math.PI, 'إلى 180°');
+  s = jr(`(()=>{const o=${o},s=copy(o);arcGripDrag(s,o,'a0',[0,-3]);return s})()`); near(s.a1, Math.PI / 2); near(s.a1 - s.a0, Math.PI, 'a0 إلى -90°: المدى 180°');
+  s = jr(`(()=>{const o=${o},s=copy(o);arcGripDrag(s,o,'ar',[0,5]);return s})()`); near(s.r, 5);
+  s = jr(`(()=>{const o=${o},s=copy(o);arcGripDrag(s,o,'ar',[0,0]);return s})()`); near(s.r, .05, 'نصف القطر لا ينزل عن 5 سم');
+});
+t('إضافة/حذف رأس: روابط الأبعاد تُعاد ترقيمها ولا يقفز بُعد إلى رأس آخر', () => {
+  resetB2();
+  R(`shapes=[{t:'polyline',id:'P',p:[[0,0],[4,0],[4,3],[0,3]],ly:cl},{t:'dim',mode:'linear',a:[0,0],b:[0,0],off:.5,la:{id:'P',i:3,m:0},lb:{id:'P',i:2,m:1},ly:cl}]`);
+  R(`vertexInsert(shapes[0],2,[4,1.5])`); let d = jr(`shapes[1]`);
+  eq(d.la.i, 4, 'رأس 3 صار 4'); eq(d.lb.i, 3, 'منتصف الضلع 2 صار الضلع 3'); eq(jr(`shapes[0].p.length`), 5);
+  R(`shapes[1].lb={id:'P',i:1,m:1}`); R(`vertexInsert(shapes[0],2,[4,0.5])`); ok(!jr(`shapes[1]`).lb, 'الضلع المنقسم يسقط رابطه');
+  resetB2();
+  R(`shapes=[{t:'polyline',id:'P',p:[[0,0],[4,0],[4,3],[0,3]],ly:cl},{t:'dim',mode:'linear',a:[0,0],b:[0,0],off:.5,la:{id:'P',i:3,m:0},lb:{id:'P',i:2,m:1},ly:cl},{t:'dim',mode:'linear',a:[0,0],b:[0,0],off:.5,la:{id:'P',i:1,m:0},lb:{id:'P',i:0,m:1},ly:cl}]`);
+  R(`sel=[0];vtxActive={s:shapes[0],k:1}`); ok(R(`vertexDeleteActive()`), 'حُذف الرأس');
+  eq(jr(`shapes[0].p`), [[0, 0], [4, 3], [0, 3]]); d = jr(`shapes[1]`); eq(d.la.i, 2, 'رأس 3 صار 2'); eq(d.lb.i, 1, 'ضلع 2 صار 1');
+  d = jr(`shapes[2]`); ok(!d.la && !d.lb, 'رابط الرأس المحذوف ورابط الضلع المندمج سقطا');
+  eq(R(`hist.length`), 1, 'خطوة تراجع واحدة');
+  R(`sel=[0];vtxActive={s:shapes[0],k:0}`); R(`vertexDeleteActive()`); ok(!R(`vertexDeleteActive()`), 'متعدد برأسين: الحذف مرفوض'); eq(jr(`shapes[0].p.length`), 2);
+  R(`shapes=[{t:'polygon',p:[[0,0],[4,0],[4,3]],ly:cl}];sel=[0];vtxActive={s:shapes[0],k:0}`); ok(!R(`vertexDeleteActive()`), 'مضلع بثلاثة رؤوس: الحذف مرفوض');
+  R(`vtxActive=null`);
+});
+t('الرأس النشط لا يبقى بعد تغيّر التحديد أو الشكل', () => {
+  resetB2(); R(`shapes=[{t:'polyline',p:[[0,0],[4,0],[4,3]],ly:cl},{t:'line',a:[0,0],b:[1,1],ly:cl}];sel=[0];vtxActive={s:shapes[0],k:1}`); ok(R(`!!vtxSel()`));
+  R(`sel=[1]`); ok(R(`!vtxSel()`), 'تحديد آخر'); R(`sel=[0];shapes[0]=copy(shapes[0])`); ok(R(`!vtxSel()`), 'استُبدل الشكل');
+  R(`vtxActive=null`);
+});
+t('الشدّ: خط ومتعدد ومثلث، الرؤوس داخل الإطار فقط تتحرك', () => {
+  resetB2(); const w = `{x0:3,y0:-1,x1:5,y1:1}`;
+  eq(jr(`(()=>{const s={t:'line',a:[0,0],b:[4,0]};stretchShape(s,${w},2,1);return s})()`), { t: 'line', a: [0, 0], b: [6, 1] });
+  eq(jr(`(()=>{const s={t:'polyline',p:[[0,0],[4,0],[4,3]]};stretchShape(s,${w},1,0);return s.p})()`), [[0, 0], [5, 0], [4, 3]]);
+  eq(jr(`(()=>{const s={t:'line',a:[0,0],b:[1,0]};return stretchShape(s,${w},1,0)})()`), false, 'لا رأس داخل الإطار: لا تغيير');
+  eq(jr(`(()=>{const s={t:'tri',p:[[4,0],[8,0],[6,5]]};stretchShape(s,${w},0,1);return s.p})()`), [[4, 1], [8, 0], [6, 5]]);
+});
+t('الشدّ: المستطيل يبقى مستطيلًا عند شدّ ضلع بإزاحة عمودية عليه، ويتحول إلى مضلع عند إزاحة مائلة، ويتحرك كاملًا إن كان كله في الإطار', () => {
+  resetB2(); const w = `{x0:3.5,y0:-1,x1:5,y1:4}`;
+  let s = jr(`(()=>{const s={t:'rect',x:0,y:0,w:4,h:3,name:'غرفة'};stretchShape(s,${w},2,0);return s})()`); eq([s.t, s.x, s.y, s.w, s.h, s.name], ['rect', 0, 0, 6, 3, 'غرفة']);
+  s = jr(`(()=>{const s={t:'rect',x:0,y:0,w:4,h:3};stretchShape(s,${w},-1,0);return s})()`); eq([s.t, s.w], ['rect', 3], 'تقليص العرض');
+  s = jr(`(()=>{const s={t:'rect',x:0,y:0,w:4,h:3,col:'#f00'};stretchShape(s,${w},1,1);return s})()`); eq(s.t, 'polygon'); eq(s.p, [[0, 0], [5, 1], [5, 4], [0, 3]]); eq(s.col, '#f00'); ok(s.x === undefined && s.w === undefined);
+  s = jr(`(()=>{const s={t:'rect',x:0,y:0,w:4,h:3};stretchShape(s,{x0:-1,y0:-1,x1:5,y1:4},2,2);return s})()`); eq([s.t, s.x, s.y, s.w, s.h], ['rect', 2, 2, 4, 3], 'كله داخل الإطار: يتحرك فقط');
+  // مستطيل مدوّر 90°: ضلعه المحلي الأيمن (الرأسان 1 و2) أفقي في العالم، وشدّه إلى الأعلى (محور x المحلي) يوسّع العرض ويحفظ الدوران
+  s = jr(`(()=>{const s={t:'rect',x:0,y:0,w:4,h:3,rot:Math.PI/2},c=rc(s),w={x0:Math.min(c[1][0],c[2][0])-.1,x1:Math.max(c[1][0],c[2][0])+.1,y0:Math.min(c[1][1],c[2][1])-.1,y1:Math.max(c[1][1],c[2][1])+.1};stretchShape(s,w,0,1);return[s.t,s.rot,s.w,s.h,s.x+s.w/2,s.y+s.h/2]})()`);
+  eq(s[0], 'rect'); near(s[1], Math.PI / 2); near(s[2], 5); near(s[3], 3); near(s[4], 2, 'المركز المحلي انتقل بنصف الإزاحة'); near(s[5], 2);
+});
+t('الشدّ: stretchHits يوافق stretchShape، والمقفل والمخفي لا يُشدّان، والباب يلتصق بالجدار', () => {
+  resetB2(); R(`LY=[{id:'l1',name:'a',vis:1,lock:0},{id:'l2',name:'b',vis:1,lock:1}];cl='l1'`);
+  R(`shapes=[{t:'wall',a:[0,0],b:[4,0],th:.2,ly:'l1'},{t:'wall',a:[4,0],b:[4,3],th:.2,ly:'l1'},{t:'line',a:[4,0],b:[6,0],ly:'l2'},{t:'door',x:2,y:0,a:0,th:.2,w:.9,f:1,h:1,ly:'l1'},{t:'circle',x:4,y:0,r:1,ly:'l1'}]`);
+  const w = `{x0:3.5,y0:-1,x1:4.5,y1:1}`; eq(jr(`stretchAffected(${w}).map(s=>s.t)`), ['wall', 'wall', 'circle'], 'المقفلة لا تُحتسب');
+  R(`shapes.forEach(s=>{if(!stretchHits(s,${w})&&s.ly==='l1'){}})`);
+  R(`LY=[{id:'l1',name:'a',vis:1,lock:0}];shapes[2].ly='l1'`); R(`snap();stretchApply(${w},0,0.5)`);
+  eq(jr(`shapes[0].b`), [4, 0.5], 'طرف الجدار الأول انتقل'); eq(jr(`shapes[1].a`), [4, 0.5]); eq(jr(`shapes[4].y`), 0.5, 'مركز الدائرة داخل الإطار فتحرّك');
+  R(`LY=[{id:'l1',name:'a',vis:1,lock:0}];cl='l1'`);
+});
+t('الشدّ: تدفق كامل (إطار ثم أساس ثم وصول) بخطوة تراجع واحدة، ومعاينة الشبح، ورفض الإطار الفارغ', () => {
+  resetB2(); R(`shapes=[{t:'rect',x:0,y:0,w:4,h:3,ly:cl}]`); R(`stretchStart()`); eq(R(`moveFlow.stage`), 'window');
+  R(`stretchWindowDone([10,10],[12,12],50)`); eq(R(`moveFlow.stage`), 'window', 'إطار فارغ: يبقى في مرحلة الإطار');
+  R(`stretchWindowDone([0,0],[0,0],3)`); eq(R(`moveFlow.stage`), 'window', 'لمسة قصيرة لا ترسم إطارًا');
+  R(`stretchWindowDone([3.5,-1],[5,4],50)`); eq(R(`moveFlow.stage`), 'base'); eq(R(`moveFlow.hits`), 1);
+  R(`moveFlowPoint([4,1.5],true)`); eq(R(`moveFlow.stage`), 'dest'); R(`moveFlow.at=[6,1.5];moveFlow.base=[4,1.5];moveFlowPreview([6,1.5])`); eq(R(`moveFlow.ghost.length`), 1, 'معاينة بشبح واحد');
+  R(`moveFlowCommit(2,0)`); eq(R(`shapes[0].w`), 6); eq(R(`moveFlow`), null); eq(R(`hist.length`), 1);
+  R(`$('#undo').click()`); eq(R(`shapes[0].w`), 4, 'تراجع واحد يعيد الأصل');
+  R(`moveFlow={mode:'stretch',stage:'window',win:null,items:[]};moveFlowSubmit()`); ok(R(`!!moveFlow`)); R(`moveFlow=null`);
+});
+t('الكسر: خط ينقسم عند نقطة وتُحفظ خصائصه، وجدار يحفظ سماكته، والطرف مرفوض', () => {
+  resetB2(); R(`shapes=[{t:'wall',a:[0,0],b:[10,0],th:.3,col:'#123',lw:3,ly:cl}]`);
+  ok(R(`applyBreak(0,0.4,0.4)`)); eq(jr(`shapes.map(s=>[s.a,s.b,s.th,s.col,s.lw])`), [[[0, 0], [4, 0], .3, '#123', 3], [[4, 0], [10, 0], .3, '#123', 3]]); eq(jr(`sel`), [0, 1]); eq(R(`hist.length`), 1);
+  R(`shapes=[{t:'line',a:[0,0],b:[10,0],ly:cl}]`); ok(!R(`applyBreak(0,0,0)`), 'عند البداية: مرفوض'); ok(!R(`applyBreak(0,1,1)`), 'عند النهاية: مرفوض'); eq(R(`shapes.length`), 1);
+});
+t('الكسر بين نقطتين: يُحذف الجزء بينهما، أو يُقصّ طرف، ويُرفض حذف الشكل كله', () => {
+  resetB2(); R(`shapes=[{t:'line',a:[0,0],b:[10,0],ly:cl}]`); ok(R(`applyBreak(0,.3,.6)`));
+  eq(jr(`shapes.map(s=>[s.a,s.b])`), [[[0, 0], [3, 0]], [[6, 0], [10, 0]]]);
+  R(`shapes=[{t:'line',a:[0,0],b:[10,0],ly:cl}]`); ok(R(`applyBreak(0,0,.3)`)); eq(jr(`shapes.map(s=>[s.a,s.b])`), [[[3, 0], [10, 0]]], 'يُقصّ الطرف');
+  R(`shapes=[{t:'line',a:[0,0],b:[10,0],ly:cl}]`); ok(!R(`applyBreak(0,0,1)`), 'الكل مرفوض');
+});
+t('الكسر: متعدد خطوط ينقسم إلى متعددين بنقطة الكسر في كل منهما', () => {
+  resetB2(); R(`shapes=[{t:'polyline',p:[[0,0],[4,0],[4,4],[8,4]],ly:cl,col:'#0a0'}]`);
+  ok(R(`applyBreak(0,1.5,1.5)`)); eq(jr(`shapes.map(s=>s.p)`), [[[0, 0], [4, 0], [4, 2]], [[4, 2], [4, 4], [8, 4]]]); eq(jr(`shapes[1].col`), '#0a0');
+  R(`shapes=[{t:'polyline',p:[[0,0],[4,0],[4,4],[8,4]],ly:cl}]`); ok(R(`applyBreak(0,1,1)`), 'عند رأس داخلي'); eq(jr(`shapes.map(s=>s.p)`), [[[0, 0], [4, 0]], [[4, 0], [4, 4], [8, 4]]]);
+  R(`shapes=[{t:'polyline',p:[[0,0],[4,0],[4,4],[8,4]],ly:cl}]`); ok(R(`applyBreak(0,.5,2.5)`)); eq(jr(`shapes.map(s=>s.p)`), [[[0, 0], [2, 0]], [[6, 4], [8, 4]]], 'τ=2.5 هو منتصف الضلع الأخير (6,4)');
+});
+t('الكسر: روابط الأبعاد تنتقل إلى القطعة الصحيحة وتسقط في الجزء المحذوف', () => {
+  resetB2();
+  R(`shapes=[{t:'line',id:'L',a:[0,0],b:[10,0],ly:cl},{t:'dim',mode:'linear',a:[0,0],b:[0,0],off:.5,la:{id:'L',i:0,m:0},lb:{id:'L',i:1,m:0},ly:cl},{t:'dim',mode:'linear',a:[0,0],b:[0,0],off:.5,la:{id:'L',i:0,m:1},lb:{id:'L',i:0,t:.9},ly:cl}]`);
+  ok(R(`applyBreak(0,.4,.4)`)); const ids = jr(`[shapes[0].id,shapes[1].id]`); ok(ids[0] === 'L' && ids[1] && ids[1] !== 'L', 'القطعة الجديدة لها معرّف');
+  const d1 = jr(`shapes[2]`), d2 = jr(`shapes[3]`);
+  eq(d1.la, { id: 'L', i: 0, m: 0 }, 'رأس البداية يبقى'); eq(d1.lb, { id: ids[1], i: 1, m: 0 }, 'رأس النهاية ينتقل إلى القطعة الثانية');
+  ok(d2.la.id === ids[1], 'منتصف الخط (0.5) يقع بعد نقطة الكسر (0.4) فيذهب للقطعة الثانية'); near(d2.la.t, (.5 - .4) / .6); ok(d2.lb.id === ids[1]); near(d2.lb.t, (.9 - .4) / .6);
+  // الجزء المحذوف يُسقط روابطه
+  resetB2(); R(`shapes=[{t:'line',id:'L',a:[0,0],b:[10,0],ly:cl},{t:'dim',mode:'linear',a:[0,0],b:[0,0],off:.5,la:{id:'L',i:0,t:.5},lb:{id:'L',i:0,t:.9},ly:cl}]`);
+  ok(R(`applyBreak(0,.3,.6)`)); const d = jr(`shapes[2]`); ok(!d.la, 'رابط الجزء المحذوف سقط'); ok(d.lb && d.lb.i === 0 && Math.abs(d.lb.t - .75) < 1e-9, 'الرابط في القطعة الثانية يُعاد حسابه');
+  // أبعاد زاوية: تُفك روابطها
+  resetB2(); R(`shapes=[{t:'line',id:'L',a:[0,0],b:[10,0],ly:cl},{t:'dim',mode:'angular',a:[0,0],b:[1,1],c:[0,0],off:.5,la:{id:'L',i:0},lb:{id:'L',i:0},ly:cl}]`);
+  R(`applyBreak(0,.5,.5)`); ok(!jr(`shapes[2]`).la, 'البعد الزاوي يُفك');
+});
+t('الكسر: breakPick بالنمطين على خط وعلى شكل غير مدعوم', () => {
+  resetB2(); R(`shapes=[{t:'line',a:[0,0],b:[10,0],ly:cl},{t:'circle',x:20,y:20,r:1,ly:cl}]`);
+  R(`breakMode='two';breakFirst=null;breakPick(w2s(2,0))`); ok(R(`!!breakFirst`)); eq(R(`shapes.length`), 2);
+  R(`breakPick(w2s(5,0))`); eq(R(`shapes.length`), 3); ok(R(`!breakFirst`));
+  R(`breakMode='pt';breakPick(w2s(20,20+1))`); eq(R(`shapes.length`), 3, 'الدائرة غير مدعومة');
+  R(`breakFirst={s:shapes[0],tau:.3};breakMode='two';breakPick(w2s(2.0000001,0))`); eq(R(`shapes.length`), 3, 'نقطتان متطابقتان: مرفوضة');
+  R(`breakFirst=null;breakMode='pt'`);
+});
+t('شريط الاختصارات: S شدّ وB كسر وDelete للرأس، وقائمة المساعدة تذكرها', () => {
+  const help = R(`KEY_HELP.map(x=>x[0]).join('|')`); ok(/\|S\|/.test('|' + help + '|') && /\|B\|/.test('|' + help + '|'), 'S وB في المساعدة');
+  resetB2(); R(`shapes=[{t:'line',a:[0,0],b:[2,0],ly:cl}]`); R(`onKey({code:'KeyS',preventDefault(){},target:{tagName:'DIV'}})`); eq(R(`moveFlow&&moveFlow.mode`), 'stretch'); R(`closeMoveFlow()`);
+  R(`onKey({code:'KeyB',preventDefault(){},target:{tagName:'DIV'}})`); eq(R(`tool`), 'break'); eq(R(`breakMode`), 'pt'); R(`tool='select';editAction=null;breakFirst=null`);
+  R(`shapes=[{t:'polyline',p:[[0,0],[4,0],[4,3]],ly:cl}];sel=[0];vtxActive={s:shapes[0],k:2}`);
+  R(`onKey({code:'Delete',preventDefault(){},target:{tagName:'DIV'}})`); eq(R(`shapes.length`), 1, 'Delete حذف الرأس لا الشكل'); eq(R(`shapes[0].p.length`), 2);
+  R(`onKey({code:'Delete',preventDefault(){},target:{tagName:'DIV'}})`); eq(R(`shapes.length`), 0, 'ثم Delete يحذف الشكل');
 });
 
 // ---------- الملفات: saveBlob ----------

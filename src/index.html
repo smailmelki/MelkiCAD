@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
 
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/IBMPlexSansArabic-Regular.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/nav-overlay.css">
@@ -26,11 +26,11 @@
 </header>
 <main>
   <canvas id="cv"></canvas>
-  <div id="ctx"><button id="op">خصائص</button><button id="mv" aria-pressed="false">تحريك</button><button id="cp">نسخ</button><button id="ps">لصق</button><button id="rt">تدوير</button><button id="scale">تحجيم</button><button id="del">حذف</button><button id="all">الكل</button></div>
+  <div id="ctx"><button id="op">خصائص</button><button id="mv" aria-pressed="false">تحريك</button><button id="cp">نسخ</button><button id="ps">لصق</button><button id="rt">تدوير</button><button id="scale">تحجيم</button><button id="vdel" style="display:none">حذف رأس</button><button id="del">حذف</button><button id="all">الكل</button></div>
   <div id="sheet"></div>
   <div id="polybar"><button id="polyfinish">إنهاء POLYLINE</button><button id="polycancel">إلغاء</button></div>
   <div id="drawInput" aria-live="polite"><div class="dihead"><span id="diTitle"></span><button id="diFinish" style="display:none">إنهاء</button><button id="diKey" title="إدخال رقمي (اختياري)" aria-label="إدخال رقمي" aria-pressed="false">⌨</button><button id="diClose" title="إلغاء الرسم" aria-label="إلغاء الرسم">✕</button></div><div id="diFields"><div class="dicoords" id="diCoords"><label><input id="diX" type="number" step="any" inputmode="decimal" autocomplete="off" aria-label="X" enterkeyhint="next"></label><label><input id="diY" type="number" step="any" inputmode="decimal" autocomplete="off" aria-label="Y" enterkeyhint="done"></label></div><div class="dicoords" id="diExtra"></div><button id="diSubmit" title="إدخال" aria-label="إدخال">✓</button></div></div>
-  <div id="smenu"><button data-s="end">نهاية / ركن</button><button data-s="mid">منتصف</button><button data-s="int">تقاطع</button><button data-s="cen">مركز / ربع</button><button data-s="grid">شبكة</button><button data-s="ortho">تعامد أفقي / رأسي</button><button data-s="parallel">موازاة</button><button data-s="perpendicular">تعامد مع مرجع</button><button data-s="polar">زاوية 45°</button></div>
+  <div id="smenu"><button data-s="end">نهاية / ركن</button><button data-s="mid">منتصف</button><button data-s="int">تقاطع</button><button data-s="cen">مركز / ربع</button><button data-s="per">عمودي على خط</button><button data-s="nea">أقرب نقطة</button><button data-s="grid">شبكة</button><button data-s="ortho">تعامد أفقي / رأسي</button><button data-s="parallel">موازاة</button><button data-s="perpendicular">تعامد مع مرجع</button><button data-s="polar">زاوية 45°</button></div>
 </main>
 <nav>
   <button data-t="pan"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg>تحريك</button>
@@ -53,6 +53,8 @@
   <button data-t="dim"><svg viewBox="0 0 24 24"><path d="M4 6v12M20 6v12M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3"/></svg>أبعاد</button>
   <button data-t="trim"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 7.5L20 18M8.5 16.5L20 6"/></svg>قص</button>
   <button data-t="extend"><svg viewBox="0 0 24 24"><path d="M4 12h10M14 12l-3-3M14 12l-3 3"/><path d="M20 5v14"/></svg>تمديد</button>
+  <button data-t="fillet"><svg viewBox="0 0 24 24"><path d="M5 4v9a6 6 0 0 0 6 6h8"/></svg>تدوير زاوية</button>
+  <button data-t="chamfer"><svg viewBox="0 0 24 24"><path d="M5 4v9l6 6h8"/></svg>شطف</button>
   <button id="lyb"><svg viewBox="0 0 24 24"><path d="M12 2l9 5-9 5-9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 17l9 5 9-5"/></svg>طبقات</button>
   <button id="snap"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM12 4v16M4 12h16"/></svg>التقاط</button>
 </nav>

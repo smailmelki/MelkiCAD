@@ -12,7 +12,7 @@ let EX={paper:'A4',N:0,grid:0};
 
 function sheetLayout(o){
   const vis=shapes.filter(s=>shown(s));if(!vis.length)return null;
-  const R=vis.map(bx),x0=Math.min(...R.map(q=>q.x)),y0=Math.min(...R.map(q=>q.y)),x1=Math.max(...R.map(q=>q.X)),y1=Math.max(...R.map(q=>q.Y)),bw=Math.max(x1-x0,.1),bh=Math.max(y1-y0,.1);
+  const BB=bounds(vis),x0=BB.x,y0=BB.y,x1=BB.X,y1=BB.Y,bw=Math.max(x1-x0,.1),bh=Math.max(y1-y0,.1);
   const dim={A4:[297,210],A3:[420,297]}[o.paper],land=bw>=bh,pw=land?dim[0]:dim[1],ph=land?dim[1]:dim[0];
   const dpi=150,m=10,fr=5,tb=26,aw=pw-2*(m+fr),ah=ph-2*(m+fr)-tb;
   const need=N=>bw*1000/N<=aw&&bh*1000/N<=ah;

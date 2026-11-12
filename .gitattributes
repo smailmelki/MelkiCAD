@@ -1,0 +1,6 @@
+# يوحّد نهايات الأسطر عند الإيداع (بعض الملفات حُرّرت على ويندوز بـ CRLF) ويمنع تشويه الملفات الثنائية
+* text=auto
+*.png binary
+*.ttf binary
+*.woff binary
+*.woff2 binary

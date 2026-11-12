@@ -3,7 +3,7 @@
  * الرسم على اللوحة: ألوان الثيم، رسم الأشكال والتعبئة والنصوص، إطار الرسم الكامل
  * draw، تغيير الحجم، ملاءمة العرض، ولقطة الشاشة.
  *
- * يعرّف: colors، tag، fillShape، drawNote، drawShape، marker، draw، redraw، resize، quickShot
+ * يعرّف: colors، tag، fillShape، drawNote، drawShape، marker، OPEN_FAST، drawShapes، drawStretchWindow، drawMoveGhost، draw، redraw، resize، quickShot
  * يعتمد على: 01-core.js، 02-geometry.js، 04-selection.js، 05-persistence.js،
  *            06-layers.js، 10-dimensions.js، 11-furniture.js، 12-openings.js
  * ================================================================== */
@@ -35,7 +35,7 @@ function fillShape(s,Q,col){
 }
 
 function drawNote(s,on,c){
-  const q=w2s(s.x,s.y),col=s.col||layerOf(s).col||c.ln,n=nb(s),px=Math.max(6,s.h*V.s);
+  const q=w2s(s.x,s.y),col=s.col||layerOf(s).col||c.ln,n=on?nb(s):null,px=Math.max(6,s.h*V.s);
   ctx.save();ctx.translate(q[0],q[1]);ctx.rotate(s.a||0);ctx.setLineDash([]);
   if(s.t==='text'){
     const txt=s.txt||'';ctx.direction=/[\u0600-\u06FF]/.test(txt)?'rtl':'ltr';
@@ -89,6 +89,8 @@ function marker(c){
   else if(mk.k==='mid'){ctx.moveTo(x,y-8);ctx.lineTo(x+8,y+6);ctx.lineTo(x-8,y+6);ctx.closePath()}
   else if(mk.k==='int'){ctx.moveTo(x-7,y-7);ctx.lineTo(x+7,y+7);ctx.moveTo(x+7,y-7);ctx.lineTo(x-7,y+7)}
   else if(mk.k==='cen')ctx.arc(x,y,7,0,7);
+  else if(mk.k==='per'){ctx.moveTo(x-7,y-7);ctx.lineTo(x-7,y+7);ctx.lineTo(x+7,y+7);ctx.moveTo(x-7,y+1);ctx.lineTo(x-1,y+1);ctx.lineTo(x-1,y+7)}
+  else if(mk.k==='nea'){ctx.moveTo(x-7,y-7);ctx.lineTo(x+7,y-7);ctx.lineTo(x-7,y+7);ctx.lineTo(x+7,y+7);ctx.closePath()}
   else{ctx.moveTo(x,y-8);ctx.lineTo(x+8,y);ctx.lineTo(x,y+8);ctx.lineTo(x-8,y);ctx.closePath()}
   ctx.stroke();tag(NM[mk.k],x,y-22,c);
 }
@@ -100,6 +102,103 @@ function autoGridScale(){
   const ratio=raw/power;
   const nice=ratio<=1?1:ratio<=2?2:ratio<=5?5:10;
   return clamp(nice*power,.01,10000);
+}
+
+// الأنواع المفتوحة البسيطة التي تُجمَّع في ضربة رسم واحدة لكل (لون، سماكة)
+const OPEN_FAST=new Set(['line','polyline','free','arc']);
+
+// رسم الأشكال بترتيبها. الملفات الكبيرة كانت بطيئة لثلاثة أسباب:
+//  1) رسم كل شكل حتى خارج الشاشة  → نستبعده بصندوق الحدود السريع.
+//  2) ضربة stroke منفصلة وPath2D جديد لكل خط → نجمع الخطوط البسيطة المتجاورة في ضربة واحدة لكل نمط
+//     (الجمع داخل مقطع متجاور فقط، فلا يتغير ترتيب الرسم بالنسبة للتعبئات والأشكال المركّبة والتحديد).
+//  3) مئات الشظايا الأصغر من بكسل ونصوص بحجم لا يُقرأ → في الملفات الكبيرة (> 1500 شكل) لا تُرسم.
+function drawShapes(picked,c){
+  const lm=new Map();for(const l of LY)lm.set(l.id,l);
+  const L0=LY[0]||{vis:1,lock:0},lay=s=>lm.get(s.ly)||L0;
+  const vs=Math.max(V.s,1e-9),vx0=-V.x/vs,vy0=-V.y/vs,vx1=(W-V.x)/vs,vy1=(H-V.y)/vs;
+  const heavy=shapes.length>1500,o=[0,0,0,0],groups=new Map();
+  // tiny=true: الشكل أصغر من بضعة بكسلات في ملف كبير، فيكفي مقطع مستقيم بين طرفيه (لا يُرى فرق)
+  const trace=(s,tiny)=>{
+    const X=V.x,Y=V.y,k=V.s;
+    if(s.t==='line'){ctx.moveTo(X+s.a[0]*k,Y+s.a[1]*k);ctx.lineTo(X+s.b[0]*k,Y+s.b[1]*k);return}
+    if(s.t==='circle'){const cx=X+s.x*k,cy=Y+s.y*k,r=s.r*k;ctx.moveTo(cx+r,cy);ctx.arc(cx,cy,r,0,7);return}
+    if(s.t==='rect'){ctx.rect(X+s.x*k,Y+s.y*k,s.w*k,s.h*k);return}
+    if(tiny){
+      if(s.t==='arc'){ctx.moveTo(X+(s.x+s.r*Math.cos(s.a0))*k,Y+(s.y+s.r*Math.sin(s.a0))*k);ctx.lineTo(X+(s.x+s.r*Math.cos(s.a1))*k,Y+(s.y+s.r*Math.sin(s.a1))*k);return}
+      const p0=s.p&&s.p[0],p1=s.p&&s.p[s.p.length-1];
+      if(p0&&p1){ctx.moveTo(X+p0[0]*k,Y+p0[1]*k);ctx.lineTo(X+p1[0]*k,Y+p1[1]*k)}
+      return;
+    }
+    const P=s.t==='arc'?arcPtsShape(s):s.p;if(!P||!P.length)return;
+    let lx=X+P[0][0]*k,ly=Y+P[0][1]*k;ctx.moveTo(lx,ly);
+    const n=P.length,eps=heavy?1:.5;
+    // نقاط أقرب من eps بكسل لا تغيّر شيئًا في الشاشة؛ نتخطاها ونبقي الأخيرة دائمًا
+    for(let i=1;i<n;i++){const x=X+P[i][0]*k,y=Y+P[i][1]*k;if(i===n-1||Math.abs(x-lx)+Math.abs(y-ly)>=eps){ctx.lineTo(x,y);lx=x;ly=y}}
+    if(n===1)ctx.lineTo(lx,ly);
+  };
+  // دفعات صغيرة (64 شكلًا لكل ضربة): تقلّل عدد استدعاءات stroke بدرجة كبيرة دون مسار ضخم واحد
+  // (القياس أظهر أن المسار الضخم الواحد أبطأ في التنعيم من دفعات صغيرة).
+  const CH=64;
+  const flush=()=>{
+    if(!groups.size)return;
+    ctx.lineJoin='round';ctx.lineCap='round';ctx.setLineDash([]);ctx.globalAlpha=1;
+    for(const G of groups.values()){
+      ctx.lineWidth=G.lw;ctx.strokeStyle=G.col;
+      for(let i=0;i<G.list.length;i+=CH){
+        ctx.beginPath();
+        for(let j=i,e=Math.min(G.list.length,i+CH);j<e;j++)trace(G.list[j],G.tiny[j]);
+        ctx.stroke();
+      }
+    }
+    groups.clear();
+  };
+  for(const pass of[0,1]){
+    for(let i=0;i<shapes.length;i++){
+      const s=shapes[i],l=lay(s);
+      if(l.vis===0)continue;
+      if((s.t==='door'||s.t==='door2'||s.t==='win')!==!!pass)continue;
+      const on=picked.has(i);
+      if(cullBox(s,o)){
+        // هامش بالبكسل لسماكة الخط والتظليل وبطاقات القياس، ولسماكة الجدار الحقيقية
+        const m=(14+(s.t==='wall'?(s.th||0)*vs/2:0))/vs;
+        if(o[2]<vx0-m||o[0]>vx1+m||o[3]<vy0-m||o[1]>vy1+m)continue;
+        if(heavy&&!on&&s.t!=='text'&&(o[2]-o[0])*vs<.7&&(o[3]-o[1])*vs<.7)continue;
+      }
+      // في الملفات الكبيرة: الدوائر والمستطيلات الصغيرة جدًا (بلا تعبئة ولا اسم ولا قياسات) تدخل الدفعة أيضًا
+      const small=heavy&&!on&&!ST.showDims&&!ST.showAreas&&!s.fk&&!s.name&&(o[2]-o[0])*vs<8&&(o[3]-o[1])*vs<8;
+      if(!on&&!ST.showDims&&(OPEN_FAST.has(s.t)||(small&&(s.t==='circle'||(s.t==='rect'&&!s.rot))))){
+        const col=s.col||l.col||c.ln,lw=s.lw||2,key=col+'|'+lw;
+        let G=groups.get(key);if(!G){G={col,lw,list:[],tiny:[]};groups.set(key,G)}
+        G.list.push(s);G.tiny.push(heavy&&(s.t==='polyline'||s.t==='free'||s.t==='arc')&&(o[2]-o[0])*vs<6&&(o[3]-o[1])*vs<6);continue;
+      }
+      flush();
+      if(heavy&&s.t==='text'&&!on&&s.h*vs<4)continue;
+      drawShape(s,on,false,c);
+    }
+    flush();
+  }
+}
+
+// معاينة النقل/النسخ بنقطة أساس: ظل الأشكال في موضعها الجديد (أو إطار حدودها للتحديدات الكبيرة) وخط من نقطة الأساس مع المسافة والزاوية
+// إطار الشدّ (Stretch): أخضر متقطع كإطار التحديد بالتقاطع، ويبقى ظاهرًا حتى نقطة الوصول
+function drawStretchWindow(c){
+  const F=moveFlow;if(!F||F.mode!=='stretch'||!F.win)return;
+  const a=w2s(F.win.x0,F.win.y0),b=w2s(F.win.x1,F.win.y1);
+  ctx.save();ctx.setLineDash([7,4]);ctx.lineWidth=1.5;ctx.strokeStyle=ctx.fillStyle='#16a34a';ctx.globalAlpha=.12;ctx.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]);ctx.globalAlpha=1;ctx.strokeRect(a[0],a[1],b[0]-a[0],b[1]-a[1]);ctx.restore();
+  tag(`شدّ: ${F.hits||0} شكل`,(a[0]+b[0])/2,Math.min(a[1],b[1])-14,c);
+}
+function drawMoveGhost(c){
+  const F=moveFlow;drawStretchWindow(c);
+  if(!F||F.stage!=='dest'||!F.base||!F.at)return;
+  const dx=F.at[0]-F.base[0],dy=F.at[1]-F.base[1];
+  if(F.ghost)F.ghost.forEach(s=>drawShape(s,false,true,c));
+  else if(F.bb){const a=w2s(F.bb.x+dx,F.bb.y+dy),b=w2s(F.bb.X+dx,F.bb.Y+dy);ctx.save();ctx.strokeStyle=c.ac;ctx.lineWidth=1.5;ctx.setLineDash([8,6]);ctx.strokeRect(a[0],a[1],b[0]-a[0],b[1]-a[1]);ctx.restore()}
+  const p0=w2s(F.base[0],F.base[1]),p1=w2s(F.at[0],F.at[1]);
+  ctx.save();ctx.strokeStyle=c.ac;ctx.fillStyle=c.ac;ctx.lineWidth=1.5;ctx.setLineDash([4,5]);
+  ctx.beginPath();ctx.moveTo(p0[0],p0[1]);ctx.lineTo(p1[0],p1[1]);ctx.stroke();
+  ctx.setLineDash([]);ctx.beginPath();ctx.arc(p0[0],p0[1],4,0,7);ctx.fill();ctx.restore();
+  const dist=Math.hypot(dx,dy);
+  if(dist>1e-9)tag(`${fl(dist)} · ${Math.round(Math.atan2(-dy,dx)*1800/Math.PI)/10}°`,(p0[0]+p1[0])/2,(p0[1]+p1[1])/2-14,c);
 }
 
 function draw(){
@@ -115,8 +214,7 @@ function draw(){
       ctx.strokeStyle=major?c.major:c.grid;ctx.lineWidth=1;ctx.stroke();
     }
   }
-  const picked=new Set(sel);
-  for(const pass of[0,1])shapes.forEach((s,i)=>{if(shown(s)&&(['door','door2','win'].includes(s.t))===!!pass)drawShape(s,picked.has(i),false,c)});
+  drawShapes(new Set(sel),c);
   // أثناء الرسم الموازي: إبراز ضلع المرجع ورسم دليل متقطع ممتد عبر مساحة اللوحة.
   if(parallelGuide&&parallelRef&&parallelGuide.target&&referenceWithinTolerance(parallelGuide.origin,parallelGuide.target)){
     const rx=parallelRef.b[0]-parallelRef.a[0],ry=parallelRef.b[1]-parallelRef.a[1],len=Math.hypot(rx,ry),dx=S.perpendicular?-ry:rx,dy=S.perpendicular?rx:ry;
@@ -134,6 +232,7 @@ function draw(){
   }
   if(cur)drawShape(cur,false,true,c);
   if(polyDraft)drawShape(polyDraft,false,true,c);
+  drawMoveGhost(c);
   if(box){
     const cr=box.x1<box.x0,k=cr?'#16a34a':'#2563eb',bw=box.x1-box.x0,bh=box.y1-box.y0;
     ctx.setLineDash(cr?[7,4]:[]);ctx.lineWidth=1.5;ctx.strokeStyle=k;ctx.fillStyle=k;ctx.globalAlpha=.12;ctx.fillRect(box.x0,box.y0,bw,bh);ctx.globalAlpha=1;ctx.strokeRect(box.x0,box.y0,bw,bh);ctx.setLineDash([]);
@@ -142,7 +241,8 @@ function draw(){
   if(g&&g.k==='rot'&&g.moved){const q=w2s(...g.c);tag(`${Math.round(g.deg)}°`,q[0],q[1],c,1)}
   else grips().forEach(q=>{
     if(q.id==='rot'){ctx.strokeStyle=c.ac;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(q.top[0],q.top[1]);ctx.lineTo(q.sp[0],q.sp[1]);ctx.stroke();ctx.fillStyle=c.ac;ctx.beginPath();ctx.arc(q.sp[0],q.sp[1],11,0,7);ctx.fill();ctx.fillStyle=c.bg;ctx.font=`600 15px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('↻',q.sp[0],q.sp[1]+1)}
-    else{ctx.fillStyle=c.bg;ctx.strokeStyle=c.ac;ctx.lineWidth=2;ctx.fillRect(q.sp[0]-6,q.sp[1]-6,12,12);ctx.strokeRect(q.sp[0]-6,q.sp[1]-6,12,12)}
+    else if(q.kind==='m'){ctx.fillStyle=c.bg;ctx.strokeStyle=c.ac;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(q.sp[0],q.sp[1],5,0,7);ctx.fill();ctx.stroke()}
+    else{ctx.fillStyle=q.on?c.ac:c.bg;ctx.strokeStyle=c.ac;ctx.lineWidth=2;ctx.fillRect(q.sp[0]-6,q.sp[1]-6,12,12);ctx.strokeRect(q.sp[0]-6,q.sp[1]-6,12,12)}
   });
   if(ST.axes){
     const o=w2s(0,0),at=o[0]>12&&o[0]<W-40&&o[1]>44&&o[1]<H-12,b0=at?o:[34,H-58],n2=34;
@@ -170,9 +270,7 @@ function resize(){dpr=devicePixelRatio||1;const r=$('main').getBoundingClientRec
 // ملاءمة العناصر لمساحة العرض مع الحفاظ على الأبعاد الحقيقية.
 function fitView(items=shapes){
   if(!items.length){V={x:24,y:24,s:40};return}
-  const r=items.map(bx);
-  const x0=Math.min(...r.map(q=>q.x)),y0=Math.min(...r.map(q=>q.y));
-  const x1=Math.max(...r.map(q=>q.X)),y1=Math.max(...r.map(q=>q.Y));
+  const B=bounds(items),x0=B.x,y0=B.y,x1=B.X,y1=B.Y;
   const pad=Math.max(18,Math.min(36,Math.min(W,H)*.08));
   const aw=Math.max(1,W-pad*2),ah=Math.max(1,H-pad*2);
   // الحد الأدنى الصغير يسمح بعرض عناصر بطول مئات أو آلاف الأمتار.
