@@ -1,0 +1,75 @@
+name: Import Final Edit 2 archive
+
+on:
+  push:
+    branches:
+      - test/final-edit2
+
+permissions:
+  contents: write
+
+jobs:
+  extract-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out test branch
+        uses: actions/checkout@v4
+        with:
+          ref: test/final-edit2
+          fetch-depth: 0
+
+      - name: Extract and validate project archive
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path, PurePosixPath
+          import shutil, tempfile, zipfile
+
+          archive = Path("MelkiCAD-main-Final-edit2.zip")
+          if not archive.is_file():
+              raise SystemExit("Archive not found in repository root")
+
+          with zipfile.ZipFile(archive) as z:
+              bad = z.testzip()
+              if bad:
+                  raise SystemExit(f"CRC validation failed: {bad}")
+              for info in z.infolist():
+                  p = PurePosixPath(info.filename)
+                  if p.is_absolute() or ".." in p.parts:
+                      raise SystemExit(f"Unsafe archive path: {info.filename}")
+
+              with tempfile.TemporaryDirectory() as td:
+                  temp = Path(td)
+                  z.extractall(temp)
+                  root = temp
+                  if not (root / "src" / "index.html").is_file():
+                      candidates = [p for p in temp.iterdir()
+                                    if p.is_dir() and (p / "src" / "index.html").is_file()]
+                      if len(candidates) != 1:
+                          raise SystemExit("Could not identify one project root containing src/index.html")
+                      root = candidates[0]
+
+                  for item in root.iterdir():
+                      if item.name in {".git", "MelkiCAD-main-Final-edit2.zip"}:
+                          continue
+                      dest = Path(item.name)
+                      if item.is_dir():
+                          shutil.copytree(item, dest, dirs_exist_ok=True)
+                      else:
+                          shutil.copy2(item, dest)
+
+          if not Path("src/index.html").is_file():
+              raise SystemExit("Extraction finished but src/index.html is missing")
+          print("Archive CRC verified and project files extracted.")
+          PY
+
+      - name: Commit extracted project to test branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No extracted file changes to commit."
+          else
+            git commit -m "Import Final Edit 2 project archive for testing"
+            git push origin HEAD:test/final-edit2
+          fi
