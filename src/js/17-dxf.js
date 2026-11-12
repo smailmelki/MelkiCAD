@@ -101,7 +101,7 @@ function dxfBuild(){
       const half=Math.max(.01,Number(s.doubleLineGap)||.1)/2;
       if(s.t==='circle'){circ(s,[s.x,s.y],Math.max(.001,s.r-half));circ(s,[s.x,s.y],s.r+half)}
       else{
-        const P=s.t==='arc'?arcPtsShape(s):s.t==='rect'?rc(s):pts(s),closed=['rect','tri','polygon','ellipse'].includes(s.t)||!!s.closed;
+        const P=s.t==='arc'?arcPtsShape(s):pts(s),closed=['rect','tri','polygon','ellipse'].includes(s.t)||!!s.closed;
         if(P&&P.length>1)for(const d of[-1,1])poly(s,offsetLinePoints(P,half*d,closed),closed);
       }
       return;
