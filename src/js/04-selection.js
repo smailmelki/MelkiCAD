@@ -141,7 +141,7 @@ $('#all').onclick=()=>{sel=shapes.map((_,i)=>i).filter(i=>ed(shapes[i]));upd();d
 function transformShapeScale(s,o,c,k){
   const sc=q=>[c[0]+(q[0]-c[0])*k,c[1]+(q[1]-c[1])*k];
   if(['line','wall','dim'].includes(s.t)){s.a=sc(o.a);s.b=sc(o.b);if(s.t==='dim')s.off=o.off*k;if(s.t==='wall'&&o.th)s.th=o.th*k}
-  else if(Array.isArray(o.p)){s.p=o.p.map(sc);if(o.cornerBase)s.cornerBase=o.cornerBase.map(sc);if(o.cornerMods){s.cornerMods=Object.fromEntries(Object.entries(o.cornerMods).map(([k,m])=>[k,m.type==='fillet'?{...m,r:m.r*k}:{...m,d1:m.d1*k,d2:m.d2*k}]))}}
+  else if(Array.isArray(o.p)){s.p=o.p.map(sc);if(o.cornerBase)s.cornerBase=o.cornerBase.map(sc);if(o.cornerMods){s.cornerMods=Object.fromEntries(Object.entries(o.cornerMods).map(([k,m])=>[k,m.type==='fillet'?{...m,r:m.r*k}:{...m,d1:m.d1*k,d2:m.d2*k}]))}if(s.t==='rect'){s.w=o.w*k;s.h=o.h*k;const m=sc([o.x+o.w/2,o.y+o.h/2]);s.x=m[0]-s.w/2;s.y=m[1]-s.h/2}}
   else if(s.t==='circle'||s.t==='arc'){s.x=c[0]+(o.x-c[0])*k;s.y=c[1]+(o.y-c[1])*k;s.r=o.r*k}
   else if(s.t==='ellipse'){s.x=c[0]+(o.x-c[0])*k;s.y=c[1]+(o.y-c[1])*k;s.rx=o.rx*k;s.ry=o.ry*k}
   else if(s.t==='rect'||s.t==='furn'){const m=sc([o.x+o.w/2,o.y+o.h/2]);s.w=o.w*k;s.h=o.h*k;s.x=m[0]-s.w/2;s.y=m[1]-s.h/2}
