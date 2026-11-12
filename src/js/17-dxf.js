@@ -111,7 +111,7 @@ function dxfBuild(){
       const L=len(s);if(L>1e-9){const ux=(s.b[0]-s.a[0])/L,uy=(s.b[1]-s.a[1])/L,h=(s.th||.2)/2,nx=-uy*h,ny=ux*h;
       poly(s,[[s.a[0]+nx,s.a[1]+ny],[s.b[0]+nx,s.b[1]+ny],[s.b[0]-nx,s.b[1]-ny],[s.a[0]-nx,s.a[1]-ny]],true)}
     }
-    else if(s.t==='rect')poly(s,rc(s),true);
+    else if(s.t==='rect')poly(s,pts(s),true);
     else if(s.t==='circle')circ(s,[s.x,s.y],s.r);
     else if(s.t==='ellipse'){ent('ELLIPSE',s);const major=Math.max(s.rx,s.ry),minor=Math.min(s.rx,s.ry),ang=(s.rot||0)+(s.ry>s.rx?Math.PI/2:0);P3(10,[s.x,s.y]);w(11,n(major*Math.cos(ang)));w(21,n(-major*Math.sin(ang)));w(31,0);w(40,n(minor/major));w(41,0);w(42,Math.PI*2)}
     else if(s.t==='polyline')poly(s,s.p,false);
