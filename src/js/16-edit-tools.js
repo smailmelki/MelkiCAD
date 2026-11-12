@@ -221,8 +221,8 @@ function cornerVertexGeom(p,i){
   if(theta<1e-4||Math.PI-theta<1e-4)return{err:'هذه الزاوية مستقيمة تقريبًا'};
   let signed=0;for(let j=0;j<n;j++){const q=p[j],z=p[(j+1)%n];signed+=q[0]*z[1]-z[0]*q[1]}
   const orient=signed>=0?1:-1,cross=u[0]*w[1]-u[1]*w[0];
-  if(cross*orient>=-1e-8)return{err:'تدوير الزوايا المقعرة غير مدعوم حاليًا'};
-  return{v,u,w,la,lb,theta,orient};
+  if(Math.abs(cross)<1e-8)return{err:'هذه الزاوية مستقيمة تقريبًا'};
+  return{v,u,w,la,lb,theta,orient,convex:cross*orient<0};
 }
 
 // يعيد مسارًا واحدًا متصلًا؛ القوس ممثل بنقاط ضمن بيانات الشكل نفسه، وليس عنصرًا منفصلًا.
@@ -254,7 +254,7 @@ function corneredPath(base,mods){
     if(m.type==='fillet'&&(Number(m.r)||0)>1e-9){
       const r=Number(m.r),ux=c.u[0]+c.w[0],uy=c.u[1]+c.w[1],ul=Math.hypot(ux,uy)||1,bis=[ux/ul,uy/ul],h=r/Math.sin(c.theta/2),C=[v[0]+bis[0]*h,v[1]+bis[1]*h];
       const a0=Math.atan2(T1[1]-C[1],T1[0]-C[0]),a1=Math.atan2(T2[1]-C[1],T2[0]-C[0]);
-      let delta=a1-a0;if(c.orient>0){while(delta<0)delta+=Math.PI*2}else{while(delta>0)delta-=Math.PI*2}
+      let delta=a1-a0;const sweep=c.convex?c.orient:-c.orient;if(sweep>0){while(delta<0)delta+=Math.PI*2}else{while(delta>0)delta-=Math.PI*2}
       if(Math.abs(delta)>Math.PI+1e-5)return{err:'تعذّر إنشاء قوس التدوير لهذه الزاوية'};
       const steps=clamp(Math.ceil(Math.abs(delta)*Math.max(r,0.1)/0.025),4,48);
       for(let j=1;j<=steps;j++){const a=a0+delta*j/steps;out.push([C[0]+r*Math.cos(a),C[1]+r*Math.sin(a)])}
