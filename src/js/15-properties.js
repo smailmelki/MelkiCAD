@@ -12,7 +12,9 @@ function opts(){
   if(!sel.length)return;
   const sh=$('#sheet'),s1=sel.length===1?shapes[sel[0]]:null,first=shapes[sel[0]],F=[];let done=0;
   const once=()=>{if(!done){snap();done=1}};
+  const drawingSelection=sel.length>0&&sel.every(i=>isDrawLineShape(shapes[i]));
   if(s1){
+    if(isDrawLineShape(s1))F.push(['linetype','نوع الخط',s1.linetype||'']);
     if(!['line','wall','dim','free','polyline','door','door2','win','text','north','furn'].includes(s1.t))F.push(['name','الاسم',s1.name||'']);
     if(s1.t==='text')F.push(['txt','النص',s1.txt||'']);
     if(s1.t==='dim'&&!['radius','diameter'].includes(s1.mode))F.push(['off',s1.mode==='angular'?'نصف قطر قوس الزاوية':'الإزاحة ('+uA()+')',fu(s1.off||.6)]);
@@ -25,10 +27,15 @@ function opts(){
     +`<label>السُّمك<input type="range" id="lw" min="1" max="10" step=".5"><b id="lwv"></b></label>`
     +(sel.some(i=>['rect','circle','ellipse','tri','polygon'].includes(shapes[i].t))?`<b>التعبئة</b><div class="chips" id="fk">${[['','بدون'],['solid','لون'],['tile','بلاط'],['wood','خشب'],['hatch','تهشير'],['dots','نقاط']].map(([v,l])=>`<button class="chip${(first.fk||'')===v?' on':''}" data-v="${v}">${l}</button>`).join('')}</div><div class="sws" id="fc">${COLS.map(c=>`<button class="sw${c?'':' auto'}${c===(first.fc||'')?' on':''}" data-c="${c}" style="${c?'background:'+c:''}" aria-label="لون التعبئة"></button>`).join('')}</div>`:'')
     +F.map(x=>x[0]==='prec'?`<label>${x[1]}<select data-k="prec"><option value="0">0</option><option value="1">0.0</option><option value="2">0.00</option><option value="3">0.000</option><option value="4">0.0000</option></select></label>`:`<label>${x[1]}<input data-k="${x[0]}" ${x[0]==='name'||x[0]==='txt'?'type="text"':'dir="ltr" inputmode="decimal"'}></label>`).join('')
+    +(drawingSelection?'<div class="prop-line-types"><b>خصائص الخط</b><label>نوع الخط<select id="propLineType"><option value="">افتراضي الطبقة</option><option value="continuous">متصل</option><option value="dashed">متقطع</option><option value="dotted">منقط</option><option value="dashdot">شرطة ونقطة</option><option value="center">محوري</option><option value="hidden">مخفي</option></select></label><label><input type="checkbox" id="propDoubleLine"> خط مزدوج</label><label>المسافة بين الخطين<input id="propDoubleGap" type="number" min="0.01" step="0.01" value="${s1?.doubleLineGap??0.1}"></label></div>':'')
     +(s1&&s1.t==='door'?'<div class="row"><button class="fl" data-f="f">قلب الفتح</button><button class="fl" data-f="h">عكس المفصلة</button></div>':s1&&s1.t==='door2'?'<button class="fl" data-f="f">قلب اتجاه الفتح</button>':'')
     +(s1&&s1.t==='rect'?'<button class="fl" id="tw">إضافة جدران حولها</button>':'')+'<button id="ok">تم</button>';
   F.forEach(x=>sh.querySelector(`[data-k="${x[0]}"]`).value=x[2]);
   $('#elementLayer').onchange=e=>{once();const id=e.target.value;sel.forEach(i=>{shapes[i].ly=id});save();draw()};
+  if(drawingSelection){const lt=$('#propLineType'),dl=$('#propDoubleLine'),dg=$('#propDoubleGap');if(s1){lt.value=s1.linetype||'';dl.checked=!!s1.doubleLine;dg.value=s1.doubleLineGap??.1}else{lt.value='';dl.checked=sel.every(i=>!!shapes[i].doubleLine)}
+   const applyLineProps=()=>{once();sel.forEach(i=>{const s=shapes[i];if(!isDrawLineShape(s))return;s.linetype=lt.value||undefined;s.doubleLine=dl.checked;const v=nu(dg.value);if(Number.isFinite(v)&&v>0)s.doubleLineGap=v});save();draw()};
+   lt.onchange=applyLineProps;dl.onchange=applyLineProps;dg.onchange=applyLineProps;
+  }
   $('#lw').value=first.lw||2;$('#lwv').textContent=first.lw||2;
   sh.querySelectorAll('.sws:not(#fc) .sw').forEach(b=>b.onclick=()=>{
     once();const c=b.dataset.c;sel.forEach(i=>{shapes[i].col=c||undefined});D.col=c;
