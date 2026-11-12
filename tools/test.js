@@ -783,7 +783,7 @@ t('Fillet/Chamfer للأشكال المغلقة: المسار يبقى عنصر�
   eq(R(`shapes.length`),1,'لا تُنشأ عناصر منفصلة');
   eq(R(`shapes[0].t`),'rect','يبقى المستطيل عنصرًا واحدًا');
   ok(R(`shapes[0].p.length>4&&!!shapes[0].cornerBase`),'المسار المعدل محفوظ داخل العنصر');
-  near(R(`area(shapes[0])`),12-(.5*.5*(1-Math.PI/4)),.03,'مساحة المستطيل بعد تدوير ركن');
+  near(R(`area(shapes[0])`),12-(.5*.5*(1-Math.PI/4)),'مساحة المستطيل بعد تدوير ركن',.03);
   R(`tool='chamfer';cornerPick(w2s(4,0))`);
   eq(R(`shapes.length`),1,'الشطف الثاني لا ينشئ عنصرًا جديدًا');
   eq(R(`Object.keys(shapes[0].cornerMods).length`),2,'يمكن تعديل أكثر من زاوية في الشكل نفسه');
