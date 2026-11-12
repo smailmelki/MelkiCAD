@@ -73,23 +73,49 @@ function boxSel(){
 const gripAt=p=>grips().find(q=>Math.hypot(q.sp[0]-p[0],q.sp[1]-p[1])<=22);
 
 function hit(px,py){
-  for(let i=shapes.length-1;i>=0;i--){const s=shapes[i];if(!ed(s))continue;
-    if(s.t==='circle'){const q=w2s(s.x,s.y);if(Math.hypot(px-q[0],py-q[1])<=s.r*V.s+8)return i}
-    else if(s.t==='rect'||s.t==='furn'){const q=s2w(px,py),cx=s.x+s.w/2,cy=s.y+s.h/2,c=Math.cos(-(s.rot||0)),n=Math.sin(-(s.rot||0)),dx=q[0]-cx,dy=q[1]-cy,m=8/V.s;if(Math.abs(dx*c-dy*n)<=s.w/2+m&&Math.abs(dx*n+dy*c)<=s.h/2+m)return i}
-    else if(s.t==='tri'){const q=s.p.map(r=>w2s(...r)),sg=(a,b)=>(px-b[0])*(a[1]-b[1])-(a[0]-b[0])*(py-b[1]),d=[sg(q[0],q[1]),sg(q[1],q[2]),sg(q[2],q[0])];if(!(d.some(v=>v<0)&&d.some(v=>v>0)))return i}
-    else if(s.t==='text'||s.t==='north'){const n=nb(s),q=s2w(px,py),dx=q[0]-s.x,dy=q[1]-s.y,c=Math.cos(-n.rot),sn=Math.sin(-n.rot),m=8/V.s;if(Math.abs(dx*c-dy*sn)<=n.w/2+m&&Math.abs(dx*sn+dy*c)<=n.h/2+m)return i}
-    else if(s.t==='dim'){
+  // قياس المسافة إلى حدود العنصر، لا الاكتفاء بترتيب إنشائه.
+  // هذا يسمح باختيار العنصر الداخلي عند لمس منطقة مشتركة مع عنصر مغلق أكبر.
+  const insidePoly=(p,poly)=>{
+    let inside=false;
+    for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+      const a=poly[i],b=poly[j];
+      if((a[1]>p[1])!==(b[1]>p[1])&&p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0])inside=!inside;
+    }
+    return inside;
+  };
+  let best=-1,bestDistance=Infinity;
+  for(let i=0;i<shapes.length;i++){
+    const s=shapes[i];if(!ed(s))continue;
+    let q;
+    if(s.t==='circle'){
+      const c=w2s(s.x,s.y),r=s.r*V.s;
+      q=Array.from({length:96},(_,j)=>[c[0]+r*Math.cos(j*Math.PI/48),c[1]+r*Math.sin(j*Math.PI/48)]);
+    }else if(s.t==='dim'){
       if(s.mode==='angular'){
         const C=w2s(...s.c),A=w2s(...s.a),B=w2s(...s.b),a0=Math.atan2(A[1]-C[1],A[0]-C[0]),a1=Math.atan2(B[1]-C[1],B[0]-C[0]);
         let delta=a1-a0;while(delta<=-Math.PI)delta+=Math.PI*2;while(delta>Math.PI)delta-=Math.PI*2;
-        if(dseg(px,py,C[0],C[1],A[0],A[1])<16||dseg(px,py,C[0],C[1],B[0],B[1])<16)return i;
-        let prev=[C[0]+Math.cos(a0)*(s.off||.6)*V.s,C[1]+Math.sin(a0)*(s.off||.6)*V.s];
-        for(let j=1;j<=32;j++){const t=a0+delta*j/32,q=[C[0]+Math.cos(t)*(s.off||.6)*V.s,C[1]+Math.sin(t)*(s.off||.6)*V.s];if(dseg(px,py,prev[0],prev[1],q[0],q[1])<16)return i;prev=q}
-        const m=a0+delta/2,tx=C[0]+Math.cos(m)*(s.off||.6)*V.s,ty=C[1]+Math.sin(m)*(s.off||.6)*V.s;if(Math.hypot(px-tx,py-ty)<22)return i;
-      }else{const A=w2s(...s.a),B=w2s(...s.b);if(dseg(px,py,A[0],A[1],B[0],B[1])<16||Math.hypot(px-(A[0]+B[0])/2,py-(A[1]+B[1])/2)<20)return i}
+        q=[C,A,B];let prev=[C[0]+Math.cos(a0)*(s.off||.6)*V.s,C[1]+Math.sin(a0)*(s.off||.6)*V.s];
+        for(let j=1;j<=48;j++){const a=a0+delta*j/48,next=[C[0]+Math.cos(a)*(s.off||.6)*V.s,C[1]+Math.sin(a)*(s.off||.6)*V.s];q.push(prev,next);prev=next}
+      }else q=[w2s(...s.a),w2s(...s.b)];
+    }else q=pts(s).map(p=>w2s(...p));
+    if(!q||q.length<2)continue;
+    const closed=['circle','ellipse','rect','furn','tri','polygon','text','north'].includes(s.t);
+    const inside=closed&&insidePoly([px,py],q);
+    let distance=Infinity;
+    const count=closed?q.length:q.length-1;
+    for(let j=0;j<count;j++){
+      const a=q[j],b=q[(j+1)%q.length];
+      distance=Math.min(distance,dseg(px,py,a[0],a[1],b[0],b[1]));
     }
-    else{const q=pts(s).map(r=>w2s(...r));for(let j=1;j<q.length;j++)if(dseg(px,py,q[j-1][0],q[j-1][1],q[j][0],q[j][1])<Math.max(16,(s.th||0)*V.s/2+8))return i}}
-  return -1;
+    const tolerance=s.t==='dim'?18:Math.max(16,(s.th||0)*V.s/2+8);
+    if(!inside&&distance>tolerance)continue;
+    // عند وجود أكثر من مرشح، اختر الحد الأقرب إلى موضع اللمس.
+    // داخل الأشكال المغلقة تكون حدود الشكل الداخلي أقرب عادةً من حدود الحاوية.
+    if(distance<bestDistance-0.01||(Math.abs(distance-bestDistance)<=0.01&&i>best)){
+      best=i;bestDistance=distance;
+    }
+  }
+  return best;
 }
 function setMoveMode(on){
   moveArmed=on?1:0;
@@ -115,7 +141,7 @@ $('#all').onclick=()=>{sel=shapes.map((_,i)=>i).filter(i=>ed(shapes[i]));upd();d
 function transformShapeScale(s,o,c,k){
   const sc=q=>[c[0]+(q[0]-c[0])*k,c[1]+(q[1]-c[1])*k];
   if(['line','wall','dim'].includes(s.t)){s.a=sc(o.a);s.b=sc(o.b);if(s.t==='dim')s.off=o.off*k;if(s.t==='wall'&&o.th)s.th=o.th*k}
-  else if(Array.isArray(o.p))s.p=o.p.map(sc);
+  else if(Array.isArray(o.p)){s.p=o.p.map(sc);if(o.cornerBase)s.cornerBase=o.cornerBase.map(sc);if(o.cornerMods){s.cornerMods=Object.fromEntries(Object.entries(o.cornerMods).map(([k,m])=>[k,m.type==='fillet'?{...m,r:m.r*k}:{...m,d1:m.d1*k,d2:m.d2*k}]))}if(s.t==='rect'){s.w=o.w*k;s.h=o.h*k;const m=sc([o.x+o.w/2,o.y+o.h/2]);s.x=m[0]-s.w/2;s.y=m[1]-s.h/2}}
   else if(s.t==='circle'||s.t==='arc'){s.x=c[0]+(o.x-c[0])*k;s.y=c[1]+(o.y-c[1])*k;s.r=o.r*k}
   else if(s.t==='ellipse'){s.x=c[0]+(o.x-c[0])*k;s.y=c[1]+(o.y-c[1])*k;s.rx=o.rx*k;s.ry=o.ry*k}
   else if(s.t==='rect'||s.t==='furn'){const m=sc([o.x+o.w/2,o.y+o.h/2]);s.w=o.w*k;s.h=o.h*k;s.x=m[0]-s.w/2;s.y=m[1]-s.h/2}

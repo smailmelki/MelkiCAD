@@ -121,6 +121,14 @@ t('المساحة: مستطيل ودائرة ومثلث', () => {
   near(R(`area({t:'tri',p:[[0,0],[4,0],[0,3]]})`), 6);
   near(R(`area({t:'line',a:[0,0],b:[1,1]})`), 0);
 });
+t('التحديد يختار المستطيل الداخلي عند تداخل مستطيلين مغلقين', () => {
+  R(`V={x:0,y:0,s:40};LY=[{id:'l1',vis:1,lock:0}];shapes=[{t:'rect',x:0,y:0,w:10,h:10,ly:'l1'},{t:'rect',x:3,y:3,w:2,h:2,ly:'l1'}]`);
+  eq(R(`hit(160,160)`),1,'العنصر الداخلي هو الأقرب إلى موضع اللمس');
+});
+t('التحديد يفضّل الخط الملموس داخل شكل مغلق على الشكل الحاوي', () => {
+  R(`V={x:0,y:0,s:40};LY=[{id:'l1',vis:1,lock:0}];shapes=[{t:'rect',x:0,y:0,w:10,h:10,ly:'l1'},{t:'line',a:[3,4],b:[5,4],ly:'l1'}]`);
+  eq(R(`hit(160,160)`),1,'الخط الملموس يتقدم على المستطيل الحاوي');
+});
 t('صلاحية الأشكال: الصغيرة جدًا مرفوضة', () => {
   ok(!R(`valid({t:'line',a:[0,0],b:[0.01,0]})`));
   ok(R(`valid({t:'line',a:[0,0],b:[1,0]})`));
@@ -767,6 +775,38 @@ t('saveBlob: وصف نوع الملف يتبع الامتداد (وليس DXF د
   eq(got.types[0].description, 'ملف مشروع JSON'); ok(got.types[0].accept['application/json'].includes('.json'));
   await A.ctx.saveBlob('a.csv', new Blob(['x'], { type: 'text/csv' }));
   eq(got.types[0].description, 'جدول CSV'); delete A.ctx.window.showSaveFilePicker;
+});
+
+t('Fillet/Chamfer للأشكال المغلقة: المسار يبقى عنصرًا واحدًا وتُعدّل زوايا متعددة', () => {
+  resetB2();
+  R(`shapes=[{t:'rect',x:0,y:0,w:4,h:3,ly:cl}];sel=[0];tool='fillet';FILLET_R=.5;CHAMFER_D1=.2;CHAMFER_D2=.4;cornerPick(w2s(0,0))`);
+  eq(R(`shapes.length`),1,'لا تُنشأ عناصر منفصلة');
+  eq(R(`shapes[0].t`),'rect','يبقى المستطيل عنصرًا واحدًا');
+  ok(R(`shapes[0].p.length>4&&!!shapes[0].cornerBase`),'المسار المعدل محفوظ داخل العنصر');
+  near(R(`area(shapes[0])`),12-(.5*.5*(1-Math.PI/4)),'مساحة المستطيل بعد تدوير ركن',.03);
+  R(`tool='chamfer';cornerPick(w2s(4,0))`);
+  eq(R(`shapes.length`),1,'الشطف الثاني لا ينشئ عنصرًا جديدًا');
+  eq(R(`Object.keys(shapes[0].cornerMods).length`),2,'يمكن تعديل أكثر من زاوية في الشكل نفسه');
+  ok(R(`shapes[0].p.length>=7`),'المسار يحتوي التدوير والشطف');
+});
+t('هندسة الزوايا: ترفض القيم المتداخلة وتدعم الزوايا المقعرة', () => {
+  resetB2();
+  const p='[[0,0],[1,0],[1,1],[0,1]]';
+  ok(R(`!!corneredPath(${p},{0:{type:'fillet',r:2}}).err`),'نصف قطر يتجاوز طول الضلع مرفوض');
+  const concave='[[0,0],[3,0],[1,1],[3,3],[0,3]]';
+  const r=jr(`corneredPath(${concave},{2:{type:'fillet',r:.1}})`);
+  ok(!r.err&&r.p.length>5,'تدوير الزاوية المقعرة');
+  const ch=jr(`corneredPath(${concave},{2:{type:'chamfer',d1:.1,d2:.15}})`);
+  ok(!ch.err&&ch.p.length===6,'شطف الزاوية المقعرة');
+});
+t('التحريك والتدوير والتحجيم يحافظ على هندسة الزوايا داخل العنصر', () => {
+  resetB2();
+  R(`shapes=[{t:'rect',x:0,y:0,w:4,h:3,ly:cl}];tool='fillet';FILLET_R=.4;cornerPick(w2s(0,0))`);
+  const before=jr(`shapes[0].cornerBase[0]`);
+  R(`(()=>{const o=copy(shapes[0]);mv(shapes[0],o,2,1)})()`);
+  const moved=jr(`shapes[0].cornerBase[0]`);near(moved[0]-before[0],2);near(moved[1]-before[1],1);
+  R(`(()=>{const o=copy(shapes[0]);rotS(shapes[0],o,[0,0],Math.PI/2)})()`);
+  ok(R(`shapes[0].p.length>4&&shapes.length===1`),'التدوير لا يفكك الشكل');
 });
 
 (async () => {

@@ -42,7 +42,8 @@ function offS(s,d){
 function mirS(s,ax,c){
   const t=copy(s),mp=q=>ax==='v'?[2*c-q[0],q[1]]:[q[0],2*c-q[1]];
   if(s.t==='line'||s.t==='wall'||s.t==='dim'){t.a=mp(s.a);t.b=mp(s.b);if(s.t==='dim')t.off=-s.off}
-  else if(s.p)t.p=s.p.map(mp);
+  else if(s.t==='rect'&&s.cornerBase){t.p=s.p.map(mp);t.cornerBase=s.cornerBase.map(mp);const m=mp([s.x+s.w/2,s.y+s.h/2]);t.x=m[0]-s.w/2;t.y=m[1]-s.h/2;t.rot=ax==='v'?-(s.rot||0):-(s.rot||0)}
+  else if(s.p){t.p=s.p.map(mp);if(s.cornerBase)t.cornerBase=s.cornerBase.map(mp)}
   else if(s.t==='rect'||s.t==='furn'){const m=mp([s.x+s.w/2,s.y+s.h/2]);t.x=m[0]-s.w/2;t.y=m[1]-s.h/2;t.rot=-(s.rot||0)}
   else if(s.t==='door'||s.t==='door2'||s.t==='win'){const m=mp([s.x,s.y]);t.x=m[0];t.y=m[1];t.a=ax==='v'?Math.PI-s.a:-s.a;if(s.t==='door'||s.t==='door2')t.f=-s.f}
   else if(s.t==='arc'){const m=mp([s.x,s.y]);t.x=m[0];t.y=m[1];const fn=a=>ax==='v'?Math.PI-a:-a;t.a0=fn(s.a1);t.a1=fn(s.a0);while(t.a1<=t.a0)t.a1+=Math.PI*2}
@@ -207,70 +208,139 @@ function joinSel(){
   toast(`تم الربط: ${chains.length} متعدد${chains.some(c=>c.closed)?' (مغلق)':''}`);return true;
 }
 
-// ---- Fillet / Chamfer بين خطين (أو جدارين) ----
+// ---- Fillet / Chamfer للخطين، ولرؤوس الأشكال المغلقة كعنصر واحد ----
 let FILLET_R=.3,CHAMFER_D1=.3,CHAMFER_D2=.3;
 
-// يحدد نقطة التقاء امتدادي الخطين X، والطرف الذي يبقى من كل خط (الجهة التي لُمست)، وطول الجزء الباقي منه
+// حساب هندسة زاوية محددة في مسار مغلق. ندعم الزوايا المحدبة ونرفض المقعرة بوضوح.
+function cornerVertexGeom(p,i){
+  const n=p.length,v=p[i],a=p[(i+n-1)%n],b=p[(i+1)%n];
+  const ax=a[0]-v[0],ay=a[1]-v[1],bx=b[0]-v[0],by=b[1]-v[1];
+  const la=Math.hypot(ax,ay),lb=Math.hypot(bx,by);
+  if(la<1e-9||lb<1e-9)return{err:'يوجد ضلع قصير جدًا عند هذه الزاوية'};
+  const u=[ax/la,ay/la],w=[bx/lb,by/lb],dot=clamp(u[0]*w[0]+u[1]*w[1],-1,1),theta=Math.acos(dot);
+  if(theta<1e-4||Math.PI-theta<1e-4)return{err:'هذه الزاوية مستقيمة تقريبًا'};
+  let signed=0;for(let j=0;j<n;j++){const q=p[j],z=p[(j+1)%n];signed+=q[0]*z[1]-z[0]*q[1]}
+  const orient=signed>=0?1:-1,cross=u[0]*w[1]-u[1]*w[0];
+  if(Math.abs(cross)<1e-8)return{err:'هذه الزاوية مستقيمة تقريبًا'};
+  return{v,u,w,la,lb,theta,orient,convex:cross*orient<0};
+}
+
+// يعيد مسارًا واحدًا متصلًا؛ القوس ممثل بنقاط ضمن بيانات الشكل نفسه، وليس عنصرًا منفصلًا.
+function corneredPath(base,mods){
+  const n=base.length;if(n<3)return{err:'الشكل يحتاج إلى ثلاثة رؤوس على الأقل'};
+  const info=base.map((_,i)=>mods[i]?cornerVertexGeom(base,i):null),prevD=Array(n).fill(0),nextD=Array(n).fill(0);
+  for(let i=0;i<n;i++){
+    const m=mods[i];if(!m)continue;
+    const c=info[i];if(c.err)return c;
+    if(m.type==='fillet'){
+      const r=Number(m.r)||0;if(r<0)return{err:'نصف القطر غير صالح'};
+      const d=r/Math.tan(c.theta/2);prevD[i]=nextD[i]=d;
+    }else{
+      const d1=Number(m.d1)||0,d2=Number(m.d2)||0;
+      if(d1<0||d2<0||(d1===0)!==(d2===0))return{err:'أدخل مسافتين موجبتين أو صفرًا لإلغاء الشطف'};
+      prevD[i]=d1;nextD[i]=d2;
+    }
+    if(prevD[i]>=c.la-1e-8||nextD[i]>=c.lb-1e-8)return{err:'قيمة التعديل كبيرة جدًا بالنسبة لطول الضلع'};
+  }
+  for(let i=0;i<n;i++){
+    const j=(i+1)%n,L=Math.hypot(base[j][0]-base[i][0],base[j][1]-base[i][1]);
+    if(nextD[i]+prevD[j]>=L-1e-8)return{err:'تتداخل التعديلات على الزوايا المتجاورة؛ قلّل القيمة'};
+  }
+  const out=[];
+  for(let i=0;i<n;i++){
+    const m=mods[i],v=base[i];if(!m){out.push(v.slice());continue}
+    const c=info[i],d1=prevD[i],d2=nextD[i],T1=[v[0]+c.u[0]*d1,v[1]+c.u[1]*d1],T2=[v[0]+c.w[0]*d2,v[1]+c.w[1]*d2];
+    out.push(T1);
+    if(m.type==='fillet'&&(Number(m.r)||0)>1e-9){
+      const r=Number(m.r),ux=c.u[0]+c.w[0],uy=c.u[1]+c.w[1],ul=Math.hypot(ux,uy)||1,bis=[ux/ul,uy/ul],h=r/Math.sin(c.theta/2),C=[v[0]+bis[0]*h,v[1]+bis[1]*h];
+      const a0=Math.atan2(T1[1]-C[1],T1[0]-C[0]),a1=Math.atan2(T2[1]-C[1],T2[0]-C[0]);
+      let delta=a1-a0;const sweep=c.convex?c.orient:-c.orient;if(sweep>0){while(delta<0)delta+=Math.PI*2}else{while(delta>0)delta-=Math.PI*2}
+      if(Math.abs(delta)>Math.PI+1e-5)return{err:'تعذّر إنشاء قوس التدوير لهذه الزاوية'};
+      const steps=clamp(Math.ceil(Math.abs(delta)*Math.max(r,0.1)/0.025),4,48);
+      for(let j=1;j<=steps;j++){const a=a0+delta*j/steps;out.push([C[0]+r*Math.cos(a),C[1]+r*Math.sin(a)])}
+    }else out.push(T2);
+  }
+  return{p:out};
+}
+
+function resizeCornerGeometry(s,old){
+  if(!old.cornerBase)return;
+  const oc=[old.x+old.w/2,old.y+old.h/2],nc=[s.x+s.w/2,s.y+s.h/2],oa=-(old.rot||0),na=s.rot||0,co=Math.cos(oa),so=Math.sin(oa),cn=Math.cos(na),sn=Math.sin(na),sx=s.w/(old.w||s.w),sy=s.h/(old.h||s.h);
+  const base=old.cornerBase.map(q=>{const dx=q[0]-oc[0],dy=q[1]-oc[1],lx=(dx*co-dy*so)*sx,ly=(dx*so+dy*co)*sy;return[nc[0]+lx*cn-ly*sn,nc[1]+lx*sn+ly*cn]});
+  const scale=(Math.abs(sx)+Math.abs(sy))/2,mods=Object.fromEntries(Object.entries(old.cornerMods||{}).map(([k,m])=>[k,m.type==='fillet'?{...m,r:m.r*scale}:{...m,d1:m.d1*scale,d2:m.d2*scale}]));
+  const built=corneredPath(base,mods);if(!built.err){s.cornerBase=base;s.cornerMods=mods;s.p=built.p}
+}
+
+function applyShapeCorner(i,index,mode){
+  const s=shapes[i],base=(s.cornerBase||pts(s)).map(q=>q.slice()),mods=Object.assign({},s.cornerMods||{});
+  const key=String(index);
+  if(mode==='fillet')mods[key]=FILLET_R>1e-9?{type:'fillet',r:FILLET_R}:undefined;
+  else mods[key]=CHAMFER_D1>1e-9&&CHAMFER_D2>1e-9?{type:'chamfer',d1:CHAMFER_D1,d2:CHAMFER_D2}:undefined;
+  if(!mods[key])delete mods[key];
+  const result=corneredPath(base,mods);if(result.err){toast(result.err);return false}
+  snap();s.cornerBase=base;s.cornerMods=mods;s.p=result.p;vtxActive=null;sel=[i];save();
+  toast(mode==='fillet'?'تم تدوير زاوية الشكل':'تم شطف زاوية الشكل');return true;
+}
+
+// يحدد أقرب رأس في المستطيل أو المثلث أو المضلع؛ يبقى الشكل سجلًا واحدًا في shapes.
+function cornerShapePick(i,s,p){
+  const base=s.cornerBase||pts(s);let best=-1,d=Infinity;
+  for(let k=0;k<base.length;k++){const q=w2s(...base[k]),v=Math.hypot(q[0]-p[0],q[1]-p[1]);if(v<d){d=v;best=k}}
+  if(best<0||d>36){toast('المس زاوية الشكل بالقرب من أحد رؤوسه');return true}
+  applyShapeCorner(i,best,tool);return true;
+}
+
+// يحدد نقطة التقاء امتدادي الخطين X، والطرف الذي يبقى من كل خط.
 function cornerGeom(A,B,pa,pb){
   const d1=[A.b[0]-A.a[0],A.b[1]-A.a[1]],d2=[B.b[0]-B.a[0],B.b[1]-B.a[1]],L1=Math.hypot(d1[0],d1[1]),L2=Math.hypot(d2[0],d2[1]);
   if(L1<1e-9||L2<1e-9)return{err:'أحد الخطين بلا طول'};
-  const cr=d1[0]*d2[1]-d1[1]*d2[0];
-  if(Math.abs(cr)<1e-9*L1*L2)return{err:'الخطان متوازيان فلا يلتقيان'};
+  const cr=d1[0]*d2[1]-d1[1]*d2[0];if(Math.abs(cr)<1e-9*L1*L2)return{err:'الخطان متوازيان فلا يلتقيان'};
   const w=[B.a[0]-A.a[0],B.a[1]-A.a[1]],t1=(w[0]*d2[1]-w[1]*d2[0])/cr,t2=(w[0]*d1[1]-w[1]*d1[0])/cr,X=[A.a[0]+d1[0]*t1,A.a[1]+d1[1]*t1];
-  const tp1=((pa[0]-A.a[0])*d1[0]+(pa[1]-A.a[1])*d1[1])/(L1*L1),tp2=((pb[0]-B.a[0])*d2[0]+(pb[1]-B.a[1])*d2[1])/(L2*L2);
-  const far1=tp1<t1?'a':'b',far2=tp2<t2?'a':'b',F1=A[far1],F2=B[far2];
-  const n1=Math.hypot(F1[0]-X[0],F1[1]-X[1]),n2=Math.hypot(F2[0]-X[0],F2[1]-X[1]);
+  const tp1=((pa[0]-A.a[0])*d1[0]+(pa[1]-A.a[1])*d1[1])/(L1*L1),tp2=((pb[0]-B.a[0])*d2[0]+(pb[1]-B.a[1])*d2[1])/(L2*L2),far1=tp1<t1?'a':'b',far2=tp2<t2?'a':'b',F1=A[far1],F2=B[far2],n1=Math.hypot(F1[0]-X[0],F1[1]-X[1]),n2=Math.hypot(F2[0]-X[0],F2[1]);
   if(n1<1e-9||n2<1e-9)return{err:'لا يبقى من أحد الخطين جزء؛ المس الجهة الأخرى منه'};
   return{X,n1,n2,v1:[(F1[0]-X[0])/n1,(F1[1]-X[1])/n1],v2:[(F2[0]-X[0])/n2,(F2[1]-X[1])/n2],near1:far1==='a'?'b':'a',near2:far2==='a'?'b':'a'};
 }
-// نتيجة: a1/a2 = الطرف الذي يتحرك في كل خط ونقطته الجديدة؛ arc أو line = القطعة المضافة عند الزاوية (إن وُجدت)
 function filletCalc(A,B,pa,pb,r){
-  const c=cornerGeom(A,B,pa,pb);if(c.err)return c;
-  const{X,v1,v2,n1,n2}=c,end=(e,pt)=>({end:e,pt});
+  const c=cornerGeom(A,B,pa,pb);if(c.err)return c;const{X,v1,v2,n1,n2}=c,end=(e,pt)=>({end:e,pt});
   if(!(r>1e-9))return{a1:end(c.near1,X),a2:end(c.near2,X)};
-  const th=Math.acos(clamp(v1[0]*v2[0]+v1[1]*v2[1],-1,1));
-  if(th<1e-4||Math.PI-th<1e-4)return{err:'الخطان على استقامة واحدة'};
-  const d=r/Math.tan(th/2);
-  if(d>n1-1e-6||d>n2-1e-6)return{err:'نصف القطر كبير جدًا لهذين الخطين'};
-  const T1=[X[0]+v1[0]*d,X[1]+v1[1]*d],T2=[X[0]+v2[0]*d,X[1]+v2[1]*d];
-  let ux=v1[0]+v2[0],uy=v1[1]+v2[1];const ul_=Math.hypot(ux,uy);ux/=ul_;uy/=ul_;
-  const k=r/Math.sin(th/2),C=[X[0]+ux*k,X[1]+uy*k];
-  const al1=Math.atan2(T1[1]-C[1],T1[0]-C[0]),al2=Math.atan2(T2[1]-C[1],T2[0]-C[0]);
-  let dl=al2-al1;while(dl>Math.PI)dl-=Math.PI*2;while(dl<=-Math.PI)dl+=Math.PI*2;
+  const th=Math.acos(clamp(v1[0]*v2[0]+v1[1]*v2[1],-1,1));if(th<1e-4||Math.PI-th<1e-4)return{err:'الخطان على استقامة واحدة'};
+  const d=r/Math.tan(th/2);if(d>n1-1e-6||d>n2-1e-6)return{err:'نصف القطر كبير جدًا لهذين الخطين'};
+  const T1=[X[0]+v1[0]*d,X[1]+v1[1]*d],T2=[X[0]+v2[0]*d,X[1]+v2[1]*d],ux=v1[0]+v2[0],uy=v1[1]+v2[1],ul_=Math.hypot(ux,uy);let bx=ux/ul_,by=uy/ul_;const C=[X[0]+bx*r/Math.sin(th/2),X[1]+by*r/Math.sin(th/2)],al1=Math.atan2(T1[1]-C[1],T1[0]-C[0]),al2=Math.atan2(T2[1]-C[1],T2[0]-C[0]);let dl=al2-al1;while(dl>Math.PI)dl-=Math.PI*2;while(dl<=-Math.PI)dl+=Math.PI*2;
   return{a1:end(c.near1,T1),a2:end(c.near2,T2),arc:{t:'arc',x:C[0],y:C[1],r,a0:dl>=0?al1:al2,a1:dl>=0?al1+dl:al2-dl}};
 }
 function chamferCalc(A,B,pa,pb,d1,d2){
-  const c=cornerGeom(A,B,pa,pb);if(c.err)return c;
-  const{X,v1,v2,n1,n2}=c,end=(e,pt)=>({end:e,pt});
-  const z1=!(d1>1e-9),z2=!(d2>1e-9);
-  if(z1&&z2)return{a1:end(c.near1,X),a2:end(c.near2,X)};
-  if(z1||z2)return{err:'المسافتان إما صفر معًا أو أكبر من صفر معًا'};
+  const c=cornerGeom(A,B,pa,pb);if(c.err)return c;const{X,v1,v2,n1,n2}=c,end=(e,pt)=>({end:e,pt}),z1=!(d1>1e-9),z2=!(d2>1e-9);
+  if(z1&&z2)return{a1:end(c.near1,X),a2:end(c.near2,X)};if(z1||z2)return{err:'المسافتان إما صفر معًا أو أكبر من صفر معًا'};
   if(d1>n1-1e-6||d2>n2-1e-6)return{err:'المسافة كبيرة جدًا لهذين الخطين'};
-  const T1=[X[0]+v1[0]*d1,X[1]+v1[1]*d1],T2=[X[0]+v2[0]*d2,X[1]+v2[1]*d2];
-  return{a1:end(c.near1,T1),a2:end(c.near2,T2),line:{t:'line',a:T1.slice(),b:T2.slice()}};
+  const T1=[X[0]+v1[0]*d1,X[1]+v1[1]*d1],T2=[X[0]+v2[0]*d2,X[1]+v2[1]*d2];return{a1:end(c.near1,T1),a2:end(c.near2,T2),line:{t:'line',a:T1.slice(),b:T2.slice()}};
 }
 function applyCorner(i,j,res){
-  const A=shapes[i],B=shapes[j];snap();
-  A[res.a1.end]=res.a1.pt.slice();B[res.a2.end]=res.a2.pt.slice();
-  const n=res.arc||res.line;
+  const A=shapes[i],B=shapes[j];snap();A[res.a1.end]=res.a1.pt.slice();B[res.a2.end]=res.a2.pt.slice();const n=res.arc||res.line;
   if(n){const o=Object.assign({},n);if(A.ly!==undefined)o.ly=A.ly;if(A.col)o.col=A.col;if(A.lw)o.lw=A.lw;shapes.push(o)}
   sel=[i,j].concat(n?[shapes.length-1]:[]);save();
 }
-// لمستان على خطين: الأولى تحدد الخط الأول، والثانية تنفّذ (الجهة الملموسة من كل خط هي التي تبقى)
 function cornerPick(p){
+  // أولوية لرؤوس الأشكال المغلقة حتى بعد تدويرها/شطفها، لأن موضع الرأس الأصلي لم يعد على الحد.
+  let ci=-1,ck=-1,cd=Infinity;
+  for(let j=0;j<shapes.length;j++){
+    const s=shapes[j];if(!ed(s)||!['rect','tri','polygon'].includes(s.t))continue;
+    const base=s.cornerBase||pts(s);
+    for(let k=0;k<base.length;k++){const q=w2s(...base[k]),d=Math.hypot(q[0]-p[0],q[1]-p[1]);if(d<cd){cd=d;ci=j;ck=k}}
+  }
+  if(ci>=0&&cd<=36){cornerShapePick(ci,shapes[ci],p);return}
   const i=hit(p[0],p[1]),s=shapes[i],w=s2w(p[0],p[1]);
-  if(!s||(s.t!=='line'&&s.t!=='wall')){toast('المس خطًا أو جدارًا');return}
+  if(!s){toast('المس رأس زاوية في شكل مغلق أو خطًا');return}
+  if(s.t!=='line'&&s.t!=='wall'){toast('المس أحد رؤوس المستطيل أو المثلث أو المضلع');return}
   if(!cornerFirst||!shapes[cornerFirst.i]){cornerFirst={i,w};sel=[i];toast('المس الخط الثاني');return}
   if(cornerFirst.i===i){toast('اختر خطًا آخر');return}
   const f=cornerFirst,A=shapes[f.i],res=tool==='fillet'?filletCalc(A,s,f.w,w,FILLET_R):chamferCalc(A,s,f.w,w,CHAMFER_D1,CHAMFER_D2);
   if(res.err){toast(res.err);return}
   if((res.arc||res.line)&&(A.t==='wall'||s.t==='wall')){toast('الجدران تُوصل بزاوية حادة فقط: اجعل القيمة صفرًا');return}
-  applyCorner(f.i,i,res);cornerFirst=null;
-  toast(tool==='fillet'?(res.arc?'تم تدوير الزاوية':'تم وصل الخطين'):(res.line?'تم شطف الزاوية':'تم وصل الخطين'));
+  applyCorner(f.i,i,res);cornerFirst=null;toast(tool==='fillet'?(res.arc?'تم تدوير الزاوية':'تم وصل الخطين'):(res.line?'تم شطف الزاوية':'تم وصل الخطين'));
 }
 function cornerSheet(){
-  if(tool==='fillet')opSheet('تدوير زاوية (Fillet)',[['rad','نصف القطر ('+uA()+')',fu(FILLET_R)]],val=>{const v=val('rad');if(!(v>=0)){toast('أدخل صفرًا أو قيمة أكبر');return}FILLET_R=v;toast('المس الخط الأول ثم الثاني')},'<div style="color:var(--dim);font-size:12px">اللمس على الجزء الذي تريد إبقاءه من كل خط. صفر = وصل الخطين بزاوية حادة</div>');
-  else opSheet('شطف زاوية (Chamfer)',[['d1','المسافة الأولى ('+uA()+')',fu(CHAMFER_D1)],['d2','المسافة الثانية ('+uA()+')',fu(CHAMFER_D2)]],val=>{const a=val('d1'),b=val('d2');if(!(a>=0&&b>=0)){toast('أدخل صفرًا أو قيمة أكبر');return}CHAMFER_D1=a;CHAMFER_D2=b;toast('المس الخط الأول ثم الثاني')},'<div style="color:var(--dim);font-size:12px">اللمس على الجزء الذي تريد إبقاءه من كل خط. صفران = وصل الخطين بزاوية حادة</div>');
+  if(tool==='fillet')opSheet('تدوير زاوية (Fillet)',[['rad','نصف القطر ('+uA()+')',fu(FILLET_R)]],val=>{const v=val('rad');if(!(v>=0)){toast('أدخل صفرًا أو قيمة أكبر');return}FILLET_R=v;toast('المس رأس الزاوية في الشكل أو الخطين');},'<div style="color:var(--dim);font-size:12px">اختر رأسًا من المستطيل أو المثلث أو المضلع. الصفر يلغي التدوير السابق لهذه الزاوية.</div>');
+  else opSheet('شطف زاوية (Chamfer)',[['d1','المسافة الأولى ('+uA()+')',fu(CHAMFER_D1)],['d2','المسافة الثانية ('+uA()+')',fu(CHAMFER_D2)]],val=>{const a=val('d1'),b=val('d2');if(!(a>=0&&b>=0)||((a===0)!==(b===0))){toast('أدخل مسافتين موجبتين أو صفرًا لإلغاء الشطف');return}CHAMFER_D1=a;CHAMFER_D2=b;toast('المس رأس الزاوية في الشكل أو الخطين')},'<div style="color:var(--dim);font-size:12px">اختر رأسًا من المستطيل أو المثلث أو المضلع. الصفر يلغي الشطف السابق لهذه الزاوية.</div>');
 }
 
 // ---- نقل / نسخ بنقطة أساس: نقطة الأساس ثم نقطة الوصول (أو إزاحة تُكتب)، والنسخ يتكرر حتى الإنهاء ----

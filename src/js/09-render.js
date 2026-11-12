@@ -9,6 +9,25 @@
  * ================================================================== */
 
 // ---- الرسم ----
+const DRAW_LINE_TYPES=new Set(['line','wall','rect','circle','arc','ellipse','polygon','polyline','tri','free']);
+const LINE_PATTERNS={continuous:[],dashed:[.45,.22],dotted:[.08,.18],dashdot:[.45,.16,.08,.16],center:[.8,.16,.12,.16],hidden:[.22,.14]};
+const isDrawLineShape=s=>!!s&&DRAW_LINE_TYPES.has(s.t);
+const effectiveLineType=s=>isDrawLineShape(s)?(LINE_PATTERNS[s.linetype]?s.linetype:(LINE_PATTERNS[layerOf(s).linetype]?layerOf(s).linetype:'continuous')):'continuous';
+const linePattern=s=>LINE_PATTERNS[effectiveLineType(s)].map(v=>v*V.s);
+function offsetLinePoints(P,d,closed){
+ if(!P||P.length<2)return P||[];const n=P.length,O=[];
+ for(let i=0;i<n;i++){const a=P[(i-1+n)%n],b=P[i],c=P[(i+1)%n];
+  if(!closed&&i===0){const x=c[0]-b[0],y=c[1]-b[1],l=Math.hypot(x,y)||1;O.push([b[0]-y/l*d,b[1]+x/l*d]);continue}
+  if(!closed&&i===n-1){const x=b[0]-a[0],y=b[1]-a[1],l=Math.hypot(x,y)||1;O.push([b[0]-y/l*d,b[1]+x/l*d]);continue}
+  const x1=b[0]-a[0],y1=b[1]-a[1],l1=Math.hypot(x1,y1)||1,x2=c[0]-b[0],y2=c[1]-b[1],l2=Math.hypot(x2,y2)||1,nx=-y1/l1-y2/l2,ny=x1/l1+x2/l2,m=Math.hypot(nx,ny)||1,dot=(nx/m)*(-y2/l2)+(ny/m)*(x2/l2),k=Math.abs(dot)>.15?d/dot:d;O.push([b[0]+nx/m*k,b[1]+ny/m*k]);
+ }return O;
+}
+function strokeDoubleShape(s,col,lw){
+ const gap=Math.max(.01,Number(s.doubleLineGap)||.1)/2;ctx.save();ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.setLineDash(linePattern(s));
+ if(s.t==='circle'){const q=w2s(s.x,s.y),r=s.r*V.s,g=gap*V.s;[r-g,r+g].filter(v=>v>0).forEach(v=>{ctx.beginPath();ctx.arc(q[0],q[1],v,0,Math.PI*2);ctx.stroke()})}
+ else{const P=s.t==='arc'?arcPtsShape(s):pts(s),closed=['rect','tri','polygon','ellipse'].includes(s.t)||!!s.closed;if(P&&P.length>1)for(const d of[-1,1]){const Q=new Path2D();offsetLinePoints(P,gap*d,closed).forEach((p,i)=>{const q=w2s(p[0],p[1]);i?Q.lineTo(q[0],q[1]):Q.moveTo(q[0],q[1])});if(closed)Q.closePath();ctx.stroke(Q)}}
+ ctx.restore();
+}
 const colors=()=>{const s=getComputedStyle(document.documentElement),v=n=>s.getPropertyValue(n).trim();return{bg:v('--cv'),grid:v('--grid'),major:v('--major'),ln:v('--ln'),ac:v('--ac'),dim:v('--dim')}};
 
 function tag(t,x,y,c,big){
@@ -64,7 +83,10 @@ function drawShape(s,on,prev,c){
   ctx.lineJoin='round';ctx.lineCap=s.t==='wall'?'square':'round';
   if(on){ctx.lineWidth=lw+8;ctx.strokeStyle=c.ac;ctx.globalAlpha=.3;ctx.stroke(Q);ctx.globalAlpha=1}
   if(closed)fillShape(s,Q,col);
-  ctx.lineWidth=lw;ctx.strokeStyle=prev?c.ac:col;ctx.setLineDash(prev?[8,6]:[]);ctx.stroke(Q);ctx.setLineDash([]);
+  ctx.lineWidth=lw;ctx.strokeStyle=prev?c.ac:col;
+  if(!prev&&isDrawLineShape(s)&&s.doubleLine)strokeDoubleShape(s,col,lw);
+  else{ctx.setLineDash(prev?[8,6]:linePattern(s));ctx.stroke(Q)}
+  ctx.setLineDash([]);
   const b=bx(s),a0=w2s(b.x,b.y),a1=w2s(b.X,b.Y),cx=(a0[0]+a1[0])/2,cy=(a0[1]+a1[1])/2;
   if((s.t==='line'||s.t==='wall')&&ST.showDims){const a=w2s(...s.a),e=w2s(...s.b);tag(`${fl(len(s))}${(on||prev)&&s.t==='wall'?` · ${f(s.th*100)} cm`:''}`,(a[0]+e[0])/2,(a[1]+e[1])/2-14-(s.th||0)*V.s/2,c)}
   else if(['free','polyline','arc'].includes(s.t)){if(ST.showDims&&(on||prev)){const q=w2s(...pts(s).at(-1));tag(s.t==='arc'?fl(s.r*(s.a1-s.a0)):fl(plen(s.p)),q[0],q[1]-16,c)}}
@@ -143,7 +165,7 @@ function drawShapes(picked,c){
     if(!groups.size)return;
     ctx.lineJoin='round';ctx.lineCap='round';ctx.setLineDash([]);ctx.globalAlpha=1;
     for(const G of groups.values()){
-      ctx.lineWidth=G.lw;ctx.strokeStyle=G.col;
+      ctx.lineWidth=G.lw;ctx.strokeStyle=G.col;ctx.setLineDash(LINE_PATTERNS[G.lt].map(v=>v*V.s));
       for(let i=0;i<G.list.length;i+=CH){
         ctx.beginPath();
         for(let j=i,e=Math.min(G.list.length,i+CH);j<e;j++)trace(G.list[j],G.tiny[j]);
@@ -166,9 +188,9 @@ function drawShapes(picked,c){
       }
       // في الملفات الكبيرة: الدوائر والمستطيلات الصغيرة جدًا (بلا تعبئة ولا اسم ولا قياسات) تدخل الدفعة أيضًا
       const small=heavy&&!on&&!ST.showDims&&!ST.showAreas&&!s.fk&&!s.name&&(o[2]-o[0])*vs<8&&(o[3]-o[1])*vs<8;
-      if(!on&&!ST.showDims&&(OPEN_FAST.has(s.t)||(small&&(s.t==='circle'||(s.t==='rect'&&!s.rot))))){
-        const col=s.col||l.col||c.ln,lw=s.lw||2,key=col+'|'+lw;
-        let G=groups.get(key);if(!G){G={col,lw,list:[],tiny:[]};groups.set(key,G)}
+      if(!on&&!s.doubleLine&&!ST.showDims&&(OPEN_FAST.has(s.t)||(small&&(s.t==='circle'||(s.t==='rect'&&!s.rot&&!s.p))))){
+        const col=s.col||l.col||c.ln,lw=s.lw||2,lt=isDrawLineShape(s)?effectiveLineType(s):'continuous',key=col+'|'+lw+'|'+lt;
+        let G=groups.get(key);if(!G){G={col,lw,lt,list:[],tiny:[]};groups.set(key,G)}
         G.list.push(s);G.tiny.push(heavy&&(s.t==='polyline'||s.t==='free'||s.t==='arc')&&(o[2]-o[0])*vs<6&&(o[3]-o[1])*vs<6);continue;
       }
       flush();

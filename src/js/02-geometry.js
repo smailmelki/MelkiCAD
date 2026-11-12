@@ -24,7 +24,8 @@ const rp=(q,c,a)=>{const co=Math.cos(a),si=Math.sin(a),dx=q[0]-c[0],dy=q[1]-c[1]
 
 function rotS(s,o,c,a){
   if(s.t==='line'||s.t==='wall'||s.t==='dim'){s.a=rp(o.a,c,a);s.b=rp(o.b,c,a);if(s.t==='dim'&&o.c)s.c=rp(o.c,c,a);if(s.t==='dim'&&o.angle!==undefined)s.angle=o.angle+a}
-  else if(s.p)s.p=o.p.map(q=>rp(q,c,a));
+  else if(s.t==='rect'&&o.cornerBase){s.p=o.p.map(q=>rp(q,c,a));s.cornerBase=o.cornerBase.map(q=>rp(q,c,a));const m=rp([o.x+o.w/2,o.y+o.h/2],c,a);s.x=m[0]-o.w/2;s.y=m[1]-o.h/2;s.rot=(o.rot||0)+a}
+  else if(s.p){s.p=o.p.map(q=>rp(q,c,a));if(o.cornerBase)s.cornerBase=o.cornerBase.map(q=>rp(q,c,a));}
   else if(s.t==='rect'||s.t==='furn'){const m=rp([o.x+o.w/2,o.y+o.h/2],c,a);s.x=m[0]-o.w/2;s.y=m[1]-o.h/2;s.rot=(o.rot||0)+a}
   else if(s.t==='ellipse'){const m=rp([o.x,o.y],c,a);s.x=m[0];s.y=m[1];s.rot=(o.rot||0)+a}
   else{const m=rp([o.x,o.y],c,a);s.x=m[0];s.y=m[1];if(o.a!=null)s.a=o.a+a;if(o.t==='arc'){s.a0=o.a0+a;s.a1=o.a1+a}}
@@ -32,7 +33,7 @@ function rotS(s,o,c,a){
 
 const plen=p=>p.reduce((a,q,i)=>i?a+Math.hypot(q[0]-p[i-1][0],q[1]-p[i-1][1]):0,0);
 
-const area=s=>s.t==='rect'?s.w*s.h:s.t==='circle'?Math.PI*s.r*s.r:s.t==='ellipse'?Math.PI*s.rx*s.ry:['tri','polygon'].includes(s.t)?Math.abs(s.p.reduce((a,q,i)=>a+q[0]*s.p[(i+1)%s.p.length][1]-s.p[(i+1)%s.p.length][0]*q[1],0))/2:0;
+const area=s=>s.t==='rect'&& !s.p?s.w*s.h:s.t==='circle'?Math.PI*s.r*s.r:s.t==='ellipse'?Math.PI*s.rx*s.ry:['rect','tri','polygon'].includes(s.t)&&s.p&&s.p.length>=3?Math.abs(s.p.reduce((a,q,i)=>a+q[0]*s.p[(i+1)%s.p.length][1]-s.p[(i+1)%s.p.length][0]*q[1],0))/2:0;
 
 // حدود الشكل بحلقة عادية بلا مصفوفات وسيطة (الانتشار Math.min(...arr) بطيء ويفشل مع آلاف النقاط)
 const bx=s=>{
@@ -70,7 +71,7 @@ const valid=s=>s.t==='line'||s.t==='wall'||s.t==='dim'?len(s)>=.1:s.t==='circle'
 
 const segs=s=>s.t==='line'||s.t==='wall'?[[s.a,s.b]]:s.t==='arc'||s.t==='ellipse'?(()=>{const p=pts(s);return p.slice(1).map((q,i)=>[p[i],q])})():s.t==='tri'||s.t==='polygon'?s.p.map((q,i)=>[q,s.p[(i+1)%s.p.length]]):s.t==='polyline'||s.t==='free'?s.p.slice(1).map((q,i)=>[s.p[i],q]):s.t==='rect'?pts(s).map((q,i,a)=>[q,a[(i+1)%4]]):[];
 
-const mv=(s,o,dx,dy)=>{if(s.t==='line'||s.t==='wall'||s.t==='dim'){s.a=[o.a[0]+dx,o.a[1]+dy];s.b=[o.b[0]+dx,o.b[1]+dy];if(s.t==='dim'&&o.c)s.c=[o.c[0]+dx,o.c[1]+dy]}else if(s.p)s.p=o.p.map(q=>[q[0]+dx,q[1]+dy]);else{s.x=o.x+dx;s.y=o.y+dy}};
+const mv=(s,o,dx,dy)=>{if(s.t==='line'||s.t==='wall'||s.t==='dim'){s.a=[o.a[0]+dx,o.a[1]+dy];s.b=[o.b[0]+dx,o.b[1]+dy];if(s.t==='dim'&&o.c)s.c=[o.c[0]+dx,o.c[1]+dy]}else if(s.p){s.p=o.p.map(q=>[q[0]+dx,q[1]+dy]);if(o.cornerBase)s.cornerBase=o.cornerBase.map(q=>[q[0]+dx,q[1]+dy]);if(s.t==='rect'){s.x=o.x+dx;s.y=o.y+dy}}else{s.x=o.x+dx;s.y=o.y+dy}};
 
 const copy=o=>{const t=JSON.parse(JSON.stringify(o));if(t&&!Array.isArray(t))delete t.id;return t};
 
