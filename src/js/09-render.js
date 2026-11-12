@@ -25,7 +25,7 @@ function offsetLinePoints(P,d,closed){
 function strokeDoubleShape(s,col,lw){
  const gap=Math.max(.01,Number(s.doubleLineGap)||.1)/2;ctx.save();ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.setLineDash(linePattern(s));
  if(s.t==='circle'){const q=w2s(s.x,s.y),r=s.r*V.s,g=gap*V.s;[r-g,r+g].filter(v=>v>0).forEach(v=>{ctx.beginPath();ctx.arc(q[0],q[1],v,0,Math.PI*2);ctx.stroke()})}
- else{const P=s.t==='arc'?arcPtsShape(s):s.t==='rect'?rc(s):pts(s),closed=['rect','tri','polygon','ellipse'].includes(s.t)||!!s.closed;if(P&&P.length>1)for(const d of[-1,1]){const Q=new Path2D();offsetLinePoints(P,gap*d,closed).forEach((p,i)=>{const q=w2s(p[0],p[1]);i?Q.lineTo(q[0],q[1]):Q.moveTo(q[0],q[1])});if(closed)Q.closePath();ctx.stroke(Q)}}
+ else{const P=s.t==='arc'?arcPtsShape(s):pts(s),closed=['rect','tri','polygon','ellipse'].includes(s.t)||!!s.closed;if(P&&P.length>1)for(const d of[-1,1]){const Q=new Path2D();offsetLinePoints(P,gap*d,closed).forEach((p,i)=>{const q=w2s(p[0],p[1]);i?Q.lineTo(q[0],q[1]):Q.moveTo(q[0],q[1])});if(closed)Q.closePath();ctx.stroke(Q)}}
  ctx.restore();
 }
 const colors=()=>{const s=getComputedStyle(document.documentElement),v=n=>s.getPropertyValue(n).trim();return{bg:v('--cv'),grid:v('--grid'),major:v('--major'),ln:v('--ln'),ac:v('--ac'),dim:v('--dim')}};
