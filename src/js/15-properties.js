@@ -14,7 +14,6 @@ function opts(){
   const once=()=>{if(!done){snap();done=1}};
   const drawingSelection=sel.length>0&&sel.every(i=>isDrawLineShape(shapes[i]));
   if(s1){
-    if(isDrawLineShape(s1))F.push(['linetype','نوع الخط',s1.linetype||'']);
     if(!['line','wall','dim','free','polyline','door','door2','win','text','north','furn'].includes(s1.t))F.push(['name','الاسم',s1.name||'']);
     if(s1.t==='text')F.push(['txt','النص',s1.txt||'']);
     if(s1.t==='dim'&&!['radius','diameter'].includes(s1.mode))F.push(['off',s1.mode==='angular'?'نصف قطر قوس الزاوية':'الإزاحة ('+uA()+')',fu(s1.off||.6)]);
