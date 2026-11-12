@@ -798,12 +798,11 @@ t('هندسة الزوايا: ترفض القيم المتداخلة والزو�
 });
 t('التحريك والتدوير والتحجيم يحافظ على هندسة الزوايا داخل العنصر', () => {
   resetB2();
-  R(`const`);
   R(`shapes=[{t:'rect',x:0,y:0,w:4,h:3,ly:cl}];tool='fillet';FILLET_R=.4;cornerPick(w2s(0,0))`);
   const before=jr(`shapes[0].cornerBase[0]`);
-  R(`const o=copy(shapes[0]);mv(shapes[0],o,2,1)`);
+  R(`(()=>{const o=copy(shapes[0]);mv(shapes[0],o,2,1)})()`);
   const moved=jr(`shapes[0].cornerBase[0]`);near(moved[0]-before[0],2);near(moved[1]-before[1],1);
-  R(`const o=copy(shapes[0]);rotS(shapes[0],o,[0,0],Math.PI/2)`);
+  R(`(()=>{const o=copy(shapes[0]);rotS(shapes[0],o,[0,0],Math.PI/2)})()`);
   ok(R(`shapes[0].p.length>4&&shapes.length===1`),'التدوير لا يفكك الشكل');
 });
 
