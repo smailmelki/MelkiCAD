@@ -1,0 +1,160 @@
+name: Build MelkiCAD Android APK
+
+# يُشغَّل يدويًا (Actions ← Run workflow) أو عند وسم إصدار v*، وليس مع كل دفع إلى main.
+# إن وُجدت أسرار التوقيع يُبنى إصدار موقّع (release)، وإلا يُبنى APK تجريبي (debug) قابل للتثبيت.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js (for verification)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify source
+        run: node tools/check.js && node tools/test.js
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Android SDK tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install dependencies
+        working-directory: android-wrapper
+        run: |
+          # package-lock.json يثبّت الإصدارات الفرعية أيضًا (npm ci يفشل إن خالف package.json)؛ بدونه يُستعمل npm install
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            echo "::warning::android-wrapper/package-lock.json missing: dependencies are not pinned, so builds are not reproducible. Run npm install in android-wrapper and commit the lockfile."
+            npm install
+          fi
+
+      - name: Prepare offline web application
+        working-directory: android-wrapper
+        run: |
+          mkdir -p www
+          cp -a ../src/. www/
+          # ختم إصدار الكاش برقم الإيداع حتى لا يخدم عامل الخدمة ملفات قديمة بعد تحديث التطبيق
+          sed -i "s/^const VER='[^']*';/const VER='plan-${GITHUB_SHA::8}';/" www/sw.js
+          npx esbuild android-bridge.js --bundle --format=iife --outfile=www/android-bridge.bundle.js
+          node -e "const fs=require('fs');const p='www/index.html';let s=fs.readFileSync(p,'utf8');if(!s.includes('android-bridge.bundle.js')){s=s.replace('</body>','<script src=\\"android-bridge.bundle.js\\"></script>\\n</body>');fs.writeFileSync(p,s)}"
+
+      - name: Add Android platform
+        working-directory: android-wrapper
+        run: npx cap add android
+
+      - name: Install MelkiCAD launcher icons and splash screen
+        working-directory: android-wrapper
+        run: |
+          RES=android/app/src/main/res
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          # صور شاشة البدء الافتراضية في قالب Capacitor (drawable/splash.png ونسخ port وland لكل كثافة) تُحذف أولًا:
+          # وجود splash.png بجانب splash.xml يسبب خطأ موارد مكررة، وبقاؤها يعني أن شعار Capacitor يظهر بدل شاشتنا
+          find "$RES" -type f -path '*/drawable*' \( -name 'splash.png' -o -name 'splash.jpg' -o -name 'splash.webp' -o -name 'splash.xml' \) -print -delete
+          cp -a native/res/. "$RES/"
+          test -f "$RES/drawable/splash.xml" || { echo "::error::drawable/splash.xml (شاشة بدء MelkiCAD) غير موجود"; exit 1; }
+          test -f "$RES/drawable-nodpi/melkicad_splash_logo.png" || { echo "::error::melkicad_splash_logo.png غير موجود"; exit 1; }
+          SPLASH_COUNT="$(find "$RES" -type f -path '*/drawable*' -name 'splash.*' | wc -l)"
+          [ "$SPLASH_COUNT" = "1" ] || { echo "::error::يجب أن يوجد ملف splash واحد فقط (وُجد $SPLASH_COUNT)"; find "$RES" -type f -name 'splash.*'; exit 1; }
+          grep -rq '@drawable/splash' "$RES/values" || echo "::warning::قالب Capacitor لا يشير إلى @drawable/splash في values؛ قد لا تظهر شاشة بدء MelkiCAD"
+          # Capacitor يولّد موارد افتراضية باسم ic_launcher_foreground/background (شعار Capacitor)؛ أيقونتنا باسم فريد حتى لا تلتبس بها
+          for f in mipmap-anydpi-v26/ic_launcher.xml mipmap-anydpi-v26/ic_launcher_round.xml; do
+            grep -q 'melkicad_launcher_foreground' "$RES/$f" || { echo "::error::$f ليس أيقونة MelkiCAD التكيّفية (استُبدل بالافتراضي؟)"; exit 1; }
+          done
+          test -f "$RES/drawable-nodpi/melkicad_launcher_foreground.png" || { echo "::error::مقدمة الأيقونة melkicad_launcher_foreground.png غير موجودة"; exit 1; }
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            for n in ic_launcher ic_launcher_round; do
+              test -f "$RES/mipmap-$d/$n.png" || { echo "::error::mipmap-$d/$n.png غير موجود"; exit 1; }
+            done
+          done
+          grep -q 'android:icon="@mipmap/ic_launcher"' "$MANIFEST" || echo "::warning::AndroidManifest.xml لا يشير إلى @mipmap/ic_launcher؛ قد لا تظهر الأيقونة"
+          echo "Launcher icon and splash wiring OK"
+
+      - name: Install native save-to-folder plugin
+        working-directory: android-wrapper
+        run: |
+          mkdir -p android/app/src/main/java/com/smailmelki/melkicad
+          cp -a native/android/. android/app/src/main/java/com/smailmelki/melkicad/
+
+      - name: Sync Capacitor
+        working-directory: android-wrapper
+        run: npx cap sync android
+
+      - name: Build debug APK (no signing secrets configured)
+        if: env.HAS_KEYSTORE != 'true'
+        working-directory: android-wrapper/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        if: env.HAS_KEYSTORE != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: MelkiCAD-Android-Debug
+          path: android-wrapper/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Build release APK
+        if: env.HAS_KEYSTORE == 'true'
+        working-directory: android-wrapper/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Decode Android release keystore
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" || (echo "Missing ANDROID_KEYSTORE_BASE64 secret" && exit 1)
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/melkicad-release.jks"
+
+      - name: Align and sign release APK
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_PASSWORD" || (echo "Missing ANDROID_KEYSTORE_PASSWORD secret" && exit 1)
+          test -n "$KEY_ALIAS" || (echo "Missing ANDROID_KEY_ALIAS secret" && exit 1)
+          test -n "$KEY_PASSWORD" || (echo "Missing ANDROID_KEY_PASSWORD secret" && exit 1)
+          APK="android-wrapper/android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -name zipalign -type f | sort -V | tail -n 1)"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          test -f "$APK"
+          "$ZIPALIGN" -v -p 4 "$APK" "$RUNNER_TEMP/app-release-aligned.apk"
+          "$APKSIGNER" sign --ks "$RUNNER_TEMP/melkicad-release.jks" --ks-key-alias "$KEY_ALIAS" --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEY_PASSWORD --out "$RUNNER_TEMP/MelkiCAD-release.apk" "$RUNNER_TEMP/app-release-aligned.apk"
+          "$APKSIGNER" verify --verbose "$RUNNER_TEMP/MelkiCAD-release.apk"
+
+      - name: Upload signed Release APK
+        if: env.HAS_KEYSTORE == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: MelkiCAD-Android-Release
+          path: ${{ runner.temp }}/MelkiCAD-release.apk
+          if-no-files-found: error
+          retention-days: 90

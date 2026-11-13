@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>مخطط الغرف</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#101820">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="مخطط">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+
+<link rel="preload" href="fonts/IBMPlexSansArabic-Regular.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/nav-overlay.css">
+</head>
+<body>
+<header>
+  <button id="pj"><b id="pn"></b> ▾</button><span id="tot"></span>
+  <button id="undo" aria-label="تراجع" title="تراجع"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3"/></svg></button><button id="redo" aria-label="إعادة" title="إعادة"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 000 12h3"/></svg></button><button id="fit" aria-label="ملاءمة" title="ملاءمة"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button><button id="shot" aria-label="طباعة" title="طباعة"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6z"/><path d="M18 12h.01"/></svg></button>
+<button id="stg" aria-label="الإعدادات">⚙</button>
+</header>
+<main>
+  <canvas id="cv"></canvas>
+  <div id="ctx"><button id="op">خصائص</button><button id="mv" aria-pressed="false">تحريك</button><button id="cp">نسخ</button><button id="ps">لصق</button><button id="rt">تدوير</button><button id="scale">تحجيم</button><button id="vdel" style="display:none">حذف رأس</button><button id="del">حذف</button><button id="all">الكل</button></div>
+  <div id="sheet"></div>
+  <div id="polybar"><button id="polyfinish">إنهاء POLYLINE</button><button id="polycancel">إلغاء</button></div>
+  <div id="drawInput" aria-live="polite"><div class="dihead"><span id="diTitle"></span><button id="diFinish" style="display:none">إنهاء</button><button id="diKey" title="إدخال رقمي (اختياري)" aria-label="إدخال رقمي" aria-pressed="false">⌨</button><button id="diClose" title="إلغاء الرسم" aria-label="إلغاء الرسم">✕</button></div><div id="diFields"><div class="dicoords" id="diCoords"><label><input id="diX" type="number" step="any" inputmode="decimal" autocomplete="off" aria-label="X" enterkeyhint="next"></label><label><input id="diY" type="number" step="any" inputmode="decimal" autocomplete="off" aria-label="Y" enterkeyhint="done"></label></div><div class="dicoords" id="diExtra"></div><button id="diSubmit" title="إدخال" aria-label="إدخال">✓</button></div></div>
+  <div id="smenu"><button data-s="end">نهاية / ركن</button><button data-s="mid">منتصف</button><button data-s="int">تقاطع</button><button data-s="cen">مركز / ربع</button><button data-s="per">عمودي على خط</button><button data-s="nea">أقرب نقطة</button><button data-s="grid">شبكة</button><button data-s="ortho">تعامد أفقي / رأسي</button><button data-s="parallel">موازاة</button><button data-s="perpendicular">تعامد مع مرجع</button><button data-s="polar">زاوية 45°</button></div>
+</main>
+<nav>
+  <button data-t="pan"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg>تحريك</button>
+  <button data-t="select"><svg viewBox="0 0 24 24"><path d="M5 3l14 7-6 2-2 6z"/></svg>تحديد</button>
+  <button data-t="line"><svg viewBox="0 0 24 24"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5l11-11"/></svg>خط</button>
+  <button data-t="wall"><svg viewBox="0 0 24 24"><path d="M5 19L19 5" stroke-width="5" stroke-linecap="butt"/></svg>جدار</button>
+  <button data-t="rect"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="1"/></svg>مستطيل</button>
+  <button data-t="circle"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>دائرة</button>
+  <button data-t="arc"><svg viewBox="0 0 24 24"><path d="M4 18A14 14 0 0 1 18 4"/></svg>قوس ARC</button>
+  <button data-t="ellipse"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="5"/></svg>بيضاوي</button>
+  <button data-t="polygon"><svg viewBox="0 0 24 24"><path d="M12 3l8 6-3 11H7L4 9z"/></svg>مضلع</button>
+  <button data-t="polyline"><svg viewBox="0 0 24 24"><path d="M4 18L8 5l7 12 5-10"/></svg>متعدد POLYLINE</button>
+  <button data-t="tri"><svg viewBox="0 0 24 24"><path d="M12 5l8 14H4z"/></svg>مثلث</button>
+  <button data-t="free"><svg viewBox="0 0 24 24"><path d="M3 16c3-8 5 4 8-3s5 3 10-5"/></svg>حر</button>
+  <button data-t="door"><svg viewBox="0 0 24 24"><path d="M5 20V5M5 20h15M5 5A15 15 0 0 1 20 20"/></svg>باب</button>
+  <button data-t="door2"><svg viewBox="0 0 24 24"><path d="M3 20h18M3 20V5M21 20V5M3 5a8 8 0 0 1 8 8M21 5a8 8 0 0 0-8 8"/></svg>باب مزدوج</button>
+  <button data-t="win"><svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="6"/><path d="M3 12h18"/></svg>نافذة</button>
+  <button data-t="text"><svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M9 19h6"/></svg>نص</button>
+  <button data-t="north"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 6l3 9-3-2-3 2z"/></svg>شمال</button>
+  <button data-t="dim"><svg viewBox="0 0 24 24"><path d="M4 6v12M20 6v12M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3"/></svg>أبعاد</button>
+  <button data-t="trim"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 7.5L20 18M8.5 16.5L20 6"/></svg>قص</button>
+  <button data-t="extend"><svg viewBox="0 0 24 24"><path d="M4 12h10M14 12l-3-3M14 12l-3 3"/><path d="M20 5v14"/></svg>تمديد</button>
+  <button data-t="fillet"><svg viewBox="0 0 24 24"><path d="M5 4v9a6 6 0 0 0 6 6h8"/></svg>تدوير زاوية</button>
+  <button data-t="chamfer"><svg viewBox="0 0 24 24"><path d="M5 4v9l6 6h8"/></svg>شطف</button>
+  <button id="lyb"><svg viewBox="0 0 24 24"><path d="M12 2l9 5-9 5-9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 17l9 5 9-5"/></svg>طبقات</button>
+  <button id="snap"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM12 4v16M4 12h16"/></svg>التقاط</button>
+</nav>
+<input type="file" id="fin" accept=".json,.dxf,.txt,application/json,application/dxf,text/plain" hidden><input type="file" id="finjson" accept=".json,application/json" hidden><div id="tt"></div>
+<div id="io" hidden><textarea id="iot" spellcheck="false"></textarea><p id="iop"></p><div class="row"><button class="fl" id="ioa"></button><button class="fl" id="iox">إغلاق</button></div></div>
+<div id="ov" hidden><img alt="المخطط"><p>اضغط مطولًا على الصورة لحفظها في هاتفك</p><button id="ovx">إغلاق</button></div>
+
+<!-- خريطة الملفات (بترتيب التحميل — الترتيب مهم لأن الملفات تتشارك نطاقًا عامًا واحدًا):
+  js/00-storage.js        طبقة التخزين: IndexedDB بذاكرة مؤقتة متزامنة وترحيل من localStorage
+  js/01-core.js           الحالة العامة والمساعدات الأساسية
+  js/02-geometry.js       هندسة الأشكال
+  js/03-snap.js           الالتقاط (OSNAP)
+  js/04-selection.js      التحديد
+  js/05-persistence.js    حالة المشاريع والحفظ وسجل التراجع/الإعادة
+  js/06-layers.js         الطبقات
+  js/07-projects.js       إدارة المشاريع
+  js/08-project-io.js     حفظ الملفات واستيراد/تصدير المشروع
+  js/09-render.js         الرسم على اللوحة
+  js/10-dimensions.js     خطوط الأبعاد
+  js/11-furniture.js      مكتبة الأثاث
+  js/12-openings.js       الأبواب والنوافذ
+  js/13-draw-input.js     الإدخال الرقمي الاختياري للرسم
+  js/14-pointer.js        اللمس والفأرة
+  js/15-properties.js     خصائص العنصر
+  js/16-edit-tools.js     أدوات التعديل المتقدمة
+  js/17-dxf.js            DXF
+  js/18-print.js          الطباعة والتصدير
+  js/18a-pdf.js           مسجِّل PDF المتجهي (يستعمله 18-print.js)
+  js/19-areas.js          جدول المساحات
+  js/20-keyboard.js       اختصارات لوحة المفاتيح (للحاسوب)
+  js/21-settings.js       الإعدادات
+  js/22-toolbar.js        الشريط السفلي والقوائم
+  js/23-main.js           نقطة البدء
+-->
+<script src="js/00-storage.js"></script>
+<script src="js/01-core.js"></script>
+<script src="js/02-geometry.js"></script>
+<script src="js/03-snap.js"></script>
+<script src="js/04-selection.js"></script>
+<script src="js/05-persistence.js"></script>
+<script src="js/06-layers.js"></script>
+<script src="js/07-projects.js"></script>
+<script src="js/08-project-io.js"></script>
+<script src="js/09-render.js"></script>
+<script src="js/10-dimensions.js"></script>
+<script src="js/11-furniture.js"></script>
+<script src="js/12-openings.js"></script>
+<script src="js/13-draw-input.js"></script>
+<script src="js/14-pointer.js"></script>
+<script src="js/15-properties.js"></script>
+<script src="js/16-edit-tools.js"></script>
+<script src="js/17-dxf.js"></script>
+<script src="js/18-print.js"></script>
+<script src="js/18a-pdf.js"></script>
+<script src="js/19-areas.js"></script>
+<script src="js/20-keyboard.js"></script>
+<script src="js/21-settings.js"></script>
+<script src="js/22-toolbar.js"></script>
+<script src="js/23-main.js"></script>
+</body>
+</html>
+
