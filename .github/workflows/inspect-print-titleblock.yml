@@ -1,4 +1,4 @@
-name: Extract print titleblock update
+name: Extract and verify print titleblock update
 
 on:
   push:
@@ -36,10 +36,18 @@ jobs:
                   if p.is_absolute() or ".." in p.parts or ".git" in p.parts:
                       raise SystemExit(f"Unsafe ZIP path: {item.filename}")
               z.extractall(".")
+              names = z.namelist()
           print("Extracted archive entries:")
-          for item in z.namelist():
-              print(item)
+          for name in names:
+              print(name)
           PY
+
+      - name: Verify extracted MelkiCAD project
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd MelkiCAD-main
+          npm run verify
 
       - name: Commit extracted project files
         shell: bash
@@ -48,7 +56,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git reset -- MelkiCAD-print-titleblock.zip .github/workflows/extract-print-titleblock.yml PRINT_TITLEBLOCK_EXTRACT_REQUEST.txt
+          git reset -- MelkiCAD-print-titleblock.zip .github/workflows/inspect-print-titleblock.yml PRINT_TITLEBLOCK_EXTRACT_REQUEST.txt
           if git diff --cached --quiet; then
             echo "No extracted file changes to commit."
             exit 0
