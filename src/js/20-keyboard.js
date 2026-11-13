@@ -12,7 +12,21 @@
 // لا نعترض المفاتيح أثناء الكتابة داخل حقل (للمحافظة على تراجع النص وتحديده الأصلي)
 const typing=e=>{const t=e.target;return !!t&&(!!t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName||''))};
 
-const TOOL_KEYS={KeyV:'select',KeyH:'pan',KeyL:'line',KeyW:'wall',KeyR:'rect',KeyC:'circle',KeyA:'arc',KeyE:'ellipse',KeyG:'polygon',KeyP:'polyline',KeyF:'free',KeyT:'text',KeyD:'dim'};
+const TOOL_KEYS={
+  KeyV:'select',
+  KeyH:'pan',
+  KeyL:'line',
+  KeyW:'wall',
+  KeyR:'rect',
+  KeyC:'circle',
+  KeyA:'arc',
+  KeyE:'ellipse',
+  KeyG:'polygon',
+  KeyP:'polyline',
+  KeyF:'free',
+  KeyT:'text',
+  KeyD:'dim'
+};
 
 const KEY_HELP=[
   ['Ctrl+Z','تراجع'],['Ctrl+Y','إعادة'],['Ctrl+C / X / V','نسخ / قص / لصق'],['Ctrl+A','تحديد الكل'],
@@ -27,7 +41,9 @@ const KEY_HELP=[
 function keysSheet(){
   const sh=$('#sheet');
   const cap=k=>k.split(' / ').map(g=>g.split('+').map(x=>`<span class="kbd">${esc(x)}</span>`).join(' + ')).join(' ، ');
-  sh.innerHTML='<b>اختصارات لوحة المفاتيح</b><div class="keys">'+KEY_HELP.map(([k,d])=>`<span>${cap(k)}</span><span>${esc(d)}</span>`).join('')+'</div><button id="ok">تم</button>';
+  sh.innerHTML='<b>اختصارات لوحة المفاتيح</b><div class="keys">'
+    +KEY_HELP.map(([k,d])=>`<span>${cap(k)}</span><span>${esc(d)}</span>`).join('')
+    +'</div><button id="ok">تم</button>';
   $('#ok').onclick=()=>{sh.classList.remove('on');upd()};
   sh.classList.add('on');$('#ctx').style.display='none';
 }
@@ -40,7 +56,13 @@ function zoomBy(k){
 }
 
 const press=q=>{const b=$(q);if(b&&!b.disabled)b.click()};
-const toggleSnap=k=>{S[k]=S[k]?0:1;upd();save();draw();toast(`${{ortho:'التعامد الأفقي/الرأسي',grid:'التقاط الشبكة',polar:'زاوية 45°'}[k]}: ${S[k]?'مفعّل':'متوقف'}`)};
+const toggleSnap=k=>{
+  S[k]=S[k]?0:1;
+  upd();
+  save();
+  draw();
+  toast(`${{ortho:'التعامد الأفقي/الرأسي',grid:'التقاط الشبكة',polar:'زاوية 45°'}[k]}: ${S[k]?'مفعّل':'متوقف'}`)
+};
 
 // Esc يتراجع خطوة واحدة في كل ضغطة: نافذة مفتوحة ← رسم جارٍ ← قائمة ← لوحة ← وضع التحريك ← التحديد ← أداة التحديد
 function escapeStep(){
@@ -93,7 +115,16 @@ function onKey(e){
   if(k==='F8'){stop();toggleSnap('ortho');return}
   if(k==='F9'){stop();toggleSnap('grid');return}
   if(k==='F10'){stop();toggleSnap('polar');return}
-  if(k==='F3'){stop();const on=['end','mid','int','cen'].some(x=>S[x]);['end','mid','int','cen'].forEach(x=>{S[x]=on?0:1});upd();save();draw();toast(`الالتقاط بالنقاط: ${on?'متوقف':'مفعّل'}`);return}
+  if(k==='F3'){
+    stop();
+    const on=['end','mid','int','cen'].some(x=>S[x]);
+    ['end','mid','int','cen'].forEach(x=>{S[x]=on?0:1});
+    upd();
+    save();
+    draw();
+    toast(`الالتقاط بالنقاط: ${on?'متوقف':'مفعّل'}`);
+    return
+  }
   if(k==='KeyM'){if(sel.length){stop();press('#mv')}return}
   if((k==='KeyX'||k==='KeyJ')&&!e.shiftKey){if(sel.length){stop();opAction(k==='KeyX'?'explode':'join')}return}
   if(k==='KeyS'&&!e.shiftKey){stop();opAction('stretch');return}

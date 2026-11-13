@@ -53,7 +53,12 @@ const Store=(()=>{
   // ---- localStorage (الترحيل والوضع الاحتياطي) ----
   const lsReadAll=()=>{
     const m=new Map();
-    try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(LEGACY)){const v=localStorage.getItem(k);if(typeof v==='string')m.set(k.slice(LEGACY.length),v)}}}catch(e){}
+    try{
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k&&k.startsWith(LEGACY)){const v=localStorage.getItem(k);if(typeof v==='string')m.set(k.slice(LEGACY.length),v)}
+      }
+    }catch(e){}
     return m;
   };
   const flushLS=()=>{

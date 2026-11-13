@@ -42,10 +42,23 @@ function offS(s,d){
 function mirS(s,ax,c){
   const t=copy(s),mp=q=>ax==='v'?[2*c-q[0],q[1]]:[q[0],2*c-q[1]];
   if(s.t==='line'||s.t==='wall'||s.t==='dim'){t.a=mp(s.a);t.b=mp(s.b);if(s.t==='dim')t.off=-s.off}
-  else if(s.t==='rect'&&s.cornerBase){t.p=s.p.map(mp);t.cornerBase=s.cornerBase.map(mp);const m=mp([s.x+s.w/2,s.y+s.h/2]);t.x=m[0]-s.w/2;t.y=m[1]-s.h/2;t.rot=ax==='v'?-(s.rot||0):-(s.rot||0)}
+  else if(s.t==='rect'&&s.cornerBase){
+    t.p=s.p.map(mp);
+    t.cornerBase=s.cornerBase.map(mp);
+    const m=mp([s.x+s.w/2,s.y+s.h/2]);
+    t.x=m[0]-s.w/2;
+    t.y=m[1]-s.h/2;
+    t.rot=ax==='v'?-(s.rot||0):-(s.rot||0)
+  }
   else if(s.p){t.p=s.p.map(mp);if(s.cornerBase)t.cornerBase=s.cornerBase.map(mp)}
   else if(s.t==='rect'||s.t==='furn'){const m=mp([s.x+s.w/2,s.y+s.h/2]);t.x=m[0]-s.w/2;t.y=m[1]-s.h/2;t.rot=-(s.rot||0)}
-  else if(s.t==='door'||s.t==='door2'||s.t==='win'){const m=mp([s.x,s.y]);t.x=m[0];t.y=m[1];t.a=ax==='v'?Math.PI-s.a:-s.a;if(s.t==='door'||s.t==='door2')t.f=-s.f}
+  else if(s.t==='door'||s.t==='door2'||s.t==='win'){
+    const m=mp([s.x,s.y]);
+    t.x=m[0];
+    t.y=m[1];
+    t.a=ax==='v'?Math.PI-s.a:-s.a;
+    if(s.t==='door'||s.t==='door2')t.f=-s.f
+  }
   else if(s.t==='arc'){const m=mp([s.x,s.y]);t.x=m[0];t.y=m[1];const fn=a=>ax==='v'?Math.PI-a:-a;t.a0=fn(s.a1);t.a1=fn(s.a0);while(t.a1<=t.a0)t.a1+=Math.PI*2}
   else{const m=mp([s.x,s.y]);t.x=m[0];t.y=m[1]}
   return t;
@@ -74,7 +87,12 @@ function opAction(a){
       snap();shapes.push(...out);sel=out.map((_,k)=>shapes.length-out.length+k);
     },'<div style="color:var(--dim);font-size:12px">موجبة: للخارج (أو لليمين في الخط)، وسالبة: العكس</div>');
   }else if(a==='mirror'){
-    const sh=opSheet('انعكاس',[],()=>{},'<div class="row"><button class="fl" data-m="r">نسخة لليمين</button><button class="fl" data-m="l">نسخة لليسار</button></div><div class="row"><button class="fl" data-m="b">نسخة للأسفل</button><button class="fl" data-m="t">نسخة للأعلى</button></div><div class="row"><button class="fl" data-m="fv">قلب أفقي</button><button class="fl" data-m="fh">قلب رأسي</button></div>');
+    const sh=opSheet(
+      'انعكاس',
+      [],
+      ()=>{},
+      '<div class="row"><button class="fl" data-m="r">نسخة لليمين</button><button class="fl" data-m="l">نسخة لليسار</button></div><div class="row"><button class="fl" data-m="b">نسخة للأسفل</button><button class="fl" data-m="t">نسخة للأعلى</button></div><div class="row"><button class="fl" data-m="fv">قلب أفقي</button><button class="fl" data-m="fh">قلب رأسي</button></div>'
+    );
     $('#opk').hidden=true;
     sh.querySelectorAll('[data-m]').forEach(b=>{b.onclick=()=>{mirrorSel(b.dataset.m);sh.classList.remove('on');save();upd();draw()}});
   }else if(a==='explode'){explodeSel();editAction=null;save();upd();draw()}
@@ -82,11 +100,19 @@ function opAction(a){
   else if(a==='bmove'||a==='bcopy')moveFlowStart(a==='bmove'?'move':'copy');
   else if(a==='array'){
     const BB=bounds(sel.map(i=>shapes[i])),w=BB.X-BB.x,h=BB.Y-BB.y;
-    opSheet('نسخ متكرر',[['c','عدد الأعمدة (مع الأصل)',3],['r','عدد الصفوف (مع الأصل)',1],['dx','المسافة بين الأعمدة ('+uA()+')',fu(w)],['dy','المسافة بين الصفوف ('+uA()+')',fu(h)]],val=>{
+    opSheet('نسخ متكرر',[
+      ['c','عدد الأعمدة (مع الأصل)',3],
+      ['r','عدد الصفوف (مع الأصل)',1],
+      ['dx','المسافة بين الأعمدة ('+uA()+')',fu(w)],
+      ['dy','المسافة بين الصفوف ('+uA()+')',fu(h)]
+    ],val=>{
       const c=Math.max(1,Math.round(val('c'))||1),r=Math.max(1,Math.round(val('r'))||1),dx=val('dx')||0,dy=val('dy')||0;
       if(c*r>200){toast('الحد الأقصى 200 نسخة');return}
       snap();const out=[];
-      for(let i=0;i<r;i++)for(let j=0;j<c;j++){if(!i&&!j)continue;{const grp=sel.map(k=>{const s=shapes[k],t=copy(s);mv(t,s,j*dx,i*dy);return t});fixLinks(sel.map(k=>shapes[k]),grp);out.push(...grp)}}
+      for(let i=0;i<r;i++)for(let j=0;j<c;j++){
+        if(!i&&!j)continue;
+        {const grp=sel.map(k=>{const s=shapes[k],t=copy(s);mv(t,s,j*dx,i*dy);return t});fixLinks(sel.map(k=>shapes[k]),grp);out.push(...grp)}
+      }
       shapes.push(...out);sel=out.map((_,k)=>shapes.length-out.length+k);
     },'<div style="color:var(--dim);font-size:12px">الصفوف تنزل للأسفل، والمسافة تُقاس من بداية كل نسخة</div>');
   }
@@ -97,7 +123,11 @@ function trimAt(p){
   if(!s||(s.t!=='line'&&s.t!=='wall')){toast('القص يعمل على الخطوط والجدران فقط');return}
   const A=s.a,B=s.b,dx=B[0]-A[0],dy=B[1]-A[1],L2=dx*dx+dy*dy,w=s2w(p[0],p[1]);if(!L2)return;
   const par=q=>((q[0]-A[0])*dx+(q[1]-A[1])*dy)/L2,t0=clamp(par(w),0,1),ts=[];
-  shapes.forEach((o,k)=>{if(k===i||!shown(o))return;segs(o).forEach(e=>xSS([A,B],e).forEach(q=>ts.push(par(q))));if(o.t==='circle')xSC([A,B],o).forEach(q=>ts.push(par(q)))});
+  shapes.forEach((o,k)=>{
+    if(k===i||!shown(o))return;
+    segs(o).forEach(e=>xSS([A,B],e).forEach(q=>ts.push(par(q))));
+    if(o.t==='circle')xSC([A,B],o).forEach(q=>ts.push(par(q)))
+  });
   const ok=ts.filter(t=>t>1e-6&&t<1-1e-6),prev=ok.filter(t=>t<t0).sort((x,y)=>y-x)[0],next=ok.filter(t=>t>t0).sort((x,y)=>x-y)[0];
   if(prev===undefined&&next===undefined){toast('لا يوجد ما يقطع هذا الخط');return}
   const P=t=>[A[0]+dx*t,A[1]+dy*t];snap();
@@ -129,7 +159,11 @@ function extendAt(p){
 // بعد حذف أشكال (تفكيك/ربط) نفكّ روابط الأبعاد التي كانت تشير إلى هوياتها كي لا تبقى معلّقة
 function dropDimLinks(list,ids){
   if(!ids.size)return;
-  list.forEach(d=>{if(d.t!=='dim')return;for(const k of['la','lb']){if(d[k]&&ids.has(d[k].id))delete d[k]}if(d.circleId&&ids.has(d.circleId))delete d.circleId});
+  list.forEach(d=>{
+    if(d.t!=='dim')return;
+    for(const k of['la','lb']){if(d[k]&&ids.has(d[k].id))delete d[k]}
+    if(d.circleId&&ids.has(d.circleId))delete d.circleId
+  });
 }
 
 // ---- Explode: مستطيل/مثلث/مضلع/متعدد الخطوط ← خطوط منفصلة تحمل الطبقة واللون والسماكة ----
@@ -265,9 +299,19 @@ function corneredPath(base,mods){
 
 function resizeCornerGeometry(s,old){
   if(!old.cornerBase)return;
-  const oc=[old.x+old.w/2,old.y+old.h/2],nc=[s.x+s.w/2,s.y+s.h/2],oa=-(old.rot||0),na=s.rot||0,co=Math.cos(oa),so=Math.sin(oa),cn=Math.cos(na),sn=Math.sin(na),sx=s.w/(old.w||s.w),sy=s.h/(old.h||s.h);
+  const oc=[old.x+old.w/2,old.y+old.h/2],
+    nc=[s.x+s.w/2,s.y+s.h/2],
+    oa=-(old.rot||0),
+    na=s.rot||0,
+    co=Math.cos(oa),
+    so=Math.sin(oa),
+    cn=Math.cos(na),
+    sn=Math.sin(na),
+    sx=s.w/(old.w||s.w),
+    sy=s.h/(old.h||s.h);
   const base=old.cornerBase.map(q=>{const dx=q[0]-oc[0],dy=q[1]-oc[1],lx=(dx*co-dy*so)*sx,ly=(dx*so+dy*co)*sy;return[nc[0]+lx*cn-ly*sn,nc[1]+lx*sn+ly*cn]});
-  const scale=(Math.abs(sx)+Math.abs(sy))/2,mods=Object.fromEntries(Object.entries(old.cornerMods||{}).map(([k,m])=>[k,m.type==='fillet'?{...m,r:m.r*scale}:{...m,d1:m.d1*scale,d2:m.d2*scale}]));
+  const scale=(Math.abs(sx)+Math.abs(sy))/2,
+    mods=Object.fromEntries(Object.entries(old.cornerMods||{}).map(([k,m])=>[k,m.type==='fillet'?{...m,r:m.r*scale}:{...m,d1:m.d1*scale,d2:m.d2*scale}]));
   const built=corneredPath(base,mods);if(!built.err){s.cornerBase=base;s.cornerMods=mods;s.p=built.p}
 }
 
@@ -296,7 +340,14 @@ function cornerGeom(A,B,pa,pb){
   if(L1<1e-9||L2<1e-9)return{err:'أحد الخطين بلا طول'};
   const cr=d1[0]*d2[1]-d1[1]*d2[0];if(Math.abs(cr)<1e-9*L1*L2)return{err:'الخطان متوازيان فلا يلتقيان'};
   const w=[B.a[0]-A.a[0],B.a[1]-A.a[1]],t1=(w[0]*d2[1]-w[1]*d2[0])/cr,t2=(w[0]*d1[1]-w[1]*d1[0])/cr,X=[A.a[0]+d1[0]*t1,A.a[1]+d1[1]*t1];
-  const tp1=((pa[0]-A.a[0])*d1[0]+(pa[1]-A.a[1])*d1[1])/(L1*L1),tp2=((pb[0]-B.a[0])*d2[0]+(pb[1]-B.a[1])*d2[1])/(L2*L2),far1=tp1<t1?'a':'b',far2=tp2<t2?'a':'b',F1=A[far1],F2=B[far2],n1=Math.hypot(F1[0]-X[0],F1[1]-X[1]),n2=Math.hypot(F2[0]-X[0],F2[1]);
+  const tp1=((pa[0]-A.a[0])*d1[0]+(pa[1]-A.a[1])*d1[1])/(L1*L1),
+    tp2=((pb[0]-B.a[0])*d2[0]+(pb[1]-B.a[1])*d2[1])/(L2*L2),
+    far1=tp1<t1?'a':'b',
+    far2=tp2<t2?'a':'b',
+    F1=A[far1],
+    F2=B[far2],
+    n1=Math.hypot(F1[0]-X[0],F1[1]-X[1]),
+    n2=Math.hypot(F2[0]-X[0],F2[1]);
   if(n1<1e-9||n2<1e-9)return{err:'لا يبقى من أحد الخطين جزء؛ المس الجهة الأخرى منه'};
   return{X,n1,n2,v1:[(F1[0]-X[0])/n1,(F1[1]-X[1])/n1],v2:[(F2[0]-X[0])/n2,(F2[1]-X[1])/n2],near1:far1==='a'?'b':'a',near2:far2==='a'?'b':'a'};
 }
@@ -305,14 +356,20 @@ function filletCalc(A,B,pa,pb,r){
   if(!(r>1e-9))return{a1:end(c.near1,X),a2:end(c.near2,X)};
   const th=Math.acos(clamp(v1[0]*v2[0]+v1[1]*v2[1],-1,1));if(th<1e-4||Math.PI-th<1e-4)return{err:'الخطان على استقامة واحدة'};
   const d=r/Math.tan(th/2);if(d>n1-1e-6||d>n2-1e-6)return{err:'نصف القطر كبير جدًا لهذين الخطين'};
-  const T1=[X[0]+v1[0]*d,X[1]+v1[1]*d],T2=[X[0]+v2[0]*d,X[1]+v2[1]*d],ux=v1[0]+v2[0],uy=v1[1]+v2[1],ul_=Math.hypot(ux,uy);let bx=ux/ul_,by=uy/ul_;const C=[X[0]+bx*r/Math.sin(th/2),X[1]+by*r/Math.sin(th/2)],al1=Math.atan2(T1[1]-C[1],T1[0]-C[0]),al2=Math.atan2(T2[1]-C[1],T2[0]-C[0]);let dl=al2-al1;while(dl>Math.PI)dl-=Math.PI*2;while(dl<=-Math.PI)dl+=Math.PI*2;
+  const T1=[X[0]+v1[0]*d,X[1]+v1[1]*d],T2=[X[0]+v2[0]*d,X[1]+v2[1]*d],ux=v1[0]+v2[0],uy=v1[1]+v2[1],ul_=Math.hypot(ux,uy);
+  let bx=ux/ul_,by=uy/ul_;
+  const C=[X[0]+bx*r/Math.sin(th/2),X[1]+by*r/Math.sin(th/2)],al1=Math.atan2(T1[1]-C[1],T1[0]-C[0]),al2=Math.atan2(T2[1]-C[1],T2[0]-C[0]);
+  let dl=al2-al1;
+  while(dl>Math.PI)dl-=Math.PI*2;
+  while(dl<=-Math.PI)dl+=Math.PI*2;
   return{a1:end(c.near1,T1),a2:end(c.near2,T2),arc:{t:'arc',x:C[0],y:C[1],r,a0:dl>=0?al1:al2,a1:dl>=0?al1+dl:al2-dl}};
 }
 function chamferCalc(A,B,pa,pb,d1,d2){
   const c=cornerGeom(A,B,pa,pb);if(c.err)return c;const{X,v1,v2,n1,n2}=c,end=(e,pt)=>({end:e,pt}),z1=!(d1>1e-9),z2=!(d2>1e-9);
   if(z1&&z2)return{a1:end(c.near1,X),a2:end(c.near2,X)};if(z1||z2)return{err:'المسافتان إما صفر معًا أو أكبر من صفر معًا'};
   if(d1>n1-1e-6||d2>n2-1e-6)return{err:'المسافة كبيرة جدًا لهذين الخطين'};
-  const T1=[X[0]+v1[0]*d1,X[1]+v1[1]*d1],T2=[X[0]+v2[0]*d2,X[1]+v2[1]*d2];return{a1:end(c.near1,T1),a2:end(c.near2,T2),line:{t:'line',a:T1.slice(),b:T2.slice()}};
+  const T1=[X[0]+v1[0]*d1,X[1]+v1[1]*d1],T2=[X[0]+v2[0]*d2,X[1]+v2[1]*d2];
+  return{a1:end(c.near1,T1),a2:end(c.near2,T2),line:{t:'line',a:T1.slice(),b:T2.slice()}};
 }
 function applyCorner(i,j,res){
   const A=shapes[i],B=shapes[j];snap();A[res.a1.end]=res.a1.pt.slice();B[res.a2.end]=res.a2.pt.slice();const n=res.arc||res.line;
@@ -339,8 +396,19 @@ function cornerPick(p){
   applyCorner(f.i,i,res);cornerFirst=null;toast(tool==='fillet'?(res.arc?'تم تدوير الزاوية':'تم وصل الخطين'):(res.line?'تم شطف الزاوية':'تم وصل الخطين'));
 }
 function cornerSheet(){
-  if(tool==='fillet')opSheet('تدوير زاوية (Fillet)',[['rad','نصف القطر ('+uA()+')',fu(FILLET_R)]],val=>{const v=val('rad');if(!(v>=0)){toast('أدخل صفرًا أو قيمة أكبر');return}FILLET_R=v;toast('المس رأس الزاوية في الشكل أو الخطين');},'<div style="color:var(--dim);font-size:12px">اختر رأسًا من المستطيل أو المثلث أو المضلع. الصفر يلغي التدوير السابق لهذه الزاوية.</div>');
-  else opSheet('شطف زاوية (Chamfer)',[['d1','المسافة الأولى ('+uA()+')',fu(CHAMFER_D1)],['d2','المسافة الثانية ('+uA()+')',fu(CHAMFER_D2)]],val=>{const a=val('d1'),b=val('d2');if(!(a>=0&&b>=0)||((a===0)!==(b===0))){toast('أدخل مسافتين موجبتين أو صفرًا لإلغاء الشطف');return}CHAMFER_D1=a;CHAMFER_D2=b;toast('المس رأس الزاوية في الشكل أو الخطين')},'<div style="color:var(--dim);font-size:12px">اختر رأسًا من المستطيل أو المثلث أو المضلع. الصفر يلغي الشطف السابق لهذه الزاوية.</div>');
+  if(tool==='fillet')opSheet('تدوير زاوية (Fillet)',[['rad','نصف القطر ('+uA()+')',fu(FILLET_R)]],val=>{
+    const v=val('rad');
+    if(!(v>=0)){toast('أدخل صفرًا أو قيمة أكبر');return}
+    FILLET_R=v;
+    toast('المس رأس الزاوية في الشكل أو الخطين');
+  },'<div style="color:var(--dim);font-size:12px">اختر رأسًا من المستطيل أو المثلث أو المضلع. الصفر يلغي التدوير السابق لهذه الزاوية.</div>');
+  else opSheet('شطف زاوية (Chamfer)',[['d1','المسافة الأولى ('+uA()+')',fu(CHAMFER_D1)],['d2','المسافة الثانية ('+uA()+')',fu(CHAMFER_D2)]],val=>{
+    const a=val('d1'),b=val('d2');
+    if(!(a>=0&&b>=0)||((a===0)!==(b===0))){toast('أدخل مسافتين موجبتين أو صفرًا لإلغاء الشطف');return}
+    CHAMFER_D1=a;
+    CHAMFER_D2=b;
+    toast('المس رأس الزاوية في الشكل أو الخطين')
+  },'<div style="color:var(--dim);font-size:12px">اختر رأسًا من المستطيل أو المثلث أو المضلع. الصفر يلغي الشطف السابق لهذه الزاوية.</div>');
 }
 
 // ---- نقل / نسخ بنقطة أساس: نقطة الأساس ثم نقطة الوصول (أو إزاحة تُكتب)، والنسخ يتكرر حتى الإنهاء ----
@@ -348,7 +416,11 @@ const MOVE_GHOST_MAX=300;
 // تحريك أشكال بإزاحة (dx,dy) من نسخ أصلية orig: روابط الأبعاد تتحدّث مع الأشكال، والأبواب والنوافذ تلتصق بأقرب جدار
 function moveShapesBy(items,orig,dx,dy){
   items.forEach((s,n)=>mv(s,orig[n],dx,dy));
-  items.forEach((s,n)=>{const o=orig[n];if(s.t==='dim'&&s.circleId)delete s.circleId;if(s.t==='dim'&&(s.la||s.lb)){s.a=o.a.slice();s.b=o.b.slice();const L=len(o)||1;s.off=o.off+(dx*(-(o.b[1]-o.a[1]))+dy*(o.b[0]-o.a[0]))/L}});
+  items.forEach((s,n)=>{
+    const o=orig[n];
+    if(s.t==='dim'&&s.circleId)delete s.circleId;
+    if(s.t==='dim'&&(s.la||s.lb)){s.a=o.a.slice();s.b=o.b.slice();const L=len(o)||1;s.off=o.off+(dx*(-(o.b[1]-o.a[1]))+dy*(o.b[0]-o.a[0]))/L}
+  });
   items.forEach(s=>{if(s.t==='door'||s.t==='door2'||s.t==='win'){const q=wallAt([s.x,s.y],28/V.s);if(q){s.x=q.q[0];s.y=q.q[1];s.a=q.a;s.th=q.th}}});
 }
 function closeMoveFlow(){
@@ -387,7 +459,11 @@ function moveFlowPreview(w){
   const F=moveFlow;if(!F||F.stage!=='dest')return;
   let d=snapPt(w);if(!mk&&(S.ortho||S.polar))d=constrain(F.base,d);
   F.at=d;const dx=d[0]-F.base[0],dy=d[1]-F.base[1];
-  if(F.mode==='stretch'){const aff=stretchAffected(F.win);F.ghost=aff.length<=MOVE_GHOST_MAX?aff.map(s=>{const t=copy(s);stretchShape(t,F.win,dx,dy);return t}):null;return}
+  if(F.mode==='stretch'){
+    const aff=stretchAffected(F.win);
+    F.ghost=aff.length<=MOVE_GHOST_MAX?aff.map(s=>{const t=copy(s);stretchShape(t,F.win,dx,dy);return t}):null;
+    return
+  }
   F.ghost=F.items.length<=MOVE_GHOST_MAX?F.items.map(s=>{const t=copy(s);mv(t,s,dx,dy);return t}):null;
 }
 function moveFlowCommit(dx,dy){
@@ -487,7 +563,11 @@ function stretchHits(s,w){
   const t=s.t;
   if(t==='line'||t==='wall')return stIn(w,s.a)||stIn(w,s.b);
   if(t==='dim')return stIn(w,s.a)&&stIn(w,s.b);
-  if(t==='polyline'||t==='polygon'||t==='tri'||t==='free'){if(!Array.isArray(s.p))return false;for(let i=0;i<s.p.length;i++)if(stIn(w,s.p[i]))return true;return false}
+  if(t==='polyline'||t==='polygon'||t==='tri'||t==='free'){
+    if(!Array.isArray(s.p))return false;
+    for(let i=0;i<s.p.length;i++)if(stIn(w,s.p[i]))return true;
+    return false
+  }
   if(t==='rect')return rc(s).some(q=>stIn(w,q));
   if(t==='furn')return stIn(w,[s.x+s.w/2,s.y+s.h/2]);
   if(ST_ANCHOR.includes(t))return stIn(w,[s.x,s.y]);

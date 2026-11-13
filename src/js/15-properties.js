@@ -24,15 +24,39 @@ function opts(){
   sh.innerHTML=`<b>اللون</b><div class="sws">${COLS.map(c=>`<button class="sw${c?'':' auto'}${c===(first.col||'')?' on':''}" data-c="${c}" style="${c?'background:'+c:''}" aria-label="لون"></button>`).join('')}</div>`
     +`<label>الطبقة<select id="elementLayer">${LY.map(l=>`<option value="${esc(l.id)}" ${l.id===(first.ly||LY[0]?.id)?'selected':''}>${esc(l.name)}</option>`).join('')}</select></label>`
     +`<label>السُّمك<input type="range" id="lw" min="1" max="10" step=".5"><b id="lwv"></b></label>`
-    +(sel.some(i=>['rect','circle','ellipse','tri','polygon'].includes(shapes[i].t))?`<b>التعبئة</b><div class="chips" id="fk">${[['','بدون'],['solid','لون'],['tile','بلاط'],['wood','خشب'],['hatch','تهشير'],['dots','نقاط']].map(([v,l])=>`<button class="chip${(first.fk||'')===v?' on':''}" data-v="${v}">${l}</button>`).join('')}</div><div class="sws" id="fc">${COLS.map(c=>`<button class="sw${c?'':' auto'}${c===(first.fc||'')?' on':''}" data-c="${c}" style="${c?'background:'+c:''}" aria-label="لون التعبئة"></button>`).join('')}</div>`:'')
-    +F.map(x=>x[0]==='prec'?`<label>${x[1]}<select data-k="prec"><option value="0">0</option><option value="1">0.0</option><option value="2">0.00</option><option value="3">0.000</option><option value="4">0.0000</option></select></label>`:`<label>${x[1]}<input data-k="${x[0]}" ${x[0]==='name'||x[0]==='txt'?'type="text"':'dir="ltr" inputmode="decimal"'}></label>`).join('')
-    +(drawingSelection?'<div class="prop-line-types"><b>خصائص الخط</b><label>نوع الخط<select id="propLineType"><option value="">افتراضي الطبقة</option><option value="continuous">متصل</option><option value="dashed">متقطع</option><option value="dotted">منقط</option><option value="dashdot">شرطة ونقطة</option><option value="center">محوري</option><option value="hidden">مخفي</option></select></label><label><input type="checkbox" id="propDoubleLine"> خط مزدوج</label><label>المسافة بين الخطين<input id="propDoubleGap" type="number" min="0.01" step="0.01" value="${s1?.doubleLineGap??0.1}"></label></div>':'')
-    +(s1&&s1.t==='door'?'<div class="row"><button class="fl" data-f="f">قلب الفتح</button><button class="fl" data-f="h">عكس المفصلة</button></div>':s1&&s1.t==='door2'?'<button class="fl" data-f="f">قلب اتجاه الفتح</button>':'')
+    +(sel.some(i=>['rect','circle','ellipse','tri','polygon'].includes(shapes[i].t))
+      ?`<b>التعبئة</b><div class="chips" id="fk">${[['','بدون'],['solid','لون'],['tile','بلاط'],['wood','خشب'],['hatch','تهشير'],['dots','نقاط']].map(([v,l])=>`<button class="chip${(first.fk||'')===v?' on':''}" data-v="${v}">${l}</button>`).join('')}</div><div class="sws" id="fc">${COLS.map(c=>`<button class="sw${c?'':' auto'}${c===(first.fc||'')?' on':''}" data-c="${c}" style="${c?'background:'+c:''}" aria-label="لون التعبئة"></button>`).join('')}</div>`
+      :'')
+    +F.map(x=>x[0]==='prec'
+      ?`<label>${x[1]}<select data-k="prec"><option value="0">0</option><option value="1">0.0</option><option value="2">0.00</option><option value="3">0.000</option><option value="4">0.0000</option></select></label>`
+      :`<label>${x[1]}<input data-k="${x[0]}" ${x[0]==='name'||x[0]==='txt'?'type="text"':'dir="ltr" inputmode="decimal"'}></label>`).join('')
+    +(drawingSelection
+      ?'<div class="prop-line-types"><b>خصائص الخط</b><label>نوع الخط<select id="propLineType"><option value="">افتراضي الطبقة</option><option value="continuous">متصل</option><option value="dashed">متقطع</option><option value="dotted">منقط</option><option value="dashdot">شرطة ونقطة</option><option value="center">محوري</option><option value="hidden">مخفي</option></select></label><label><input type="checkbox" id="propDoubleLine"> خط مزدوج</label><label>المسافة بين الخطين<input id="propDoubleGap" type="number" min="0.01" step="0.01" value="0.1"></label></div>'
+      :'')
+    +(s1&&s1.t==='door'
+      ?'<div class="row"><button class="fl" data-f="f">قلب الفتح</button><button class="fl" data-f="h">عكس المفصلة</button></div>'
+      :s1&&s1.t==='door2'?'<button class="fl" data-f="f">قلب اتجاه الفتح</button>':'')
     +(s1&&s1.t==='rect'?'<button class="fl" id="tw">إضافة جدران حولها</button>':'')+'<button id="ok">تم</button>';
   F.forEach(x=>sh.querySelector(`[data-k="${x[0]}"]`).value=x[2]);
   $('#elementLayer').onchange=e=>{once();const id=e.target.value;sel.forEach(i=>{shapes[i].ly=id});save();draw()};
-  if(drawingSelection){const lt=$('#propLineType'),dl=$('#propDoubleLine'),dg=$('#propDoubleGap');if(s1){lt.value=s1.linetype||'';dl.checked=!!s1.doubleLine;dg.value=s1.doubleLineGap??.1}else{lt.value='';dl.checked=sel.every(i=>!!shapes[i].doubleLine)}
-   const applyLineProps=()=>{once();sel.forEach(i=>{const s=shapes[i];if(!isDrawLineShape(s))return;s.linetype=lt.value||undefined;s.doubleLine=dl.checked;const v=nu(dg.value);if(Number.isFinite(v)&&v>0)s.doubleLineGap=v});save();draw()};
+  if(drawingSelection){const lt=$('#propLineType'),dl=$('#propDoubleLine'),dg=$('#propDoubleGap');if(s1){
+    lt.value=s1.linetype||'';
+    dl.checked=!!s1.doubleLine;
+    dg.value=s1.doubleLineGap??.1
+  }else{lt.value='';dl.checked=sel.every(i=>!!shapes[i].doubleLine)}
+   const applyLineProps=()=>{
+     once();
+     sel.forEach(i=>{
+       const s=shapes[i];
+       if(!isDrawLineShape(s))return;
+       s.linetype=lt.value||undefined;
+       s.doubleLine=dl.checked;
+       const v=nu(dg.value);
+       if(Number.isFinite(v)&&v>0)s.doubleLineGap=v
+     });
+     save();
+     draw()
+   };
    lt.onchange=applyLineProps;dl.onchange=applyLineProps;dg.onchange=applyLineProps;
   }
   $('#lw').value=first.lw||2;$('#lwv').textContent=first.lw||2;
@@ -43,12 +67,44 @@ function opts(){
   $('#lw').oninput=e=>{once();const v=+e.target.value;sel.forEach(i=>{shapes[i].lw=v});D.lw=v;$('#lwv').textContent=v;save();draw()};
   sh.querySelectorAll('.fl').forEach(b=>b.onclick=()=>{once();s1[b.dataset.f]*=-1;save();draw()});
   const isC=s=>['rect','circle','ellipse','tri','polygon'].includes(s.t);
-  sh.querySelectorAll('#fk .chip').forEach(b=>{b.onclick=()=>{once();const v=b.dataset.v||undefined;sel.forEach(i=>{if(isC(shapes[i]))shapes[i].fk=v});sh.querySelectorAll('#fk .chip').forEach(x=>x.classList.toggle('on',x===b));save();draw()}});
-  sh.querySelectorAll('#fc .sw').forEach(b=>{b.onclick=()=>{once();const c=b.dataset.c||undefined;sel.forEach(i=>{if(isC(shapes[i]))shapes[i].fc=c});sh.querySelectorAll('#fc .sw').forEach(x=>x.classList.toggle('on',x===b));save();draw()}});
-  const tw=$('#tw');if(tw)tw.onclick=()=>{once();const k=rc(s1);k.forEach((q,j)=>shapes.push({t:'wall',a:q,b:k[(j+1)%4],th:D.th||.2,ly:s1.ly,col:s1.col}));sel=[];sh.classList.remove('on');save();upd();draw()};
+  sh.querySelectorAll('#fk .chip').forEach(b=>{
+    b.onclick=()=>{
+      once();
+      const v=b.dataset.v||undefined;
+      sel.forEach(i=>{if(isC(shapes[i]))shapes[i].fk=v});
+      sh.querySelectorAll('#fk .chip').forEach(x=>x.classList.toggle('on',x===b));
+      save();
+      draw()
+    }
+  });
+  sh.querySelectorAll('#fc .sw').forEach(b=>{
+    b.onclick=()=>{
+      once();
+      const c=b.dataset.c||undefined;
+      sel.forEach(i=>{if(isC(shapes[i]))shapes[i].fc=c});
+      sh.querySelectorAll('#fc .sw').forEach(x=>x.classList.toggle('on',x===b));
+      save();
+      draw()
+    }
+  });
+  const tw=$('#tw');
+  if(tw)tw.onclick=()=>{
+    once();
+    const k=rc(s1);
+    k.forEach((q,j)=>shapes.push({t:'wall',a:q,b:k[(j+1)%4],th:D.th||.2,ly:s1.ly,col:s1.col}));
+    sel=[];
+    sh.classList.remove('on');
+    save();
+    upd();
+    draw()
+  };
   $('#ok').onclick=()=>{
     if(s1&&F.length){
-      once();const v=k=>{const el=sh.querySelector(`[data-k="${k}"]`);return el?Math.abs(k==='th'?num(el.value):nu(el.value)):0},nm=sh.querySelector('[data-k="name"]');
+      once();
+      const v=k=>{
+        const el=sh.querySelector(`[data-k="${k}"]`);
+        return el?Math.abs(k==='th'?num(el.value):nu(el.value)):0
+      },nm=sh.querySelector('[data-k="name"]');
       if(nm)s1.name=nm.value.trim()||undefined;
       if(s1.t==='text'){
         const tx=sh.querySelector('[data-k="txt"]');
@@ -77,7 +133,11 @@ function dynSpec(s){
   if(s.t==='rect')return [['w','العرض',fu(s.w)],['h','الارتفاع',fu(s.h)],['ang','الزاوية °',f(deg(s.rot||0))]];
   if(s.t==='circle')return [['r','نصف القطر',fu(s.r)]];
   if(s.t==='dim'&&s.mode==='angular')return [];
-  if(s.t==='line'||s.t==='wall'||s.t==='dim')return [['L','الطول',fu(len(s))],['ang','الزاوية °',f(dynAngle(s.b[0]-s.a[0],s.b[1]-s.a[1]))],...(s.t==='wall'?[['th','السماكة',fu(s.th)]]:[])];
+  if(s.t==='line'||s.t==='wall'||s.t==='dim')return [
+    ['L','الطول',fu(len(s))],
+    ['ang','الزاوية °',f(dynAngle(s.b[0]-s.a[0],s.b[1]-s.a[1]))],
+    ...(s.t==='wall'?[['th','السماكة',fu(s.th)]]:[])
+  ];
   if(s.t==='arc')return [['r','نصف القطر',fu(s.r)],['a0','زاوية البداية °',f(deg(s.a0||0))],['a1','زاوية النهاية °',f(deg(s.a1||0))]];
   if(s.t==='ellipse')return [['rx','نصف المحور X',fu(s.rx)],['ry','نصف المحور Y',fu(s.ry)],['ang','زاوية الدوران °',f(deg(s.rot||0))]];
   if(s.t==='tri')return [['w','العرض',fu(b.X-b.x)],['h','الارتفاع',fu(b.Y-b.y)]];
@@ -90,7 +150,12 @@ function dynSpec(s){
     const a=p[n-2],z=p[n-1];return [['L','طول آخر مقطع',fu(Math.hypot(z[0]-a[0],z[1]-a[1]))],['ang','زاوية آخر مقطع °',f(dynAngle(z[0]-a[0],z[1]-a[1]))]];
   }
   if(s.t==='furn')return [['w','العرض',fu(s.w)],['h','الطول',fu(s.h)],['ang','زاوية الدوران °',f(deg(s.rot||0))]];
-  if(s.t==='door2')return [['w1','عرض الجهة الأولى',fu(s.w1)],['w2','عرض الجهة الثانية',fu(s.w2)],['ang','زاوية العنصر °',f(deg(s.a||0))],['oa','زاوية الفتح °',f(s.oa===undefined?90:s.oa)]];
+  if(s.t==='door2')return [
+    ['w1','عرض الجهة الأولى',fu(s.w1)],
+    ['w2','عرض الجهة الثانية',fu(s.w2)],
+    ['ang','زاوية العنصر °',f(deg(s.a||0))],
+    ['oa','زاوية الفتح °',f(s.oa===undefined?90:s.oa)]
+  ];
   if(s.t==='door')return [['w','العرض',fu(s.w)],['ang','زاوية العنصر °',f(deg(s.a||0))],['oa','زاوية الفتح °',f(s.oa===undefined?90:s.oa)]];
   if(s.t==='win')return [['w','العرض',fu(s.w)],['ang','زاوية العنصر °',f(deg(s.a||0))]];
   if(s.t==='text'||s.t==='north')return [['h','الحجم',fu(s.h)],['ang','زاوية الدوران °',f(deg(s.a||0))]];
@@ -107,10 +172,19 @@ function applyGeometryValues(s,get){
   }else if(s.t==='circle'){const r=nu(get('r'));if(r>0)s.r=r}
   else if(s.t==='dim'&&(s.mode==='radius'||s.mode==='diameter')){
     const L=nu(get('L')),a=angle('ang'),oldL=len(s)||1,l=L>0?L:oldL,ang=a===null?Math.atan2(-(s.b[1]-s.a[1]),s.b[0]-s.a[0]):a;
-    if(L>0||a!==null){if(s.mode==='radius'){s.b=[s.a[0]+l*Math.cos(ang),s.a[1]-l*Math.sin(ang)]}else{const cx=(s.a[0]+s.b[0])/2,cy=(s.a[1]+s.b[1])/2,dx=Math.cos(ang)*l/2,dy=-Math.sin(ang)*l/2;s.a=[cx-dx,cy-dy];s.b=[cx+dx,cy+dy]}delete s.circleId}
+    if(L>0||a!==null){
+      if(s.mode==='radius'){
+        s.b=[s.a[0]+l*Math.cos(ang),s.a[1]-l*Math.sin(ang)]
+      }else{const cx=(s.a[0]+s.b[0])/2,cy=(s.a[1]+s.b[1])/2,dx=Math.cos(ang)*l/2,dy=-Math.sin(ang)*l/2;s.a=[cx-dx,cy-dy];s.b=[cx+dx,cy+dy]}
+      delete s.circleId
+    }
   }else if(s.t==='line'||s.t==='wall'||s.t==='dim'){
     const L=nu(get('L')),a=angle('ang'),d=len(s)||1;
-    if(L>0||a!==null){const q=a===null?Math.atan2(-(s.b[1]-s.a[1]),s.b[0]-s.a[0]):a,l=L>0?L:d;s.b=[s.a[0]+l*Math.cos(q),s.a[1]-l*Math.sin(q)];if(s.t==='dim'){s.lb=undefined}}
+    if(L>0||a!==null){
+      const q=a===null?Math.atan2(-(s.b[1]-s.a[1]),s.b[0]-s.a[0]):a,l=L>0?L:d;
+      s.b=[s.a[0]+l*Math.cos(q),s.a[1]-l*Math.sin(q)];
+      if(s.t==='dim'){s.lb=undefined}
+    }
     if(s.t==='wall'){const th=nu(get('th'));if(th>0)s.th=th}
   }else if(s.t==='arc'){
     const r=nu(get('r')),a0=angle('a0'),a1=angle('a1');if(r>0)s.r=r;if(a0!==null)s.a0=a0;if(a1!==null)s.a1=a1;while(s.a1<=s.a0)s.a1+=Math.PI*2;
@@ -121,14 +195,31 @@ function applyGeometryValues(s,get){
     s.p=old.p.map(q=>[b.x+(q[0]-b.x)*(w>0?w/w0:1),b.y+(q[1]-b.y)*(h>0?h/h0:1)]);
   }else if(s.t==='polygon'){
     const p=old.p||[],n0=p.length,c=p.reduce((z,q)=>[z[0]+q[0]/n0,z[1]+q[1]/n0],[0,0]),r=nu(get('r')),sides=Math.round(v('sides')),a=angle('ang');
-    const radius=r>0?r:(n0?Math.hypot(p[0][0]-c[0],p[0][1]-c[1]):1),count=Number.isFinite(sides)?clamp(sides,3,32):n0,ang=a===null?(n0?Math.atan2(p[0][1]-c[1],p[0][0]-c[0]):0):-a;
+    const radius=r>0?r:(n0?Math.hypot(p[0][0]-c[0],p[0][1]-c[1]):1),
+      count=Number.isFinite(sides)?clamp(sides,3,32):n0,
+      ang=a===null?(n0?Math.atan2(p[0][1]-c[1],p[0][0]-c[0]):0):-a;
     s.p=Array.from({length:count},(_,i)=>[c[0]+radius*Math.cos(ang+i*2*Math.PI/count),c[1]+radius*Math.sin(ang+i*2*Math.PI/count)]);
   }else if(s.t==='polyline'||s.t==='free'){
-    const p=s.p||[],n=p.length;if(n>=2){const a=p[n-2],z=p[n-1],oldL=Math.hypot(z[0]-a[0],z[1]-a[1])||1,L=nu(get('L')),ang=angle('ang'),q=ang===null?Math.atan2(-(z[1]-a[1]),z[0]-a[0]):ang,l=L>0?L:oldL;p[n-1]=[a[0]+l*Math.cos(q),a[1]-l*Math.sin(q)]}
+    const p=s.p||[],n=p.length;
+    if(n>=2){
+      const a=p[n-2],
+        z=p[n-1],
+        oldL=Math.hypot(z[0]-a[0],z[1]-a[1])||1,
+        L=nu(get('L')),
+        ang=angle('ang'),
+        q=ang===null?Math.atan2(-(z[1]-a[1]),z[0]-a[0]):ang,
+        l=L>0?L:oldL;
+      p[n-1]=[a[0]+l*Math.cos(q),a[1]-l*Math.sin(q)]
+    }
   }else if(s.t==='furn'){
     const cx=s.x+s.w/2,cy=s.y+s.h/2,w=nu(get('w')),h=nu(get('h')),a=angle('ang');if(w>0){s.w=w;s.x=cx-w/2}if(h>0){s.h=h;s.y=cy-h/2}if(a!==null)s.rot=a;
   }else if(s.t==='door2'){
-    const w1=nu(get('w1')),w2=nu(get('w2')),a=angle('ang'),oa=v('oa');if(w1>0)s.w1=w1;if(w2>0)s.w2=w2;s.w=s.w1+s.w2;if(a!==null)s.a=a;if(Number.isFinite(oa))s.oa=clamp(oa,0,180);
+    const w1=nu(get('w1')),w2=nu(get('w2')),a=angle('ang'),oa=v('oa');
+    if(w1>0)s.w1=w1;
+    if(w2>0)s.w2=w2;
+    s.w=s.w1+s.w2;
+    if(a!==null)s.a=a;
+    if(Number.isFinite(oa))s.oa=clamp(oa,0,180);
   }else if(s.t==='door'||s.t==='win'){
     const w=nu(get('w')),a=angle('ang');if(w>0)s.w=w;if(a!==null)s.a=a;if(s.t==='door'){const oa=v('oa');if(Number.isFinite(oa))s.oa=clamp(oa,0,180)}
   }else if(s.t==='text'||s.t==='north'){

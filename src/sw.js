@@ -31,6 +31,7 @@ const CORE=[
   'js/16-edit-tools.js',
   'js/17-dxf.js',
   'js/18-print.js',
+  'js/18a-pdf.js',
   'js/19-areas.js',
   'js/20-keyboard.js',
   'js/21-settings.js',

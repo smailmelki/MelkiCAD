@@ -17,7 +17,19 @@ const MIN_VIEW_SCALE=48/5001;
 // أدوات تعمل باللمس على الأشكال لا على نقاط التقاط: لا مؤشر التقاط معها (النقل/النسخ بنقطة أساس تحتاجه)
 const snapIdle=()=>(tool==='select'&&!moveFlow)||tool==='pan'||tool==='trim'||tool==='extend'||tool==='fillet'||tool==='chamfer';
 
-function finishPolyline(){if(polyDraft&&polyDraft.p.length>=2&&valid(polyDraft)){snap();shapes.push(polyDraft);sel=[shapes.length-1];if(shapes.length===1&&W<=700)fitView([shapes[0]]);polyDraft=null;$('#polybar').style.display='none';save();upd();draw();}else{polyDraft=null;$('#polybar').style.display='none';draw()}}
+function finishPolyline(){
+  if(polyDraft&&polyDraft.p.length>=2&&valid(polyDraft)){
+    snap();
+    shapes.push(polyDraft);
+    sel=[shapes.length-1];
+    if(shapes.length===1&&W<=700)fitView([shapes[0]]);
+    polyDraft=null;
+    $('#polybar').style.display='none';
+    save();
+    upd();
+    draw();
+  }else{polyDraft=null;$('#polybar').style.display='none';draw()}
+}
 
 $('#polyfinish').onclick=finishPolyline;$('#polycancel').onclick=()=>{polyDraft=null;$('#polybar').style.display='none';draw()};
 
@@ -49,13 +61,20 @@ cv.addEventListener('pointerdown',e=>{
   // فلا تُثبَّت نقطة بالخطأ عند بدء تكبير بإصبعين.
   if(moveFlow){
     if(tool!=='select'){closeMoveFlow();draw()}
-    else{g={k:'mvflow',sp:p,w:cpos.slice(),from:moveFlow.stage};if(moveFlow.stage==='dest')moveFlowPreview(cpos);else mk=moveFlow.stage==='window'?null:osnap(cpos);draw();return}
+    else{
+      g={k:'mvflow',sp:p,w:cpos.slice(),from:moveFlow.stage};
+      if(moveFlow.stage==='dest')moveFlowPreview(cpos);else mk=moveFlow.stage==='window'?null:osnap(cpos);
+      draw();
+      return
+    }
   }
 
   // عند تفعيل الموازاة، تكون النقرة الأولى لاختيار الخط المرجعي.
   if((S.parallel||S.perpendicular)&&!parallelRef&&(!drawFlow||(drawFlow.stage==='first'&&drawFlow.points.length===0))){
     parallelRef=pickParallelReference(s2w(...p));
-    toast(parallelRef?(S.perpendicular?'تم تحديد الخط المرجعي للتعامد':'تم تحديد الخط المرجعي للموازاة'):'لم يتم العثور على خط قريب؛ المس خطًا أو ضلعًا واضحًا');
+    toast(parallelRef?(S.perpendicular
+      ?'تم تحديد الخط المرجعي للتعامد'
+      :'تم تحديد الخط المرجعي للموازاة'):'لم يتم العثور على خط قريب؛ المس خطًا أو ضلعًا واضحًا');
     g=null;draw();return;
   }
   // أول لمسة في الرسم الموجَّه: السحب يرسم الشكل مباشرة كالرسم العادي، واللمسة القصيرة تثبّت النقطة الأولى (يُحسم عند الرفع في endPtr).
@@ -65,8 +84,36 @@ cv.addEventListener('pointerdown',e=>{
     cur=free?{t:'free',p:[a],ly:cl,col:D.col||undefined,lw:D.lw}:null;
     upd();draw();return;
   }
-  if(drawFlow){const guideTool=['line','wall','polyline','dim'].includes(drawFlow.tool),guideOrigin=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];addDrawPoint(cpos,false);if(drawFlow&&['second','next'].includes(drawFlow.stage)&&(S.parallel||S.perpendicular)&&parallelRef&&guideTool&&guideOrigin){parallelGuide={origin:guideOrigin.slice(),target:cpos.slice()}}draw();return}$('#sheet').classList.remove('on');$('#smenu').classList.remove('on');$$('.gm').forEach(m=>m.classList.remove('on'));
-  if(tool==='polyline'){const q=snapPt(s2w(...p));if(!polyDraft){polyDraft={t:'polyline',p:[q],ly:cl,col:D.col||undefined,lw:D.lw};toast('أضف الرؤوس، ثم اضغط إنهاء POLYLINE')}else{let q=snapPt(s2w(...p));const first=polyDraft.p[0];if(polyDraft.p.length>=3&&Math.hypot((q[0]-first[0])*V.s,(q[1]-first[1])*V.s)<14){polyDraft.t='polygon';finishPolyline();return}const last=polyDraft.p[polyDraft.p.length-1];if(!mk&&(S.ortho||(S.parallel||S.perpendicular)&&parallelRef))q=constrain(last,q);if(Math.hypot(q[0]-last[0],q[1]-last[1])>.01)polyDraft.p.push(q)}$('#polybar').style.display='flex';mk=null;draw();return}
+  if(drawFlow){
+    const guideTool=['line','wall','polyline','dim'].includes(drawFlow.tool),guideOrigin=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];
+    addDrawPoint(cpos,false);
+    if(drawFlow&&['second','next'].includes(drawFlow.stage)&&(S.parallel||S.perpendicular)&&parallelRef&&guideTool&&guideOrigin){
+      parallelGuide={origin:guideOrigin.slice(),target:cpos.slice()}
+    }
+    draw();
+    return
+  }
+  $('#sheet').classList.remove('on');
+  $('#smenu').classList.remove('on');
+  $$('.gm').forEach(m=>m.classList.remove('on'));
+  if(tool==='polyline'){
+    const q=snapPt(s2w(...p));
+    if(!polyDraft){
+      polyDraft={t:'polyline',p:[q],ly:cl,col:D.col||undefined,lw:D.lw};
+      toast('أضف الرؤوس، ثم اضغط إنهاء POLYLINE')
+    }else{
+      let q=snapPt(s2w(...p));
+      const first=polyDraft.p[0];
+      if(polyDraft.p.length>=3&&Math.hypot((q[0]-first[0])*V.s,(q[1]-first[1])*V.s)<14){polyDraft.t='polygon';finishPolyline();return}
+      const last=polyDraft.p[polyDraft.p.length-1];
+      if(!mk&&(S.ortho||(S.parallel||S.perpendicular)&&parallelRef))q=constrain(last,q);
+      if(Math.hypot(q[0]-last[0],q[1]-last[1])>.01)polyDraft.p.push(q)
+    }
+    $('#polybar').style.display='flex';
+    mk=null;
+    draw();
+    return
+  }
   if(tool==='pan')g={k:'pan',px:p[0],py:p[1],vx:V.x,vy:V.y};
   else if(tool==='select'){
     const gr=gripAt(p);
@@ -99,7 +146,24 @@ cv.addEventListener('pointerdown',e=>{
     return;
   }else if(tool==='door'||tool==='door2'||tool==='win'){
     const w=wallAt(s2w(...p),28/V.s);sel=[];
-    if(w){const double=tool==='door2',w1=.75,w2=.75,s={t:tool,x:w.q[0],y:w.q[1],a:w.a,th:w.th,w:double?w1+w2:tool==='door'?.9:1.2,w1:double?w1:undefined,w2:double?w2:undefined,f:1,h:1,ly:cl,col:D.col||undefined,lw:D.lw};
+    if(w){const double=tool==='door2',
+      w1=.75,
+      w2=.75,
+      s={
+        t:tool,
+        x:w.q[0],
+        y:w.q[1],
+        a:w.a,
+        th:w.th,
+        w:double?w1+w2:tool==='door'?.9:1.2,
+        w1:double?w1:undefined,
+        w2:double?w2:undefined,
+        f:1,
+        h:1,
+        ly:cl,
+        col:D.col||undefined,
+        lw:D.lw
+      };
       snap();shapes.push(s);sel=[shapes.length-1];g={k:'move',w0:s2w(...p),o:[copy(s)],moved:1}}
   }else{
     sel=[];const a=tool==='free'?s2w(...p):snapPt(s2w(...p));if(tool==='free')mk=null;
@@ -123,7 +187,13 @@ cv.addEventListener('pointermove',e=>{
   if(g.k==='mvflow'&&moveFlow){
     if(moveFlow.stage==='window'&&g.from==='window'){stretchWindowDrag(g.w,cpos);redraw();return}
     if(moveFlow.stage==='base'&&g.from==='base'){
-      if(Math.hypot(p[0]-g.sp[0],p[1]-g.sp[1])>=FLOW_TAP_PX){moveFlow.base=snapPt(g.w);moveFlow.at=moveFlow.base;moveFlow.stage='dest';moveFlowPanel();moveFlowPreview(cpos)}
+      if(Math.hypot(p[0]-g.sp[0],p[1]-g.sp[1])>=FLOW_TAP_PX){
+        moveFlow.base=snapPt(g.w);
+        moveFlow.at=moveFlow.base;
+        moveFlow.stage='dest';
+        moveFlowPanel();
+        moveFlowPreview(cpos)
+      }
       else mk=osnap(cpos);
     }else moveFlowPreview(cpos);
     redraw();return;
@@ -147,20 +217,52 @@ cv.addEventListener('pointermove',e=>{
     if(g.gr.ins!==undefined&&!g.ins)gripInsert(g,s);   // سحب مقبض منتصف ضلع: أضف رأسًا جديدًا عند أول حركة (بعد لقطة التراجع) ثم اسحبه
     const o=g.o,id=g.gr.id;
     if(s.t==='dim'){
-      if(id==='o'){if(s.mode==='angular')s.off=Math.max(.1,Math.hypot(q[0]-s.c[0],q[1]-s.c[1]));else{const L=len(s)||1,nx=-(s.b[1]-s.a[1])/L,ny=(s.b[0]-s.a[0])/L;s.off=(q[0]-s.a[0])*nx+(q[1]-s.a[1])*ny}}
+      if(id==='o'){
+        if(s.mode==='angular')s.off=Math.max(.1,Math.hypot(q[0]-s.c[0],q[1]-s.c[1]));else{
+          const L=len(s)||1,nx=-(s.b[1]-s.a[1])/L,ny=(s.b[0]-s.a[0])/L;
+          s.off=(q[0]-s.a[0])*nx+(q[1]-s.a[1])*ny
+        }
+      }
       else if(id==='c'){s.c=q}
-      else{s[id]=q;if(s.circleId)delete s.circleId;const L2=mk&&mk.ref&&mk.ref.s!==s?{id:sid(mk.ref.s),i:mk.ref.i,m:mk.ref.m||0}:undefined;if(id==='a')s.la=L2;else if(id==='b')s.lb=L2}
+      else{
+        s[id]=q;
+        if(s.circleId)delete s.circleId;
+        const L2=mk&&mk.ref&&mk.ref.s!==s?{id:sid(mk.ref.s),i:mk.ref.i,m:mk.ref.m||0}:undefined;
+        if(id==='a')s.la=L2;else if(id==='b')s.lb=L2
+      }
     }else if(s.t==='line'||s.t==='wall'){const oth=s[id==='a'?'b':'a'];s[id]=mk?q:constrain(oth,q)}
     else if(s.t==='tri')s.p=o.p.map((r,i)=>i===id?q:r);
     else if(s.t==='polyline'||s.t==='polygon')s.p=o.p.map((r,i)=>i===id?q:r);
     else if(s.t==='arc')arcGripDrag(s,o,id,q);
     else if(s.t==='circle')s.r=Math.max(.05,Math.hypot(q[0]-s.x,q[1]-s.y));
-    else if(s.t==='rect'||s.t==='furn'){const opp=rc(o)[(id+2)%4],rt=-(o.rot||0),c=Math.cos(rt),n=Math.sin(rt),dx=q[0]-opp[0],dy=q[1]-opp[1],w=Math.max(.05,Math.abs(dx*c-dy*n)),h=Math.max(.05,Math.abs(dx*n+dy*c));s.w=w;s.h=h;s.x=(q[0]+opp[0])/2-w/2;s.y=(q[1]+opp[1])/2-h/2;if(o.cornerBase)resizeCornerGeometry(s,o)}
+    else if(s.t==='rect'||s.t==='furn'){
+      const opp=rc(o)[(id+2)%4],
+        rt=-(o.rot||0),
+        c=Math.cos(rt),
+        n=Math.sin(rt),
+        dx=q[0]-opp[0],
+        dy=q[1]-opp[1],
+        w=Math.max(.05,Math.abs(dx*c-dy*n)),
+        h=Math.max(.05,Math.abs(dx*n+dy*c));
+      s.w=w;
+      s.h=h;
+      s.x=(q[0]+opp[0])/2-w/2;
+      s.y=(q[1]+opp[1])/2-h/2;
+      if(o.cornerBase)resizeCornerGeometry(s,o)
+    }
   }else if(g.k==='box'){if(Math.hypot(p[0]-g.a[0],p[1]-g.a[1])>6){box={x0:g.a[0],y0:g.a[1],x1:p[0],y1:p[1]};sel=boxSel()}}
   else if(g.k==='draw'){
-    let b=tool==='free'?s2w(...p):snapPt(s2w(...p));if(tool==='dim'&&dimMode==='horizontal')b[1]=g.a[1];if(tool==='dim'&&dimMode==='vertical')b[0]=g.a[0];if(!mk&&(tool==='line'||tool==='wall'||tool==='dim'))b=constrain(g.a,b);
+    let b=tool==='free'?s2w(...p):snapPt(s2w(...p));
+    if(tool==='dim'&&dimMode==='horizontal')b[1]=g.a[1];
+    if(tool==='dim'&&dimMode==='vertical')b[0]=g.a[0];
+    if(!mk&&(tool==='line'||tool==='wall'||tool==='dim'))b=constrain(g.a,b);
     if(tool==='free'){if(cur){const l=cur.p[cur.p.length-1];if(Math.hypot(b[0]-l[0],b[1]-l[1])*V.s>=4)cur.p.push(b)}}
-    else{if(!mk&&(tool==='line'||tool==='wall'||tool==='dim')&&(S.ortho||(S.parallel||S.perpendicular)&&parallelRef))b=constrain(g.a,b);parallelGuide=(S.parallel||S.perpendicular)&&parallelRef&&['line','wall','dim'].includes(tool)?{origin:g.a.slice(),target:b.slice()}:null;cur=build(g.a,b);if(tool==='dim'){cur.la=g.la||undefined;cur.lb=(mk&&mk.ref)||undefined}}
+    else{
+      if(!mk&&(tool==='line'||tool==='wall'||tool==='dim')&&(S.ortho||(S.parallel||S.perpendicular)&&parallelRef))b=constrain(g.a,b);
+      parallelGuide=(S.parallel||S.perpendicular)&&parallelRef&&['line','wall','dim'].includes(tool)?{origin:g.a.slice(),target:b.slice()}:null;
+      cur=build(g.a,b);
+      if(tool==='dim'){cur.la=g.la||undefined;cur.lb=(mk&&mk.ref)||undefined}
+    }
   }
   redraw();
 });
@@ -176,7 +278,15 @@ function endPtr(e){
   const ep=pos(e),flowTapUp=!!g&&g.k==='draw'&&!!g.flow&&e.type==='pointerup'&&Math.hypot(ep[0]-g.sp[0],ep[1]-g.sp[1])<FLOW_TAP_PX;
   let flowDone=false;
   if(g&&e.type==='pointerup'){
-    if(g.k==='draw'&&!flowTapUp&&cur&&valid(cur)){dirty=true;flowDone=!!g.flow;hist.push(g.before);if(cur.t==='dim')linkDim(cur);shapes.push(cur);sel=[shapes.length-1];if(shapes.length===1&&W<=700)fitView([cur]);}
+    if(g.k==='draw'&&!flowTapUp&&cur&&valid(cur)){
+      dirty=true;
+      flowDone=!!g.flow;
+      hist.push(g.before);
+      if(cur.t==='dim')linkDim(cur);
+      shapes.push(cur);
+      sel=[shapes.length-1];
+      if(shapes.length===1&&W<=700)fitView([cur]);
+    }
     else if(g.k==='box'&&box){
       sel=boxSel();
     }

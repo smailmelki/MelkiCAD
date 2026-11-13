@@ -18,7 +18,15 @@ let PJ=[],pid='',LY=[],cl='';const uid=()=>Math.random().toString(36).slice(2,9)
 let saveTimer=0;
 // قبل جاهزية التخزين (Store.init) لا نكتب شيئًا كي لا نطمس المشاريع المحفوظة بحالة فارغة.
 // العرض (V) في سجل صغير مستقل 'v:<id>': تحريك اللوحة وتكبيرها لا يعيد تسلسل المشروع كله ولا يكتب ميغابايتات إلى IndexedDB.
-const save=()=>{clearTimeout(saveTimer);saveTimer=0;if(!Store.ready)return;kvSet('p:'+pid,{shapes,LY,cl});kvSet('v:'+pid,V);kvSet('set',{S,D,ST});kvSet('idx',{PJ,pid})};
+const save=()=>{
+  clearTimeout(saveTimer);
+  saveTimer=0;
+  if(!Store.ready)return;
+  kvSet('p:'+pid,{shapes,LY,cl});
+  kvSet('v:'+pid,V);
+  kvSet('set',{S,D,ST});
+  kvSet('idx',{PJ,pid})
+};
 const saveView=()=>{saveTimer=0;if(!Store.ready)return;kvSet('v:'+pid,V)};
 const saveSoon=()=>{clearTimeout(saveTimer);saveTimer=setTimeout(saveView,400)};
 // عند إخفاء الصفحة أو إغلاقها: احفظ أي تغيير عرض مؤجَّل ثم ابدأ كتابة IndexedDB فورًا
