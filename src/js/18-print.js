@@ -10,7 +10,7 @@ const printOffice=()=>ST.office||(ST.office={name:'',phone:'',email:'',address:'
 const printMeta=()=>{const p=printProject();return p.print||(p.print={type:'',location:'',owner:'',landArea:'',buildingArea:'',drawing:'مسقط أفقي',designer:''})};
 
 function sheetLayout(o){
-  let vis=shapes.filter(s=>shown(s)&&(!o.showDims||s.t==='dim'||s.t!=='dim')&&(!o.showText||s.t!=='text'||s.t==='text'));
+  let vis=shapes.filter(s=>shown(s)&&(o.showDims||s.t!=='dim')&&(o.showText||s.t!=='text'));
   if(!o.showDims)vis=vis.filter(s=>s.t!=='dim');
   if(!o.showText)vis=vis.filter(s=>s.t!=='text');
   if(!vis.length)return null;
@@ -26,7 +26,7 @@ function printText(g,text,x,y,size,opts={}){
   const {align='right',color='#172b3b',weight=400,dir='rtl',max=0}=opts;
   g.save();g.direction=dir;g.textAlign=align;g.textBaseline='middle';
   g.font=`${weight} ${size}px ${FONT}`;g.fillStyle=color;
-  g.fillText(String(text??'—'),x,y,max||undefined);g.restore();
+  if(max)g.fillText(String(text??'—'),x,y,max);else g.fillText(String(text??'—'),x,y);g.restore();
 }
 
 function drawTitleBlock(g,L,mm,tx,ty,tw,th){
@@ -71,7 +71,6 @@ function renderSheet(o){
     g2.save();g2.beginPath();g2.rect(axp,ayp,awp,ahp);g2.clip();g2.setTransform(k,0,0,k,0,0);g2.direction='ltr';
     const c={bg:'#fff',grid:'#e5eaf0',major:'#cbd5df',ln:'#172b3b',ac:'#a66a24',dim:'#425466'};
     if(o.grid){g2.beginPath();for(let x=Math.floor(L.x0);x<=L.x0+L.bw+1;x++){const p=w2s(x,0)[0];g2.moveTo(p,0);g2.lineTo(p,Hp/k)}for(let y=Math.floor(L.y0);y<=L.y0+L.bh+1;y++){const p=w2s(0,y)[1];g2.moveTo(0,p);g2.lineTo(Wp/k,p)}g2.strokeStyle=c.major;g2.lineWidth=.55;g2.stroke()}
-    shapes.forEach(s=>{if(!shown(s))return;if(!o.showDims&&s.t==='dim')return;if(!o.showText&&s.t==='text')return;});
     for(const pass of[0,1])shapes.forEach(s=>{if(!shown(s)||(!o.showDims&&s.t==='dim')||(!o.showText&&s.t==='text'))return;if((['door','door2','win'].includes(s.t))===!!pass)drawShape(s,false,false,c)});
     g2.restore();
     // إطار مزدوج وهوامش
