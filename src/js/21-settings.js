@@ -1,11 +1,36 @@
 /* ==================================================================
  * 21-settings.js
- * الإعدادات: الوحدات، حجم الشبكة، خيارات الإظهار، والاستيراد والتصدير.
+ * الإعدادات: الوحدات، حجم الشبكة، خيارات الإظهار، والاستيراد والتصدير، وبيانات المكتب (تظهر في جدول عنوان الطباعة).
  *
- * يعرّف: settingsSheet
+ * يعرّف: CO_KEYS، CO_KIND، coGet، coSet، officeSheet، settingsSheet
  * يعتمد على: 01-core.js، 05-persistence.js، 08-project-io.js، 09-render.js،
  *            20-keyboard.js، 22-toolbar.js
  * ================================================================== */
+
+// بيانات المكتب: عامة لكل المشاريع، تُحفظ في الإعدادات (السجل 'co') وتُستعمل في جدول عنوان الورقة المطبوعة (18-print.js)
+const CO_KEYS=['kind','name','phone','email','addr'],CO_KIND='المكتب الاستشاري / الهندسي';
+function coGet(){
+  const r=kvGet('co'),o={kind:CO_KIND,name:'',phone:'',email:'',addr:''};
+  if(r&&typeof r==='object')for(const k of CO_KEYS)if(typeof r[k]==='string')o[k]=r[k].slice(0,200);
+  return o;
+}
+function coSet(patch){
+  const o=coGet();
+  if(patch&&typeof patch==='object')for(const k of CO_KEYS)if(patch[k]!==undefined&&patch[k]!==null)o[k]=String(patch[k]).slice(0,200);
+  kvSet('co',o);return o;
+}
+
+// back: دالة تُستدعى عند «رجوع» (مثل لوحة الطباعة)؛ بدونها يُغلق اللوح
+function officeSheet(back){
+  const sh=$('#sheet'),c=coGet();
+  const fld=(k,l,t)=>`<label>${l}<input data-k="${k}" type="${t||'text'}"${t==='tel'||t==='email'?' dir="ltr"':''} autocomplete="off"></label>`;
+  sh.innerHTML='<b>بيانات المكتب</b><div class="hint">تُحفظ في إعدادات التطبيق وتظهر في جدول العنوان لكل لوحة تطبعها، من أي مشروع.</div>'
+    +fld('kind','صفة المكتب (عنوان الخانة)')+fld('name','اسم المكتب')+fld('phone','الهاتف','tel')+fld('email','البريد الإلكتروني','email')+fld('addr','العنوان')
+    +`<button id="ok">${back?'رجوع':'تم'}</button>`;
+  sh.querySelectorAll('input[data-k]').forEach(i=>{i.value=c[i.dataset.k]||'';i.oninput=()=>{coSet({[i.dataset.k]:i.value})}});
+  $('#ok').onclick=()=>{if(back)back();else{sh.classList.remove('on');upd()}};
+  sh.classList.add('on');$('#ctx').style.display='none';
+}
 
 function settingsSheet(){
   const sh=$('#sheet');
@@ -20,6 +45,7 @@ function settingsSheet(){
     ].map(([k,l])=>`<button class="chip${ST[k]?' on':''}" data-k2="${k}">${l}</button>`).join('')+'</div>'
     +'<b>خصائص العرض</b><div class="chips"><button class="chip" id="showDims">إظهار الأبعاد</button><button class="chip" id="showAreas">إظهار المساحات</button></div>'
     +'<b>استيراد وتصدير</b><div class="chips"><button class="chip" id="pimport">استيراد مشروع / DXF</button><button class="chip" id="pexport">تصدير مشروع / DXF</button></div>'
+    +'<b>بيانات المكتب (للطباعة)</b><div class="chips"><button class="chip" id="poffice">تعديل بيانات المكتب</button></div>'
     +'<b>التخزين</b><div class="hint" id="stinfo">…</div>'
     +'<b>مساعدة</b><div class="chips"><button class="chip" id="pkeys">اختصارات لوحة المفاتيح</button></div>'
     +'<button id="ok">تم</button>';
@@ -31,7 +57,7 @@ function settingsSheet(){
   $('#showDims').onclick=()=>{ST.showDims=ST.showDims?0:1;save();syncView();draw()};
   $('#showAreas').onclick=()=>{ST.showAreas=ST.showAreas?0:1;save();syncView();draw()};
   syncView();
-  $('#pimport').onclick=importChoice;$('#pexport').onclick=exportChoice;$('#pkeys').onclick=keysSheet;
+  $('#poffice').onclick=()=>officeSheet(settingsSheet);$('#pimport').onclick=importChoice;$('#pexport').onclick=exportChoice;$('#pkeys').onclick=keysSheet;
   Store.describe().then(t=>{const el=$('#stinfo');if(el)el.textContent=t});
   sh.querySelectorAll('#ct .chip').forEach(b=>{b.onclick=()=>{const k=b.dataset.k2;ST[k]=ST[k]?0:1;b.classList.toggle('on',!!ST[k]);save();draw()}});
   $('#ok').onclick=()=>{sh.classList.remove('on');upd()};

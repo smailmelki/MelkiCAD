@@ -2,13 +2,26 @@
  * 07-projects.js
  * إدارة المشاريع: فتح وجديد وتكرار وحذف، ولوحة المشاريع.
  *
- * يعرّف: pname، openP، newP، delP، projSheet
+ * يعرّف: pname، META_KEYS، cleanMeta، metaGet، metaSet، openP، newP، delP، projSheet
  * يعتمد على: 01-core.js، 02-geometry.js، 05-persistence.js، 06-layers.js،
  *            09-render.js، 22-toolbar.js
  * ================================================================== */
 
 // ---- المشاريع ----
 const pname=()=>(PJ.find(p=>p.id===pid)||{}).name||'بدون اسم';
+
+// بيانات المشروع للوحة المطبوعة (المشروع/الموقع/المالك/المساحات/نوع اللوحة/المصمم/رقم اللوحة/التاريخ).
+// تُحفظ لكل مشروع في السجل 'm:<id>' وتُصدَّر مع ملف JSON تحت المفتاح meta. بيانات المكتب عامة وتُحفظ في الإعدادات (coGet في 21-settings.js).
+const META_KEYS=['proj','loc','owner','land','built','kind','designer','no','date'];
+// تنظيف أي كائن (من ملف مستورد أو من الواجهة): المفاتيح المعروفة فقط، نصوص مقصوصة؛ المفتاح الغائب يبقى غائبًا
+function cleanMeta(m){
+  const o={};
+  if(!m||typeof m!=='object')return o;
+  for(const k of META_KEYS)if(m[k]!==undefined&&m[k]!==null)o[k]=String(m[k]).slice(0,200);
+  return o;
+}
+const metaGet=()=>Object.assign({},cleanMeta(kvGet('m:'+pid)));
+function metaSet(patch){const m=Object.assign(metaGet(),cleanMeta(patch));kvSet('m:'+pid,m);return m}
 
 function openP(id,nosave){
   if(!nosave)save();
@@ -27,12 +40,13 @@ function openP(id,nosave){
   draw();
 }
 
-function newP(name,sh,ly){
+function newP(name,sh,ly,meta){
   save();
   polyDraft=null;
   $('#polybar').style.display='none';
   pid=uid();
   PJ.push({id:pid,name:name||`مشروع ${PJ.length+1}`});
+  const mt=cleanMeta(meta);if(Object.keys(mt).length)kvSet('m:'+pid,mt);
   shapes=sh||[];
   setLY(ly||null);
   V={x:24,y:24,s:40};
@@ -44,7 +58,7 @@ function newP(name,sh,ly){
 }
 
 function delP(){
-  kvDel('p:'+pid);kvDel('v:'+pid);
+  kvDel('p:'+pid);kvDel('v:'+pid);kvDel('m:'+pid);
   if(PJ.length<2){shapes=[];setLY(null);V={x:24,y:24,s:40};sel=[];hist=nh();save();upd();draw();return}
   PJ=PJ.filter(p=>p.id!==pid);openP(PJ[0].id,1);
 }
@@ -66,7 +80,7 @@ function projSheet(){
   nm.value=pname();fill();
   nm.oninput=()=>{const p=PJ.find(x=>x.id===pid);p.name=nm.value;save();$('#pn').textContent=pname();fill()};
   $('#pnew').onclick=()=>{newP();nm.value=pname();fill()};
-  $('#pdup').onclick=()=>{newP(pname()+' (نسخة)',copy(shapes),{LY:copy(LY),cl});nm.value=pname();fill()};
+  $('#pdup').onclick=()=>{newP(pname()+' (نسخة)',copy(shapes),{LY:copy(LY),cl},metaGet());nm.value=pname();fill()};
   $('#psave').onclick=()=>exportFile();
   $('#popen').onclick=()=>{$('#finjson').value='';$('#finjson').click()};
   let armed=0;

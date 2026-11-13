@@ -1,23 +1,84 @@
 /* ==================================================================
  * 18-print.js
- * الطباعة والتصدير: ورقة A4/A3 بمقياس رسم وإطار وجدول عنوان، وحفظ PNG أو PDF.
+ * الطباعة والتصدير: ورقة A4/A3 بمقياس رسم وإطار مزدوج وجدول عنوان من ثلاثة أعمدة
+ * (المكتب | المشروع والمالك | اللوحة والاعتماد)، وحفظ PNG أو PDF.
+ * بيانات المكتب من الإعدادات (coGet) وبيانات المشروع تُحفظ مع المشروع (metaGet) وتُدخَل في لوحة الطباعة.
  *
- * يعرّف: EX، sheetLayout، renderSheet، sheetPdfBytes، makePDF، doExport، exportSheet
+ * يعرّف: EX، todayStr، areaText، sheetMeta، sheetLayout، drawTitleBlock، renderSheet، sheetPdfBytes، makePDF، doExport، exportSheet
  * يعتمد على: 01-core.js، 02-geometry.js، 06-layers.js، 07-projects.js،
- *            08-project-io.js، 09-render.js، 10-dimensions.js، 18a-pdf.js، 22-toolbar.js
+ *            08-project-io.js، 09-render.js، 10-dimensions.js، 18a-pdf.js، 21-settings.js، 22-toolbar.js
  * ================================================================== */
 
 // ---- التصدير: PNG أو PDF بمقياس رسم على ورقة A4/A3 مع إطار وجدول عنوان ----
-let EX={paper:'A4',N:0,grid:0};
+let EX={paper:'A4',orient:'auto',N:0,grid:0,bar:0};
+
+// تاريخ اليوم بالتوقيت المحلي (YYYY-MM-DD)
+const todayStr=()=>{const d=new Date(),z=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`};
+
+// «الأرض: 5000 م² | البناء: 2000 م²»؛ الرقم وحده تُضاف له وحدة م²، وما فيه حروف يبقى كما كتبه المستخدم
+function areaText(m){
+  const u=v=>/^[\d٠-٩.,٫\s]+$/.test(v)?v.trim()+' م²':v.trim();
+  return[['الأرض',m.land],['البناء',m.built]].filter(([,v])=>v&&String(v).trim()).map(([l,v])=>`${l}: ${u(String(v))}`).join('  |  ');
+}
+
+// القيم الفعلية للطباعة: المحفوظة مع المشروع، والفارغ يأخذ الافتراضي (اسم المشروع، «مسقط أفقي»، تاريخ اليوم)
+function sheetMeta(){
+  const m=metaGet();
+  return Object.assign({},m,{proj:(m.proj||'').trim()||pname(),kind:m.kind===undefined?'مسقط أفقي':m.kind,date:(m.date||'').trim()||todayStr()});
+}
 
 function sheetLayout(o){
   const vis=shapes.filter(s=>shown(s));if(!vis.length)return null;
   const BB=bounds(vis),x0=BB.x,y0=BB.y,x1=BB.X,y1=BB.Y,bw=Math.max(x1-x0,.1),bh=Math.max(y1-y0,.1);
-  const dim={A4:[297,210],A3:[420,297]}[o.paper],land=bw>=bh,pw=land?dim[0]:dim[1],ph=land?dim[1]:dim[0];
-  const dpi=150,m=10,fr=5,tb=26,aw=pw-2*(m+fr),ah=ph-2*(m+fr)-tb;
+  const dim={A4:[297,210],A3:[420,297]}[o.paper],land=o.orient==='land'?true:o.orient==='port'?false:bw>=bh,pw=land?dim[0]:dim[1],ph=land?dim[1]:dim[0];
+  // tb: ارتفاع جدول العنوان (صف عناوين hh + 4 صفوف بيانات)
+  const dpi=150,m=10,fr=5,hh=6.5,tb=42,aw=pw-2*(m+fr),ah=ph-2*(m+fr)-tb;
   const need=N=>bw*1000/N<=aw&&bh*1000/N<=ah;
   const N=o.N||[10,20,25,50,75,100,125,150,200,250,300,400,500,750,1000,2000,5000].find(need)||5000;
-  return{x0,y0,bw,bh,pw,ph,dpi,m,fr,tb,aw,ah,N,fits:need(N),mm:v=>v/25.4*dpi};
+  return{x0,y0,bw,bh,pw,ph,dpi,m,fr,hh,tb,aw,ah,N,fits:need(N),mm:v=>v/25.4*dpi};
+}
+
+// جدول العنوان: ثلاثة أعمدة من اليمين (المكتب 28% | المشروع والمالك 44% | اللوحة والاعتماد 28%)،
+// صف عناوين ثم أربعة صفوف، في كل خانة عنوان صغير رمادي فوق القيمة. يستعمل واجهة Canvas الأساسية فقط (يعمل مع PdfRecorder).
+function drawTitleBlock(g2,L,o,mt,co){
+  const mm=L.mm,tx=mm(L.m),ty=mm(L.ph-L.m-L.tb),tw=mm(L.pw-2*L.m),th=mm(L.tb),hh=mm(L.hh),rh=(th-hh)/4;
+  const ink='#15324b',dim='#6b7d8e',soft='#d3dce4',mid='#9fb0bf',head='#eaf0f4',pad=mm(2.5);
+  const cx=[tx,tx+tw*.28,tx+tw*.72,tx+tw];
+  const cols=[
+    {x0:cx[2],x1:cx[3],hd:(co.kind||'').trim()||CO_KIND,icon:1,rows:[['اسم المكتب',co.name],['الهاتف',co.phone],['البريد الإلكتروني',co.email],['العنوان',co.addr]]},
+    {x0:cx[1],x1:cx[2],hd:'بيانات المشروع والمالك',rows:[['المشروع / نوع المبنى',mt.proj],['موقع المشروع',mt.loc],['اسم المالك',mt.owner],['مساحة الأرض / البناء',areaText(mt)]]},
+    {x0:cx[0],x1:cx[1],hd:'بيانات اللوحة والاعتماد',rows:[['نوع اللوحة',mt.kind],['مقياس الرسم',`1 : ${L.N}`],['المصمم / الاستشاري',mt.designer],['رقم اللوحة / التاريخ',[mt.no,mt.date].filter(v=>v&&String(v).trim()).join('  |  ')]]}
+  ];
+  const txt=(s,xr,yc,w,sz,col,wt)=>{
+    s=String(s==null?'':s);if(!s.trim())return;
+    g2.textAlign='right';g2.textBaseline='middle';g2.direction=/[\u0600-\u06FF]/.test(s)?'rtl':'ltr';
+    g2.font=`${wt||400} ${mm(sz)}px ${FONT}`;g2.fillStyle=col;g2.fillText(s,xr,yc,w);
+  };
+  g2.fillStyle=head;g2.fillRect(tx,ty,tw,hh);
+  g2.strokeStyle=soft;g2.lineWidth=mm(.25);g2.beginPath();
+  for(let i=0;i<4;i++){const y=ty+hh+i*rh;g2.moveTo(tx,y);g2.lineTo(tx+tw,y)}
+  g2.stroke();
+  g2.strokeStyle=mid;g2.lineWidth=mm(.3);g2.beginPath();
+  [cx[1],cx[2]].forEach(x=>{g2.moveTo(x,ty);g2.lineTo(x,ty+th)});
+  g2.stroke();
+  g2.strokeStyle=ink;g2.lineWidth=mm(.5);g2.beginPath();g2.moveTo(tx,ty);g2.lineTo(tx+tw,ty);g2.stroke();
+  cols.forEach(c=>{
+    const w=c.x1-c.x0-2*pad;
+    txt(c.hd,c.x1-pad,ty+hh/2,w-(c.icon?mm(7):0),3.4,ink,600);
+    c.rows.forEach(([lab,val],r)=>{
+      const y=ty+hh+r*rh;
+      txt(lab,c.x1-pad,y+mm(2.2),w,2.4,dim);
+      txt(val,c.x1-pad,y+mm(6),w,3.5,ink);
+    });
+    if(c.icon){   // أيقونة بيت صغيرة في طرف خانة العنوان
+      const s=mm(4.6),ix=c.x0+mm(3),iy=ty+(hh-s)/2;
+      g2.strokeStyle=ink;g2.lineWidth=mm(.25);g2.strokeRect(ix,iy,s,s);
+      g2.beginPath();
+      g2.moveTo(ix+s*.2,iy+s*.5);g2.lineTo(ix+s*.5,iy+s*.22);g2.lineTo(ix+s*.8,iy+s*.5);
+      g2.moveTo(ix+s*.3,iy+s*.45);g2.lineTo(ix+s*.3,iy+s*.78);g2.lineTo(ix+s*.7,iy+s*.78);g2.lineTo(ix+s*.7,iy+s*.45);
+      g2.stroke();
+    }
+  });
 }
 
 // mk (اختياري): (عرض,ارتفاع,تخطيط) ← سطح رسم بديل عن Canvas (مسجِّل PDF)؛ حينها لا يُنشأ oc ويعود السطح في g2
@@ -41,42 +102,24 @@ function renderSheet(o,mk){syncDims();
     }
     for(const pass of[0,1])shapes.forEach(s=>{if(shown(s)&&(['door','door2','win'].includes(s.t))===!!pass)drawShape(s,false,false,c)});
     g2.restore();
-    g2.setTransform(1,0,0,1,0,0);g2.strokeStyle='#111827';g2.lineWidth=mm(.5);
+    g2.setTransform(1,0,0,1,0,0);
+    const ink='#15324b';
+    // الإطار الخارجي للورقة (يضم جدول العنوان) ثم إطار الرسم الداخلي الرفيع
+    g2.strokeStyle=ink;g2.lineWidth=mm(.5);
     g2.strokeRect(mm(L.m),mm(L.m),mm(L.pw-2*L.m),mm(L.ph-2*L.m));
-    const tx=mm(L.m),ty=mm(L.ph-L.m-L.tb),tw=mm(L.pw-2*L.m),th=mm(L.tb);
-    g2.strokeRect(tx,ty,tw,th);
-    let x=tx+tw;
-    [[.5,'المشروع',o.title],[.2,'المقياس',`1 : ${L.N}`],[.3,'التاريخ',new Date().toISOString().slice(0,10)]].forEach(([fq,lab,val])=>{
-      const cw=tw*fq;x-=cw;
-      if(x>tx+1){g2.beginPath();g2.moveTo(x,ty);g2.lineTo(x,ty+th);g2.lineWidth=mm(.3);g2.stroke()}
-      g2.textAlign='right';
-      g2.textBaseline='top';
-      g2.direction='rtl';
-      g2.font=`400 ${mm(3)}px ${FONT}`;
-      g2.fillStyle='#475569';
-      g2.fillText(lab,x+cw-mm(2),ty+mm(2));
-      g2.direction=/[\u0600-\u06FF]/.test(val)?'rtl':'ltr';
-      g2.font=`600 ${mm(7)}px ${FONT}`;
-      g2.fillStyle='#111827';
-      g2.fillText(val,x+cw-mm(2),ty+mm(9),cw-mm(4));
-    });
-    const bl=L.N<=50?2:L.N<=200?5:L.N<=1000?20:100,bpx=bl*ppm,bx0=axp+mm(2),by0=ayp+ahp-mm(5);
-    g2.strokeStyle='#111827';
-    g2.lineWidth=mm(.5);
-    g2.beginPath();
-    g2.moveTo(bx0,by0);
-    g2.lineTo(bx0+bpx,by0);
-    g2.moveTo(bx0,by0-mm(1.5));
-    g2.lineTo(bx0,by0+mm(1.5));
-    g2.moveTo(bx0+bpx,by0-mm(1.5));
-    g2.lineTo(bx0+bpx,by0+mm(1.5));
-    g2.stroke();
-    g2.direction='ltr';
-    g2.textAlign='left';
-    g2.textBaseline='bottom';
-    g2.font=`400 ${mm(3)}px ${FONT}`;
-    g2.fillStyle='#111827';
-    g2.fillText(`${bl} m`,bx0,by0-mm(2));
+    g2.strokeStyle='#8a99a8';g2.lineWidth=mm(.2);g2.strokeRect(axp,ayp,awp,ahp);
+    drawTitleBlock(g2,L,o,Object.assign({proj:o.title},o.meta),o.co||{});
+    if(o.bar){
+      const bl=L.N<=50?2:L.N<=200?5:L.N<=1000?20:100,bpx=bl*ppm,bx0=axp+mm(2),by0=ayp+ahp-mm(5);
+      g2.strokeStyle=ink;g2.lineWidth=mm(.5);g2.beginPath();
+      g2.moveTo(bx0,by0);g2.lineTo(bx0+bpx,by0);
+      g2.moveTo(bx0,by0-mm(1.5));g2.lineTo(bx0,by0+mm(1.5));
+      g2.moveTo(bx0+bpx,by0-mm(1.5));g2.lineTo(bx0+bpx,by0+mm(1.5));
+      g2.stroke();
+      g2.direction='ltr';g2.textAlign='left';g2.textBaseline='bottom';
+      g2.font=`400 ${mm(3)}px ${FONT}`;g2.fillStyle=ink;
+      g2.fillText(`${bl} m`,bx0,by0-mm(2));
+    }
     return{oc,L,g2};
   }finally{ctx=sv.ctx;V=sv.V;W=sv.W;H=sv.H;dpr=sv.dpr;mkPath=sv.mkPath}
 }
@@ -106,8 +149,8 @@ async function sheetPdfBytes(o){
   return r.g2.toPdf(o.title);
 }
 
-async function doExport(kind,title){
-  const o={...EX,title:(title||'').trim()||pname()},L=sheetLayout(o);
+async function doExport(kind){
+  const mt=sheetMeta(),o={...EX,title:mt.proj,meta:mt,co:coGet()},L=sheetLayout(o);
   if(!L){toast('لا يوجد رسم للطباعة');return}
   if(!L.fits){toast(`لا يتسع الرسم بالمقياس 1:${L.N}، اختر مقياسًا أصغر أو ورقة أكبر`);return}
   const nm=pname().replace(/[^\p{L}\p{N} _.()-]+/gu,'').trim()||'مخطط';let res;
@@ -130,11 +173,25 @@ async function doExport(kind,title){
 function exportSheet(){
   const sh=$('#sheet');
   const chips=(id,items,cur)=>`<div class="chips" id="${id}">${items.map(([v,l])=>`<button class="chip${String(v)===String(cur)?' on':''}" data-v="${v}">${l}</button>`).join('')}</div>`;
-  sh.innerHTML='<b>طباعة</b><label>عنوان اللوحة<input data-k="ttl" type="text"></label><b>الورقة</b>'+chips('xp',[['A4','A4'],['A3','A3']],EX.paper)
-    +'<b>المقياس</b>'+chips('xn',[[0,'تلقائي'],[20,'1:20'],[50,'1:50'],[100,'1:100'],[200,'1:200'],[500,'1:500']],EX.N)
-    +'<div class="chips"><button class="chip'+(EX.grid?' on':'')+'" id="xg">إظهار الشبكة</button></div><div id="xi" style="color:var(--dim);font-size:12px"></div>'
-    +'<div class="row"><button class="fl" id="xpng">حفظ PNG</button><button class="fl" id="xpdf">حفظ PDF</button></div><button id="ok">تم</button>';
-  const ttl=sh.querySelector('[data-k="ttl"]');ttl.value=pname();
+  const fld=(k,l,t)=>`<label>${l}<input data-k="${k}" type="${t||'text'}" autocomplete="off"></label>`;
+  sh.innerHTML='<b>طباعة</b>'+chips('xp',[['A4','A4'],['A3','A3']],EX.paper)
+    +chips('xo',[['auto','اتجاه تلقائي'],['port','عمودي'],['land','أفقي']],EX.orient)
+    +'<b>المقياس</b>'+chips('xn',[[0,'تلقائي'],[20,'1:20'],[50,'1:50'],[75,'1:75'],[100,'1:100'],[200,'1:200'],[500,'1:500']],EX.N)
+    +'<div class="chips"><button class="chip'+(EX.grid?' on':'')+'" id="xg">إظهار الشبكة</button><button class="chip'+(EX.bar?' on':'')+'" id="xb">شريط المقياس</button></div>'
+    +'<b>بيانات المشروع والمالك</b><div class="hint">تُحفظ مع هذا المشروع وتُصدَّر مع ملفه.</div>'
+    +fld('proj','المشروع / نوع المبنى')+fld('loc','موقع المشروع')+fld('owner','اسم المالك')+fld('land','مساحة الأرض (م²)')+fld('built','مساحة البناء (م²)')
+    +'<b>بيانات اللوحة والاعتماد</b>'
+    +fld('kind','نوع اللوحة')+fld('designer','المصمم / الاستشاري')+fld('no','رقم اللوحة')+fld('date','التاريخ','date')
+    +'<b>بيانات المكتب</b><div class="hint" id="xco"></div><div class="chips"><button class="chip" id="xoff">تعديل بيانات المكتب</button></div>'
+    +'<div id="xi" style="color:var(--dim);font-size:12px"></div>'
+    +'<div class="row" style="position:sticky;bottom:-12px;background:var(--ui);padding:6px 0"><button class="fl" id="xpng">حفظ PNG</button><button class="fl" id="xpdf">حفظ PDF</button></div><button id="ok">تم</button>';
+  const cur=sheetMeta();
+  sh.querySelectorAll('input[data-k]').forEach(i=>{
+    const k=i.dataset.k;i.value=cur[k]==null?'':cur[k];
+    i.oninput=()=>{metaSet({[k]:i.value})};   // يُحفظ فورًا مع المشروع
+  });
+  const co=coGet();
+  $('#xco').textContent=[co.name,co.phone,co.email,co.addr].filter(Boolean).join(' · ')||'لم تُدخل بيانات المكتب بعد (تظهر فارغة في الجدول).';
   const info=()=>{
     const L=sheetLayout(EX);
     $('#xi').textContent=L?`الرسم ${f(L.bw)} × ${f(L.bh)} م · ${EX.paper} · 1:${L.N}${L.fits?'':' (لا يتسع)'}`:'لا يوجد رسم للطباعة'
@@ -142,9 +199,11 @@ function exportSheet(){
   const pick=(id,fn)=>sh.querySelectorAll(`#${id} .chip`).forEach(b=>{
     b.onclick=()=>{fn(b.dataset.v);sh.querySelectorAll(`#${id} .chip`).forEach(x=>x.classList.toggle('on',x===b));info()}
   });
-  pick('xp',v=>{EX.paper=v});pick('xn',v=>{EX.N=+v});
+  pick('xp',v=>{EX.paper=v});pick('xo',v=>{EX.orient=v});pick('xn',v=>{EX.N=+v});
   $('#xg').onclick=e=>{EX.grid=EX.grid?0:1;e.currentTarget.classList.toggle('on',!!EX.grid)};
-  $('#xpng').onclick=()=>doExport('png',ttl.value);$('#xpdf').onclick=()=>doExport('pdf',ttl.value);
+  $('#xb').onclick=e=>{EX.bar=EX.bar?0:1;e.currentTarget.classList.toggle('on',!!EX.bar)};
+  $('#xoff').onclick=()=>officeSheet(exportSheet);
+  $('#xpng').onclick=()=>doExport('png');$('#xpdf').onclick=()=>doExport('pdf');
   $('#ok').onclick=()=>{sh.classList.remove('on');upd()};
   info();sh.classList.add('on');$('#ctx').style.display='none';
 }

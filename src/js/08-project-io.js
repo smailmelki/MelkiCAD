@@ -60,7 +60,7 @@ async function copyText(t){
 function io(mode){
   const o=$('#io'),t=$('#iot'),a=$('#ioa'),m=$('#iop');o.hidden=false;
   if(mode==='export'){
-    t.value=JSON.stringify({app:'plan',schemaVersion:2,v:2,name:pname(),unit:ST.unit||'m',LY,cl,shapes});
+    t.value=JSON.stringify({app:'plan',schemaVersion:2,v:2,name:pname(),unit:ST.unit||'m',meta:metaGet(),LY,cl,shapes});
     a.textContent='نسخ';
     m.textContent='هذه نسخة مشروع كاملة تشمل العناصر والطبقات. انسخ النص واحفظه لاستعادته لاحقًا.';
     a.onclick=()=>{
@@ -86,7 +86,7 @@ function io(mode){
 
 async function exportFile(){
   const nm=(pname().replace(/[^\p{L}\p{N} _.()-]+/gu,'').trim()||'مشروع')+'.json';
-  const data={app:'plan',schemaVersion:2,v:2,name:pname(),unit:ST.unit||'m',createdAt:new Date().toISOString(),LY,cl,shapes};
+  const data={app:'plan',schemaVersion:2,v:2,name:pname(),unit:ST.unit||'m',createdAt:new Date().toISOString(),meta:metaGet(),LY,cl,shapes};
   const r=await saveFile(nm,JSON.stringify(data));
   if(r==='ok')toast('تم حفظ ملف المشروع الكامل');else if(r==='err')io('export');  // تعذّر الحفظ كملف: اعرض النص ليُنسخ يدويًا
 }
@@ -144,7 +144,7 @@ function validateProjectData(d){
   if(!LY.length)LY=[{id:'l1',name:'طبقة 1',vis:1,lock:0}];
   const validIds=new Set(LY.map(l=>l.id));shapes.forEach(s=>{if(!validIds.has(s.ly))s.ly=LY[0].id});
   const cl=validIds.has(d.cl)?d.cl:LY[0].id;
-  return{shapes,LY,cl};
+  return{shapes,LY,cl,meta:cleanMeta(d.meta)};
 }
 
 function impText(txt){
@@ -155,13 +155,13 @@ function impText(txt){
     let n=0;
     d.projects.forEach(p=>{
       const q=p&&p.d;if(!q||!Array.isArray(q.shapes))return;
-      try{const v=validateProjectData(q);newP(`${p.name||'مشروع'} (مستعاد)`,v.shapes,{LY:v.LY,cl:v.cl});n++}catch(e){}
+      try{const v=validateProjectData(q);newP(`${p.name||'مشروع'} (مستعاد)`,v.shapes,{LY:v.LY,cl:v.cl},v.meta);n++}catch(e){}
     });
     if(!n)throw new Error('لا توجد مشاريع صالحة في النسخة الاحتياطية');
     $('#sheet').classList.remove('on');return;
   }
   const v=validateProjectData(d);
-  newP(d.name||'مشروع',v.shapes,{LY:v.LY,cl:v.cl});
+  newP(d.name||'مشروع',v.shapes,{LY:v.LY,cl:v.cl},v.meta);
   $('#sheet').classList.remove('on');
 }
 
