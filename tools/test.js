@@ -487,6 +487,61 @@ t('renderSheet بسطح PdfRecorder: يكتب هندسة متجهية ويستع
   ok(!R(`mkPath() instanceof PdfPath`), 'mkPath يُستعاد عند الخطأ أيضًا');
   const bytes = await R(`sheetPdfBytes({paper:'A4',N:0,grid:0,title:'ع'})`); eq(pdfCheck(bytes), [], 'sheetPdfBytes ينتج PDF صالحًا');
 });
+// ---------- جدول العنوان وبيانات المشروع والمكتب ----------
+t('cleanMeta: مفاتيح معروفة فقط ونصوص مقصوصة، والغائب يبقى غائبًا', () => {
+  eq(R(`cleanMeta({proj:'م',evil:'x',land:5000,loc:null,__proto__:{a:1}})`), { proj: 'م', land: '5000' });
+  eq(R(`cleanMeta('x')`), {}); eq(R(`cleanMeta(null)`), {});
+  eq(R(`cleanMeta({proj:'${'ا'.repeat(500)}'}).proj.length`), 200);
+});
+t('بيانات المشروع تُحفظ لكل مشروع، وتُنسخ مع التكرار، وتُحذف مع المشروع', () => {
+  R(`newP('أ',[{t:'rect',x:0,y:0,w:1,h:1,ly:cl}],null)`);
+  const a = R(`pid`); R(`metaSet({owner:'البلدية',no:'MC-01'});metaSet({loc:'عين الملح'})`);
+  eq(R(`metaGet()`), { loc: 'عين الملح', owner: 'البلدية', no: 'MC-01' }, 'الدمج لا يمسح ما سبق');
+  R(`newP('ب',[],null)`); eq(R(`metaGet()`), {}, 'مشروع جديد بلا بيانات');
+  R(`openP('${a}')`); eq(R(`metaGet().owner`), 'البلدية', 'تعود عند فتح المشروع');
+  R(`newP(pname()+' (نسخة)',copy(shapes),{LY:copy(LY),cl},metaGet())`);
+  eq(R(`metaGet().no`), 'MC-01', 'التكرار ينسخ البيانات'); R(`metaSet({no:'MC-02'})`);
+  eq(JSON.parse(R(`JSON.stringify(kvGet('m:${a}'))`)).no, 'MC-01', 'تعديل النسخة لا يمس الأصل');
+  const dup = R(`pid`); R(`delP()`); eq(R(`kvGet('m:${dup}')`), null, 'حذف المشروع يحذف بياناته');
+});
+t('التصدير والاستيراد: meta يُكتب في JSON ويُنظَّف عند الاستيراد', () => {
+  R(`newP('خ',[{t:'rect',x:0,y:0,w:2,h:2,ly:cl}],null);metaSet({proj:'مدرسة',land:'5000'})`);
+  R(`io('export')`); const d = JSON.parse(A.els.get('#iot').value); eq(d.meta, { proj: 'مدرسة', land: '5000' });
+  R(`impText(JSON.stringify({name:'م',meta:{proj:'مبنى',evil:'x',built:'200'},shapes:[{t:'rect',x:0,y:0,w:1,h:1}]}))`);
+  eq(R(`metaGet()`), { proj: 'مبنى', built: '200' }, 'مفاتيح غريبة تُسقط');
+  R(`impText(JSON.stringify({name:'قديم',shapes:[{t:'rect',x:0,y:0,w:1,h:1}]}))`); eq(R(`metaGet()`), {}, 'ملف قديم بلا meta يعمل');
+});
+t('بيانات المكتب: افتراضات، حفظ في الإعدادات، وتنظيف', () => {
+  eq(R(`coGet()`), { kind: 'المكتب الاستشاري / الهندسي', name: '', phone: '', email: '', addr: '' });
+  R(`coSet({name:'الأمل',phone:'065',evil:1})`); eq(R(`coGet().name`), 'الأمل'); eq(R(`coGet().evil`), undefined);
+  R(`coSet({email:'a@b.c'})`); eq(R(`coGet().name`), 'الأمل', 'التحديث الجزئي لا يمسح');
+  eq(JSON.parse(R(`JSON.stringify(kvGet('co'))`)).phone, '065', 'محفوظ في التخزين لا مع المشروع');
+});
+t('areaText: وحدة م² للأرقام فقط، ويتجاهل الفارغ', () => {
+  eq(R(`areaText({land:'5000',built:'2000'})`), 'الأرض: 5000 م²  |  البناء: 2000 م²');
+  eq(R(`areaText({land:'٥٠٠'})`), 'الأرض: ٥٠٠ م²'); eq(R(`areaText({built:'2000 م2'})`), 'البناء: 2000 م2');
+  eq(R(`areaText({})`), '');
+});
+t('sheetMeta: الافتراضات (اسم المشروع، مسقط أفقي، تاريخ اليوم) وتُحترم القيم المحفوظة', () => {
+  R(`newP('مشروع س',[],null)`);
+  let m = R(`sheetMeta()`); eq(m.proj, 'مشروع س'); eq(m.kind, 'مسقط أفقي'); ok(/^\d{4}-\d{2}-\d{2}$/.test(m.date), m.date);
+  R(`metaSet({proj:'  ',kind:'',date:'2026-11-13'})`); m = R(`sheetMeta()`);
+  eq(m.proj, 'مشروع س', 'الاسم الفارغ يرجع للافتراضي'); eq(m.kind, '', 'نوع اللوحة الممسوح يبقى فارغًا'); eq(m.date, '2026-11-13');
+});
+t('renderSheet: جدول العنوان يحمل كل البيانات والمقياس، والاتجاه قابل للفرض، وشريط المقياس اختياري', () => {
+  R(`newP('جد',[{t:'wall',a:[0,0],b:[10,0],th:.2,ly:cl},{t:'wall',a:[10,0],b:[10,7],th:.2,ly:cl}],null)`);
+  const texts = []; A.ctx.__o = { ...PDFOPT, rasterize: a => { texts.push(a.text); return PDFOPT.rasterize(a); } };
+  const o = `{paper:'A4',N:75,grid:0,title:'مدرسة',meta:{proj:'مدرسة',loc:'عين الملح',owner:'البلدية',land:'5000',built:'2000',kind:'مسقط أفقي',designer:'يحيى',no:'MC-01',date:'2026-11-13'},co:{kind:'المكتب الاستشاري / الهندسي',name:'الأمل',phone:'065',email:'a@b.c',addr:'عين الملح'}}`;
+  const r = R(`renderSheet(${o},(w,h,L)=>new PdfRecorder(w,h,L.pw,L.ph,__o))`);
+  for (const x of ['المكتب الاستشاري / الهندسي', 'بيانات المشروع والمالك', 'بيانات اللوحة والاعتماد', 'اسم المكتب', 'مساحة الأرض / البناء', 'رقم اللوحة / التاريخ', 'مدرسة', 'البلدية', 'الأمل', 'a@b.c', 'يحيى', 'مسقط أفقي', '1 : 75', 'MC-01  |  2026-11-13', 'الأرض: 5000 م²  |  البناء: 2000 م²'])
+    ok(texts.includes(x), 'ناقص في الجدول: ' + x);
+  ok(!texts.includes('2 m') && !texts.includes('5 m'), 'لا شريط مقياس افتراضيًا'); eq(r.g2.warn.size, 0);
+  texts.length = 0; R(`renderSheet({...${o},bar:1},(w,h,L)=>new PdfRecorder(w,h,L.pw,L.ph,__o))`); ok(texts.some(x => /^\d+ m$/.test(x)), 'شريط المقياس عند طلبه');
+  const L = k => R(`(()=>{const L=sheetLayout({paper:'A4',N:0,orient:'${k}'});return[L.pw,L.ph]})()`);
+  eq(L('auto'), [297, 210], 'الرسم أعرض: أفقي'); eq(L('port'), [210, 297], 'عمودي مفروض'); eq(L('land'), [297, 210]);
+  const e = R(`renderSheet({paper:'A4',N:0,grid:0,title:'x'},(w,h,L)=>new PdfRecorder(w,h,L.pw,L.ph,__o))`); ok(e.g2.imgs.length > 0, 'بلا meta ولا co لا ينهار');
+});
+
 t('makePDF ينتج ملفًا يبدأ بـ %PDF وينتهي بـ %%EOF', () => {
   const b = R(`makePDF(new Uint8Array([1,2,3]),10,10,210,297)`);
   ok(b.size > 100 && b.type === 'application/pdf');
