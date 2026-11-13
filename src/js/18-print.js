@@ -42,6 +42,12 @@ function drawTitleBlock(g,L,mm,tx,ty,tw,th){
     g.fillStyle='#edf2f5';g.fillRect(x,ty,w,headH);g.strokeRect(x,ty,w,headH);
     printText(g,t,x+w-pad,ty+headH/2,mm(2.6),{weight:600,color:c});
   });
+  // شعار هندسي مبسّط مؤقت للمكتب (يمكن استبداله بشعار المكتب عند توفيره).
+  const lx=rightX+pad+mm(1),ly=ty+headH/2,z=mm(4.2);
+  g.strokeStyle=c;g.lineWidth=mm(.3);g.strokeRect(lx,ly-z/2,z,z);
+  g.beginPath();g.moveTo(lx+z*.16,ly);g.lineTo(lx+z*.5,ly-z*.3);g.lineTo(lx+z*.84,ly);
+  g.moveTo(lx+z*.27,ly-z*.02);g.lineTo(lx+z*.27,ly+z*.3);g.lineTo(lx+z*.73,ly+z*.3);g.lineTo(lx+z*.73,ly-z*.02);
+  g.moveTo(lx+z*.45,ly+z*.3);g.lineTo(lx+z*.45,ly+z*.08);g.lineTo(lx+z*.55,ly+z*.08);g.lineTo(lx+z*.55,ly+z*.3);g.stroke();
   const rowH=(th-headH)/4;
   const rows=(x,w,items)=>{
     items.forEach((it,i)=>{
