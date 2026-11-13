@@ -82,13 +82,10 @@ function renderSheet(o){
     // إطار مزدوج وهوامش
     g2.setTransform(1,0,0,1,0,0);g2.strokeStyle='#172b3b';g2.lineWidth=mm(.42);
     g2.strokeRect(mm(L.m),mm(L.m),mm(L.pw-2*L.m),mm(L.ph-2*L.m));
-    g2.lineWidth=mm(.18);g2.strokeRect(mm(L.m+L.fr),mm(L.m+L.fr),mm(L.pw-2*(L.m+L.fr)),mm(L.ph-2*(L.m+L.fr)));
+    // الإطار الداخلي يحدد مساحة المسقط فقط، ولا يمتد إلى جدول البيانات السفلي.
+    g2.lineWidth=mm(.18);g2.strokeRect(axp,ayp,awp,ahp);
     const tx=mm(L.m),ty=mm(L.ph-L.m-L.tb),tw=mm(L.pw-2*L.m),th=mm(L.tb);
     drawTitleBlock(g2,L,mm,tx,ty,tw,th);
-    // مقياس خطي أسفل منطقة الرسم
-    const bl=L.N<=50?2:L.N<=200?5:L.N<=1000?20:100,bpx=bl*ppm,bx0=axp+mm(2),by0=ayp+ahp-mm(5);
-    g2.strokeStyle='#172b3b';g2.lineWidth=mm(.45);g2.beginPath();g2.moveTo(bx0,by0);g2.lineTo(bx0+bpx,by0);g2.moveTo(bx0,by0-mm(1.5));g2.lineTo(bx0,by0+mm(1.5));g2.moveTo(bx0+bpx,by0-mm(1.5));g2.lineTo(bx0+bpx,by0+mm(1.5));g2.stroke();
-    printText(g2,`${bl} m`,bx0,by0-mm(3),mm(3),{align:'left',dir:'ltr',weight:600});
     return{oc,L};
   }finally{ctx=sv.ctx;V=sv.V;W=sv.W;H=sv.H;dpr=sv.dpr}
 }
