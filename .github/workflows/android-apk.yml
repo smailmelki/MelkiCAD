@@ -5,6 +5,7 @@ name: Build MelkiCAD Android APK
 on:
   workflow_dispatch:
   push:
+    branches: [integration/android-hardening]
     tags: ["v*"]
 
 permissions:
@@ -40,7 +41,14 @@ jobs:
 
       - name: Install dependencies
         working-directory: android-wrapper
-        run: npm install
+        run: |
+          # package-lock.json يثبّت الإصدارات الفرعية أيضًا (npm ci يفشل إن خالف package.json)؛ بدونه يُستعمل npm install
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            echo "::warning::android-wrapper/package-lock.json missing: dependencies are not pinned, so builds are not reproducible. Run npm install in android-wrapper and commit the lockfile."
+            npm install
+          fi
 
       - name: Prepare offline web application
         working-directory: android-wrapper
@@ -56,9 +64,32 @@ jobs:
         working-directory: android-wrapper
         run: npx cap add android
 
-      - name: Install MelkiCAD launcher icons
+      - name: Install MelkiCAD launcher icons and splash screen
         working-directory: android-wrapper
-        run: cp -a native/res/. android/app/src/main/res/
+        run: |
+          RES=android/app/src/main/res
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          # صور شاشة البدء الافتراضية في قالب Capacitor (drawable/splash.png ونسخ port وland لكل كثافة) تُحذف أولًا:
+          # وجود splash.png بجانب splash.xml يسبب خطأ موارد مكررة، وبقاؤها يعني أن شعار Capacitor يظهر بدل شاشتنا
+          find "$RES" -type f -path '*/drawable*' \( -name 'splash.png' -o -name 'splash.jpg' -o -name 'splash.webp' -o -name 'splash.xml' \) -print -delete
+          cp -a native/res/. "$RES/"
+          test -f "$RES/drawable/splash.xml" || { echo "::error::drawable/splash.xml (شاشة بدء MelkiCAD) غير موجود"; exit 1; }
+          test -f "$RES/drawable-nodpi/melkicad_splash_logo.png" || { echo "::error::melkicad_splash_logo.png غير موجود"; exit 1; }
+          SPLASH_COUNT="$(find "$RES" -type f -path '*/drawable*' -name 'splash.*' | wc -l)"
+          [ "$SPLASH_COUNT" = "1" ] || { echo "::error::يجب أن يوجد ملف splash واحد فقط (وُجد $SPLASH_COUNT)"; find "$RES" -type f -name 'splash.*'; exit 1; }
+          grep -rq '@drawable/splash' "$RES/values" || echo "::warning::قالب Capacitor لا يشير إلى @drawable/splash في values؛ قد لا تظهر شاشة بدء MelkiCAD"
+          # Capacitor يولّد موارد افتراضية باسم ic_launcher_foreground/background (شعار Capacitor)؛ أيقونتنا باسم فريد حتى لا تلتبس بها
+          for f in mipmap-anydpi-v26/ic_launcher.xml mipmap-anydpi-v26/ic_launcher_round.xml; do
+            grep -q 'melkicad_launcher_foreground' "$RES/$f" || { echo "::error::$f ليس أيقونة MelkiCAD التكيّفية (استُبدل بالافتراضي؟)"; exit 1; }
+          done
+          test -f "$RES/drawable-nodpi/melkicad_launcher_foreground.png" || { echo "::error::مقدمة الأيقونة melkicad_launcher_foreground.png غير موجودة"; exit 1; }
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            for n in ic_launcher ic_launcher_round; do
+              test -f "$RES/mipmap-$d/$n.png" || { echo "::error::mipmap-$d/$n.png غير موجود"; exit 1; }
+            done
+          done
+          grep -q 'android:icon="@mipmap/ic_launcher"' "$MANIFEST" || echo "::warning::AndroidManifest.xml لا يشير إلى @mipmap/ic_launcher؛ قد لا تظهر الأيقونة"
+          echo "Launcher icon and splash wiring OK"
 
       - name: Install native save-to-folder plugin
         working-directory: android-wrapper
