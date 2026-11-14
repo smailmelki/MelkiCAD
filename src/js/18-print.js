@@ -149,25 +149,71 @@ async function sheetPdfBytes(o){
   return r.g2.toPdf(o.title);
 }
 
+// معاينة ملف الطباعة قبل الحفظ: نعرض صورة الورقة ونفحص الحجم الفعلي أولًا.
+let printPreviewUrl=null;
+function closePrintPreview(){
+  const el=$('#printPreview');
+  if(el)el.hidden=true;
+  if(printPreviewUrl){URL.revokeObjectURL(printPreviewUrl);printPreviewUrl=null}
+}
+function showPrintPreview(blob,previewBlob,name,kind,L){
+  if(!(blob instanceof Blob)||blob.size<=0)throw new Error('ملف التصدير فارغ؛ لن نبدأ الحفظ');
+  if(!(previewBlob instanceof Blob)||previewBlob.size<=0)throw new Error('تعذّر إنشاء صورة المعاينة');
+  closePrintPreview();
+  printPreviewUrl=URL.createObjectURL(previewBlob);
+  const el=$('#printPreview'),img=$('#printPreviewImage');
+  img.src=printPreviewUrl;
+  $('#printPreviewTitle').textContent=kind==='pdf'?'معاينة PDF قبل الحفظ':'معاينة PNG قبل الحفظ';
+  $('#printPreviewInfo').textContent=`الحجم: ${blob.size.toLocaleString('ar')} بايت · ${name}`;
+  el.hidden=false;
+  $('#printPreviewSave').onclick=async()=>{
+    const btn=$('#printPreviewSave');btn.disabled=true;
+    try{
+      const result=await saveBlob(name,blob);
+      if(result==='ok'){closePrintPreview();toast(`تم حفظ الملف · 1:${L.N}`)}
+      else if(result==='err')toast('فشل الحفظ؛ بقيت المعاينة مفتوحة');
+      else toast('تم إلغاء الحفظ');
+    }catch(e){console.error('Print save failed:',e);toast(e?.message||'تعذّر حفظ الملف')}
+    finally{btn.disabled=false}
+  };
+  $('#printPreviewCancel').onclick=()=>{closePrintPreview();toast('أُلغي الحفظ')};
+}
+async function canvasPng(canvas){
+  return new Promise((resolve,reject)=>{
+    if(!canvas){reject(new Error('لم تُنشأ لوحة المعاينة'));return}
+    canvas.toBlob(b=>b&&b.size?resolve(b):reject(new Error('تعذّر إنشاء صورة المعاينة')),'image/png');
+  });
+}
 async function doExport(kind){
   const mt=sheetMeta(),o={...EX,title:mt.proj,meta:mt,co:coGet()},L=sheetLayout(o);
   if(!L){toast('لا يوجد رسم للطباعة');return}
   if(!L.fits){toast(`لا يتسع الرسم بالمقياس 1:${L.N}، اختر مقياسًا أصغر أو ورقة أكبر`);return}
-  const nm=pname().replace(/[^\p{L}\p{N} _.()-]+/gu,'').trim()||'مخطط';let res;
-  if(kind==='png'){
-    const r=renderSheet(o),b=await new Promise(rs=>r.oc.toBlob(rs,'image/png'));res=await saveBlob(nm+'.png',b);
-    if(res==='err'){$('#ov img').src=URL.createObjectURL(b);$('#ov').hidden=false;return}
-  }else{
-    let pdf=null;
-    try{const z=await sheetPdfBytes(o);if(z)pdf=new Blob([z],{type:'application/pdf'})}
-    catch(e){console.error('PDF متجهي: فشل فيُحفظ بدله PDF بصورة JPEG',e)}
-    if(!pdf){
-      const r=renderSheet(o),jb=await new Promise(rs=>r.oc.toBlob(rs,'image/jpeg',.92)),jpg=new Uint8Array(await jb.arrayBuffer());
-      pdf=makePDF(jpg,r.oc.width,r.oc.height,r.L.pw,r.L.ph);
+  const nm=pname().replace(/[^\\p{L}\\p{N} _.()-]+/gu,'').trim()||'مخطط';
+  try{
+    let fileBlob,previewBlob;
+    if(kind==='png'){
+      const r=renderSheet(o);
+      if(!r?.oc)throw new Error('تعذّر إنشاء صورة المخطط');
+      fileBlob=await canvasPng(r.oc);
+      previewBlob=fileBlob;
+    }else{
+      let pdf=null;
+      try{pdf=await sheetPdfBytes(o)}catch(e){console.error('PDF متجهي: فشل فيُستخدم PDF بصورة JPEG',e)}
+      if(!pdf){
+        const r=renderSheet(o);
+        if(!r?.oc)throw new Error('تعذّر إنشاء صورة المخطط');
+        const jb=await new Promise((resolve,reject)=>r.oc.toBlob(b=>b?resolve(b):reject(new Error('تعذّر إنشاء صورة PDF')),'image/jpeg',.92));
+        const jpg=new Uint8Array(await jb.arrayBuffer());
+        pdf=makePDF(jpg,r.oc.width,r.oc.height,r.L.pw,r.L.ph);
+      }
+      fileBlob=pdf;
+      const pr=renderSheet(o);
+      if(!pr?.oc)throw new Error('تعذّر إنشاء معاينة PDF');
+      previewBlob=await canvasPng(pr.oc);
     }
-    res=await saveBlob(nm+'.pdf',pdf);
-  }
-  if(res==='ok')toast(`تم الحفظ · 1:${L.N}`);else if(res==='err')toast('الحفظ غير متاح هنا');
+    if(!(fileBlob instanceof Blob)||fileBlob.size<=0)throw new Error('تم إنشاء ملف بحجم صفر؛ أوقفنا الحفظ لحماية الملف');
+    showPrintPreview(fileBlob,previewBlob,nm+(kind==='png'?'.png':'.pdf'),kind,L);
+  }catch(e){console.error('Print preview/export failed:',e);toast(e?.message||'تعذّر تجهيز معاينة الطباعة')}
 }
 
 function exportSheet(){
