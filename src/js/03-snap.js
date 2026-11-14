@@ -63,9 +63,15 @@ function snapAnchor(){
   if(g&&g.k==='grip'&&g.o){
     const o=g.o,id=g.gr&&g.gr.id;
     if((o.t==='line'||o.t==='wall')&&(id==='a'||id==='b'))return o[id==='a'?'b':'a'];
-    if((o.t==='polyline'||o.t==='polygon')&&Array.isArray(o.p)&&o.p.length>1&&typeof id==='number'){const n=o.p.length;return o.p[id>0?id-1:(o.t==='polygon'?n-1:1)]}
+    if((o.t==='polyline'||o.t==='polygon')&&Array.isArray(o.p)&&o.p.length>1&&typeof id==='number'){
+      const n=o.p.length;
+      return o.p[id>0?id-1:(o.t==='polygon'?n-1:1)]
+    }
   }
-  if(drawFlow&&['second','next'].includes(drawFlow.stage)){const a=drawFlow.tool==='polyline'?drawFlow.points[drawFlow.points.length-1]:drawFlow.points[0];if(a)return a}
+  if(drawFlow&&['second','next'].includes(drawFlow.stage)){
+    const a=drawFlow.tool==='polyline'?drawFlow.points[drawFlow.points.length-1]:drawFlow.points[0];
+    if(a)return a
+  }
   if(polyDraft&&polyDraft.p.length)return polyDraft.p[polyDraft.p.length-1];
   if(moveFlow&&moveFlow.stage==='dest'&&moveFlow.base)return moveFlow.base;
   return null;
@@ -87,7 +93,11 @@ function osnap(p){
   for(const s of near){if(s.t==='text'||s.t==='north'){add([s.x,s.y],'cen',3);continue}
     if(s.t==='circle'){add([s.x,s.y],'cen',3);[[1,0],[-1,0],[0,1],[0,-1]].forEach(d=>add([s.x+d[0]*s.r,s.y+d[1]*s.r],'qua',3))}
     else if(s.t==='free'){add(s.p[0],'end',1);add(s.p[s.p.length-1],'end',1)}
-    else{pts(s).forEach((q,i)=>add(q,'end',1,s.t==='dim'?undefined:{s,i}));segs(s).forEach((e,j)=>add([(e[0][0]+e[1][0])/2,(e[0][1]+e[1][1])/2],'mid',2,{s,i:j,m:1}));if(s.t==='rect')add([s.x+s.w/2,s.y+s.h/2],'cen',3)}
+    else{
+      pts(s).forEach((q,i)=>add(q,'end',1,s.t==='dim'?undefined:{s,i}));
+      segs(s).forEach((e,j)=>add([(e[0][0]+e[1][0])/2,(e[0][1]+e[1][1])/2],'mid',2,{s,i:j,m:1}));
+      if(s.t==='rect')add([s.x+s.w/2,s.y+s.h/2],'cen',3)
+    }
   }
   // عمودي: قدم العمود من نقطة الارتكاز على كل ضلع (ضمن الضلع) وعلى الدوائر؛ أقرب نقطة: أقرب نقطة على الشكل من المؤشر.
   // لا نضيف إلا ما يقع ضمن مدى اللمس (22 بكسل)، وأقرب نقطة تُحسب مرة واحدة لأقرب ضلع فلا تتضخم القائمة مع المتعددات الطويلة.
@@ -98,7 +108,10 @@ function osnap(p){
     for(const s of near){
       if(s.t==='text'||s.t==='north')continue;
       if(s.t==='circle'){
-        if(A){const dx=A[0]-s.x,dy=A[1]-s.y,d=Math.hypot(dx,dy);if(d>1e-9){const ux=dx/d,uy=dy/d;perAdd([s.x+ux*s.r,s.y+uy*s.r]);perAdd([s.x-ux*s.r,s.y-uy*s.r])}}
+        if(A){
+          const dx=A[0]-s.x,dy=A[1]-s.y,d=Math.hypot(dx,dy);
+          if(d>1e-9){const ux=dx/d,uy=dy/d;perAdd([s.x+ux*s.r,s.y+uy*s.r]);perAdd([s.x-ux*s.r,s.y-uy*s.r])}
+        }
         if(S.nea){const dx=p[0]-s.x,dy=p[1]-s.y,d=Math.hypot(dx,dy);if(d>1e-9)neaTry([s.x+dx/d*s.r,s.y+dy/d*s.r])}
         continue;
       }
@@ -139,6 +152,9 @@ function constrain(a,b){
   // عند تفعيل الموازاة واختيار مرجع، تتقدم على التعامد لأن القيدين متعارضان هندسيًا.
   if((S.parallel||S.perpendicular)&&parallelRef&&referenceWithinTolerance(a,b))return referencePoint(a,b);
   if(S.ortho)return Math.abs(dx)>=Math.abs(dy)?[b[0],a[1]]:[a[0],b[1]];
-  if(S.polar){const L=Math.hypot(dx,dy),st=Math.PI/4,t=Math.round(Math.atan2(dy,dx)/st)*st,l=S.grid?Math.round(L/step())*step():L;return[a[0]+l*Math.cos(t),a[1]+l*Math.sin(t)]}
+  if(S.polar){
+    const L=Math.hypot(dx,dy),st=Math.PI/4,t=Math.round(Math.atan2(dy,dx)/st)*st,l=S.grid?Math.round(L/step())*step():L;
+    return[a[0]+l*Math.cos(t),a[1]+l*Math.sin(t)]
+  }
   return b;
 }
