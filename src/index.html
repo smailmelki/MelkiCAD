@@ -60,6 +60,11 @@
 </nav>
 <input type="file" id="fin" accept=".json,.dxf,.txt,application/json,application/dxf,text/plain" hidden><input type="file" id="finjson" accept=".json,application/json" hidden><div id="tt"></div>
 <div id="io" hidden><textarea id="iot" spellcheck="false"></textarea><p id="iop"></p><div class="row"><button class="fl" id="ioa"></button><button class="fl" id="iox">إغلاق</button></div></div>
+<div id="printPreview" hidden role="dialog" aria-modal="true" aria-label="معاينة الطباعة">
+  <div class="pp-head"><b id="printPreviewTitle">معاينة الطباعة</b><span id="printPreviewInfo"></span></div>
+  <div class="pp-stage"><img id="printPreviewImage" alt="معاينة المخطط قبل الحفظ"></div>
+  <div class="pp-actions"><button id="printPreviewCancel" type="button">إلغاء</button><button id="printPreviewSave" type="button">حفظ الملف</button></div>
+</div>
 <div id="ov" hidden><img alt="المخطط"><p>اضغط مطولًا على الصورة لحفظها في هاتفك</p><button id="ovx">إغلاق</button></div>
 
 <!-- خريطة الملفات (بترتيب التحميل — الترتيب مهم لأن الملفات تتشارك نطاقًا عامًا واحدًا):
