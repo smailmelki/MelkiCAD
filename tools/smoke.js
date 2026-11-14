@@ -200,5 +200,46 @@ const assert = (c, m) => { console.log((c ? '✓ ' : '✗ ') + m); if (!c) proce
     assert(fe.length === 0, 'أدوات الدفعة الثانية بلا أخطاء JS: ' + fe.join(' ; '));
   }
 
+  // استيراد DXF عربي بترميز ANSI_1256 (بايتات خام) عبر ملف حقيقي: كان f.text() يفسدها بتفسير UTF-8
+  {
+    const { p: f, errors: fe } = await mk('block');
+    const cp = Buffer.from([0xDB, 0xD1, 0xDD, 0xC9]);   // «غرفة» بـ windows-1256
+    const buffer = Buffer.concat([
+      Buffer.from('0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1015\n9\n$DWGCODEPAGE\n3\nANSI_1256\n9\n$INSUNITS\n70\n6\n0\nENDSEC\n0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n1\n0\nLAYER\n2\n', 'latin1'), cp,
+      Buffer.from('\n70\n0\n62\n7\n6\nCONTINUOUS\n0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n0\nTEXT\n8\n', 'latin1'), cp,
+      Buffer.from('\n10\n1\n20\n1\n40\n0.3\n1\n', 'latin1'), cp, Buffer.from('\n0\nENDSEC\n0\nEOF\n', 'latin1')]);
+    await f.setInputFiles('#fin', { name: 'ar.dxf', mimeType: 'application/dxf', buffer }); await f.waitForTimeout(500);
+    const info = await f.textContent('#dxi'); assert(/ANSI_1256/.test(info), 'استيراد DXF عربي: نافذة الاستيراد تعرض الترميز المكتشف: ' + info);
+    await f.click('#opk'); await f.waitForTimeout(400);
+    const r = await f.evaluate(() => ({ t: shapes.filter(q => q.t === 'text').map(q => q.txt), l: LY.map(l => l.name) }));
+    assert(r.t.join() === 'غرفة' && r.l.includes('غرفة'), 'استيراد DXF عربي بـ ANSI_1256: النص واسم الطبقة سليمان: ' + JSON.stringify(r));
+    assert(fe.length === 0, 'استيراد DXF عربي بلا أخطاء JS: ' + fe.join(' ; '));
+  }
+
+  // تصدير PDF: متجهي افتراضيًا (بلا JPEG)، ويرجع إلى صورة JPEG إن فشل المسار المتجهي
+  {
+    const { p: x, errors: xe } = await mk('block');
+    const cap = failSim => x.evaluate(async fail => {
+      impText(JSON.stringify({ app: 'plan', schemaVersion: 2, name: 'pdf', cl: 'l1', LY: [{ id: 'l1', name: 'A', vis: 1, lock: 0 }],
+        shapes: [{ t: 'wall', a: [0, 0], b: [6, 0], th: .2, ly: 'l1' }, { t: 'circle', x: 3, y: 2, r: 1, fk: 'solid', ly: 'l1' },
+          { t: 'text', x: 1.5, y: 1, h: .3, txt: 'غرفة', ly: 'l1' }, { t: 'dim', a: [0, 0], b: [6, 0], off: .6, ly: 'l1' }] }));
+      const orig = saveBlob, sp = PdfRecorder.prototype.stroke; let got = null;
+      saveBlob = async (n, b) => { got = { n, b }; return 'ok' };
+      if (fail) PdfRecorder.prototype.stroke = () => { throw new Error('محاكاة فشل') };
+      try { await doExport('pdf', 'عنوان'); } finally { saveBlob = orig; PdfRecorder.prototype.stroke = sp; }
+      const u = new Uint8Array(await got.b.arrayBuffer()); let bin = ''; for (let i = 0; i < u.length; i += 0x8000) bin += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+      return { n: got.n, type: got.b.type, b64: btoa(bin) };
+    }, failSim);
+    const chk = r => { const t = Buffer.from(r.b64, 'base64').toString('latin1'); const sx = /startxref\n(\d+)\n%%EOF\n?$/.exec(t);
+      return { t, ok: t.startsWith('%PDF-') && !!sx && t.startsWith('xref\n', +sx[1]) }; };
+    const v = await cap(false), vc = chk(v);
+    assert(v.type === 'application/pdf' && v.n.endsWith('.pdf') && vc.ok, 'تصدير PDF: ملف صالح الهيكل (xref وstartxref)');
+    assert(!/DCTDecode/.test(vc.t) && /FlateDecode/.test(vc.t), 'تصدير PDF افتراضيًا متجهي: بلا صورة JPEG وبمحتوى مضغوط');
+    assert(((vc.t.match(/\/Subtype\/Image/g) || []).length % 2) === 0 && /SMask/.test(vc.t), 'تصدير PDF: النصوص صور بقناع شفافية');
+    const fb = await cap(true), fc = chk(fb);
+    assert(fc.ok && /DCTDecode/.test(fc.t), 'تصدير PDF: عند فشل المسار المتجهي يُحفظ PDF بصورة JPEG بدل الفشل');
+    assert(xe.filter(e => !/محاكاة فشل|PDF متجهي/.test(e)).length === 0, 'تصدير PDF بلا أخطاء JS غير متوقعة: ' + xe.join(' ; '));
+  }
+
   await b.close();
 })();
