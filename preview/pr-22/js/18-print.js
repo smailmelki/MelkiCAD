@@ -188,7 +188,7 @@ async function doExport(kind){
   const mt=sheetMeta(),o={...EX,title:mt.proj,meta:mt,co:coGet()},L=sheetLayout(o);
   if(!L){toast('لا يوجد رسم للطباعة');return}
   if(!L.fits){toast(`لا يتسع الرسم بالمقياس 1:${L.N}، اختر مقياسًا أصغر أو ورقة أكبر`);return}
-  const nm=pname().replace(/[^\\p{L}\\p{N} _.()-]+/gu,'').trim()||'مخطط';
+  const nm=pname().replace(/[^\p{L}\p{N} _.()-]+/gu,'').trim()||'مخطط';
   try{
     let fileBlob,previewBlob;
     if(kind==='png'){
