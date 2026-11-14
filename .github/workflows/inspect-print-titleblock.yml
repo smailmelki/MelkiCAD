@@ -1,0 +1,65 @@
+name: Extract and verify print titleblock update
+
+on:
+  push:
+    branches:
+      - preview/print-titleblock
+    paths:
+      - PRINT_TITLEBLOCK_EXTRACT_REQUEST.txt
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout preview branch
+        uses: actions/checkout@v4
+        with:
+          ref: preview/print-titleblock
+          fetch-depth: 0
+
+      - name: Validate and extract archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s MelkiCAD-print-titleblock.zip
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import PurePosixPath
+          archive = "MelkiCAD-print-titleblock.zip"
+          with zipfile.ZipFile(archive) as z:
+              for item in z.infolist():
+                  p = PurePosixPath(item.filename)
+                  if p.is_absolute() or ".." in p.parts or ".git" in p.parts:
+                      raise SystemExit(f"Unsafe ZIP path: {item.filename}")
+              z.extractall(".")
+              names = z.namelist()
+          print("Extracted archive entries:")
+          for name in names:
+              print(name)
+          PY
+
+      - name: Verify extracted MelkiCAD project
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd MelkiCAD-main
+          npm run verify
+
+      - name: Commit extracted project files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git reset -- MelkiCAD-print-titleblock.zip .github/workflows/inspect-print-titleblock.yml PRINT_TITLEBLOCK_EXTRACT_REQUEST.txt
+          if git diff --cached --quiet; then
+            echo "No extracted file changes to commit."
+            exit 0
+          fi
+          git commit -m "Extract print titleblock update for preview"
+          git push origin HEAD:preview/print-titleblock
