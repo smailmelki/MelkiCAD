@@ -3,7 +3,8 @@
  * DXF: تصدير ASCII متوافق مع AutoCAD 2000 (AC1015) واستيراد الكيانات الشائعة مع
  * اختيار وحدة القياس.
  *
- * يعرّف: dxfBuild، exportDXF، dxfEntities، dxfShapes، fitImportedView، dxfImport
+ * يعرّف: dxfBuild، exportDXF، DXF_CODEPAGES، dxfEnc، decodeDxfBytes، decodeImportBytes، dxfUnescape،
+ *        dxfEntities، dxfShapes، fitImportedView، dxfImport
  * يعتمد على: 01-core.js، 02-geometry.js، 05-persistence.js، 07-projects.js،
  *            08-project-io.js، 09-render.js، 10-dimensions.js، 11-furniture.js،
  *            22-toolbar.js
@@ -30,10 +31,29 @@ function dxfBuild(){
   const lnames=LY.map((l,i)=>clean(l.name,i));
   if(!lnames.length)lnames.push('0');
   const lay=s=>{const i=LY.findIndex(l=>l.id===s.ly);return i<0?'0':lnames[i]};
-  const ent=(t,s)=>{w(0,t);w(8,lay(s));w(62,256);if(isDrawLineShape(s)){const lt=s.linetype||layerOf(s).linetype||'continuous';w(6,({dashed:'DASHED',dotted:'DOTTED',dashdot:'DASHDOT',center:'CENTER',hidden:'HIDDEN'})[lt]||'CONTINUOUS')}};
+  const ent=(t,s)=>{
+    w(0,t);
+    w(8,lay(s));
+    w(62,256);
+    if(isDrawLineShape(s)){
+      const lt=s.linetype||layerOf(s).linetype||'continuous';
+      w(6,({dashed:'DASHED',dotted:'DOTTED',dashdot:'DASHDOT',center:'CENTER',hidden:'HIDDEN'})[lt]||'CONTINUOUS')
+    }
+  };
   const P3=(c,q)=>{w(c,n(q[0]));w(c+10,Yf(q[1]));w(c+20,0)};
   const line=(s,a,b)=>{ent('LINE',s);P3(10,a);P3(11,b)};
-  const poly=(s,P,closed)=>{if(!P||P.length<2)return;ent('POLYLINE',s);w(66,1);w(10,0);w(20,0);w(30,0);w(70,closed?1:0);P.forEach(q=>{w(0,'VERTEX');w(8,lay(s));P3(10,q)});w(0,'SEQEND');w(8,lay(s))};
+  const poly=(s,P,closed)=>{
+    if(!P||P.length<2)return;
+    ent('POLYLINE',s);
+    w(66,1);
+    w(10,0);
+    w(20,0);
+    w(30,0);
+    w(70,closed?1:0);
+    P.forEach(q=>{w(0,'VERTEX');w(8,lay(s));P3(10,q)});
+    w(0,'SEQEND');
+    w(8,lay(s))
+  };
   const circ=(s,c,r)=>{ent('CIRCLE',s);P3(10,c);w(40,n(r))};
   const txt=(s,q,h,ang,str)=>{ent('TEXT',s);P3(10,q);w(40,n(h));w(1,esc(str));w(50,n(-ang*180/Math.PI));w(7,'STANDARD')};
   const rot=(c,a,u,v)=>[c[0]+u*Math.cos(a)-v*Math.sin(a),c[1]+u*Math.sin(a)+v*Math.cos(a)];
@@ -55,23 +75,59 @@ function dxfBuild(){
       const name=['MKD_D2',enc(s.w1),enc(s.w2),enc(s.th||0),enc(s.f||1),enc(s.oa===undefined?90:s.oa)].join('_');
       addBlock(name,({line:bl,poly:bp})=>{
         const total=s.w1+s.w2,f=s.f||1,of=(s.th||0)/2*f;
-        const leaf=(hx,span,dir)=>{const H=[hx,of],v=doorLeafVector(span,dir,f,s.oa),E=[hx+v[0],of+v[1]],C=[hx+dir*span,of],arc=[],a0=Math.atan2(E[1]-H[1],E[0]-H[0]),a1=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));bl(H,E);for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+span*Math.cos(a),H[1]+span*Math.sin(a)])}bp(arc)};
+        const leaf=(hx,span,dir)=>{
+          const H=[hx,of],
+            v=doorLeafVector(span,dir,f,s.oa),
+            E=[hx+v[0],of+v[1]],
+            C=[hx+dir*span,of],
+            arc=[],
+            a0=Math.atan2(E[1]-H[1],E[0]-H[0]),
+            a1=Math.atan2(C[1]-H[1],C[0]-H[0]);
+          let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));
+          bl(H,E);
+          for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+span*Math.cos(a),H[1]+span*Math.sin(a)])}
+          bp(arc)
+        };
         leaf(-total/2,s.w1,1);leaf(total/2,s.w2,-1);
       });
       return name;
     }
     if(s.t==='door'||s.t==='win'){
-      const name=s.t==='door'?['MKD_D',enc(s.w),enc(s.th||0),enc(s.f||1),enc(s.h||1),enc(s.oa===undefined?90:s.oa)].join('_'):['MKD_W',enc(s.w),enc(s.th||0)].join('_');
+      const name=s.t==='door'
+        ?['MKD_D',enc(s.w),enc(s.th||0),enc(s.f||1),enc(s.h||1),enc(s.oa===undefined?90:s.oa)].join('_')
+        :['MKD_W',enc(s.w),enc(s.th||0)].join('_');
       addBlock(name,({line:bl,poly:bp})=>{
         const w2=s.w,th=s.th||0;
         if(s.t==='win'){const hf=Math.max(.05,th/2);[-hf,0,hf].forEach(v=>bl([-w2/2,v],[w2/2,v]));bl([-w2/2,-hf],[-w2/2,hf]);bl([w2/2,-hf],[w2/2,hf])}
-        else{const f=s.f||1,h=s.h===-1?-1:1,hu=-h*w2/2,of=th/2*f,H=[hu,of],v=doorLeafVector(w2,h,f,s.oa),E=[hu+v[0],of+v[1]],C=[hu+h*w2,of],arc=[],a0=Math.atan2(E[1]-H[1],E[0]-H[0]),a1=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));bl(H,E);for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+w2*Math.cos(a),H[1]+w2*Math.sin(a)])}bp(arc)}
+        else{
+          const f=s.f||1,
+            h=s.h===-1?-1:1,
+            hu=-h*w2/2,
+            of=th/2*f,
+            H=[hu,of],
+            v=doorLeafVector(w2,h,f,s.oa),
+            E=[hu+v[0],of+v[1]],
+            C=[hu+h*w2,of],
+            arc=[],
+            a0=Math.atan2(E[1]-H[1],E[0]-H[0]),
+            a1=Math.atan2(C[1]-H[1],C[0]-H[0]);
+          let d=Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0));
+          bl(H,E);
+          for(let j=0;j<=32;j++){const a=a0+d*j/32;arc.push([H[0]+w2*Math.cos(a),H[1]+w2*Math.sin(a)])}
+          bp(arc)
+        }
       });
       return name;
     }
     if(s.t==='furn'){
       const d=SYM[s.k]||SYM.table,name=['MKD_F',String(s.k||'table').replace(/[^A-Za-z0-9_-]/g,''),enc(s.w),enc(s.h)].join('_');
-      addBlock(name,({line:bl,poly:bp})=>d.p.forEach(p=>{if(p[0]==='r')bp([[p[1]*s.w,p[2]*s.h],[(p[1]+p[3])*s.w,p[2]*s.h],[(p[1]+p[3])*s.w,(p[2]+p[4])*s.h],[p[1]*s.w,(p[2]+p[4])*s.h]]);else if(p[0]==='e'){const o=[];for(let i=0;i<40;i++){const t=i/40*2*Math.PI;o.push([(p[1]+Math.abs(p[3])*Math.cos(t))*s.w,(p[2]+Math.abs(p[4])*Math.sin(t))*s.h])}bp(o)}else bl([p[1]*s.w,p[2]*s.h],[p[3]*s.w,p[4]*s.h])}));
+      addBlock(name,({line:bl,poly:bp})=>d.p.forEach(p=>{
+        if(p[0]==='r')bp([[p[1]*s.w,p[2]*s.h],[(p[1]+p[3])*s.w,p[2]*s.h],[(p[1]+p[3])*s.w,(p[2]+p[4])*s.h],[p[1]*s.w,(p[2]+p[4])*s.h]]);else if(p[0]==='e'){
+          const o=[];
+          for(let i=0;i<40;i++){const t=i/40*2*Math.PI;o.push([(p[1]+Math.abs(p[3])*Math.cos(t))*s.w,(p[2]+Math.abs(p[4])*Math.sin(t))*s.h])}
+          bp(o)
+        }else bl([p[1]*s.w,p[2]*s.h],[p[3]*s.w,p[4]*s.h])
+      }));
       return name;
     }
     return null;
@@ -85,11 +141,33 @@ function dxfBuild(){
   w(0,'ENDSEC');
   w(0,'SECTION');w(2,'TABLES');
   w(0,'TABLE');w(2,'LTYPE');w(70,1);w(0,'LTYPE');w(2,'CONTINUOUS');w(70,0);w(3,'Solid line');w(72,65);w(73,0);w(40,0);
-  [['DASHED','Dashed',[.45,-.22]],['DOTTED','Dotted',[.08,-.18]],['DASHDOT','Dash dot',[.45,-.16,.08,-.16]],['CENTER','Center',[.8,-.16,.12,-.16]],['HIDDEN','Hidden',[.22,-.14]]].forEach(([name,desc,p])=>{w(0,'LTYPE');w(2,name);w(70,0);w(3,desc);w(72,65);w(73,p.length);w(40,p.reduce((a,v)=>a+Math.abs(v),0));p.forEach(v=>w(49,v))});w(0,'ENDTAB');
+  [
+    ['DASHED','Dashed',[.45,-.22]],
+    ['DOTTED','Dotted',[.08,-.18]],
+    ['DASHDOT','Dash dot',[.45,-.16,.08,-.16]],
+    ['CENTER','Center',[.8,-.16,.12,-.16]],
+    ['HIDDEN','Hidden',[.22,-.14]]
+  ].forEach(([name,desc,p])=>{
+    w(0,'LTYPE');
+    w(2,name);
+    w(70,0);
+    w(3,desc);
+    w(72,65);
+    w(73,p.length);
+    w(40,p.reduce((a,v)=>a+Math.abs(v),0));
+    p.forEach(v=>w(49,v))
+  });
+  w(0,'ENDTAB');
   w(0,'TABLE');w(2,'STYLE');w(70,1);w(0,'STYLE');w(2,'STANDARD');w(70,0);w(40,0);w(41,1);w(50,0);w(71,0);w(42,.2);w(3,'txt');w(4,'');w(0,'ENDTAB');
   w(0,'TABLE');w(2,'LAYER');w(70,Math.max(1,LY.length));
   if(!LY.length){w(0,'LAYER');w(2,'0');w(70,0);w(62,7);w(6,'CONTINUOUS')}
-  LY.forEach((l,i)=>{w(0,'LAYER');w(2,lnames[i]);w(70,l.lock?4:0);w(62,l.vis===0?-aci(l.col):aci(l.col));w(6,({dashed:'DASHED',dotted:'DOTTED',dashdot:'DASHDOT',center:'CENTER',hidden:'HIDDEN'})[l.linetype]||'CONTINUOUS')});
+  LY.forEach((l,i)=>{
+    w(0,'LAYER');
+    w(2,lnames[i]);
+    w(70,l.lock?4:0);
+    w(62,l.vis===0?-aci(l.col):aci(l.col));
+    w(6,({dashed:'DASHED',dotted:'DOTTED',dashdot:'DASHDOT',center:'CENTER',hidden:'HIDDEN'})[l.linetype]||'CONTINUOUS')
+  });
   w(0,'ENDTAB');w(0,'ENDSEC');
   shapes.forEach(s=>{if(s&&(s.t==='door'||s.t==='door2'||s.t==='win'||s.t==='furn'))makeCompositeBlock(s)});
   if(blockDefs.length){w(0,'SECTION');w(2,'BLOCKS');blockDefs.forEach(B=>{for(let i=0;i<B.length;i+=2)w(B[i],B[i+1])});w(0,'ENDSEC')}
@@ -113,10 +191,32 @@ function dxfBuild(){
     }
     else if(s.t==='rect')poly(s,pts(s),true);
     else if(s.t==='circle')circ(s,[s.x,s.y],s.r);
-    else if(s.t==='ellipse'){ent('ELLIPSE',s);const major=Math.max(s.rx,s.ry),minor=Math.min(s.rx,s.ry),ang=(s.rot||0)+(s.ry>s.rx?Math.PI/2:0);P3(10,[s.x,s.y]);w(11,n(major*Math.cos(ang)));w(21,n(-major*Math.sin(ang)));w(31,0);w(40,n(minor/major));w(41,0);w(42,Math.PI*2)}
+    else if(s.t==='ellipse'){
+      ent('ELLIPSE',s);
+      const major=Math.max(s.rx,s.ry),minor=Math.min(s.rx,s.ry),ang=(s.rot||0)+(s.ry>s.rx?Math.PI/2:0);
+      P3(10,[s.x,s.y]);
+      w(11,n(major*Math.cos(ang)));
+      w(21,n(-major*Math.sin(ang)));
+      w(31,0);
+      w(40,n(minor/major));
+      w(41,0);
+      w(42,Math.PI*2)
+    }
     else if(s.t==='polyline')poly(s,s.p,false);
     else if(s.t==='polygon')poly(s,s.p,true);
-    else if(s.t==='arc'){ent('ARC',s);P3(10,[s.x,s.y]);w(40,n(s.r));let a0=-s.a1*180/Math.PI,a1=-s.a0*180/Math.PI;while(a0<0)a0+=360;while(a0>=360)a0-=360;while(a1<0)a1+=360;while(a1>=360)a1-=360;if(a1<=a0)a1+=360;w(50,n(a0));w(51,n(a1))}
+    else if(s.t==='arc'){
+      ent('ARC',s);
+      P3(10,[s.x,s.y]);
+      w(40,n(s.r));
+      let a0=-s.a1*180/Math.PI,a1=-s.a0*180/Math.PI;
+      while(a0<0)a0+=360;
+      while(a0>=360)a0-=360;
+      while(a1<0)a1+=360;
+      while(a1>=360)a1-=360;
+      if(a1<=a0)a1+=360;
+      w(50,n(a0));
+      w(51,n(a1))
+    }
     else if(s.t==='tri')poly(s,s.p,true);
     else if(s.t==='free'&&s.p&&s.p.length>1)poly(s,s.p,false);
     else if(s.t==='dim'&&len(s)>1e-6){
@@ -125,7 +225,10 @@ function dxfBuild(){
         line(s,s.c,s.a);line(s,s.c,s.b);
         const a0=Math.atan2(s.a[1]-s.c[1],s.a[0]-s.c[0]),a1=Math.atan2(s.b[1]-s.c[1],s.b[0]-s.c[0]);
         let delta=a1-a0;while(delta<=-Math.PI)delta+=Math.PI*2;while(delta>Math.PI)delta-=Math.PI*2;
-        const r=Math.max(.25,Math.abs(s.off||.6)),arcPts=Array.from({length:25},(_,i)=>{const a=a0+delta*i/24;return[s.c[0]+r*Math.cos(a),s.c[1]+r*Math.sin(a)]});
+        const r=Math.max(.25,Math.abs(s.off||.6)),arcPts=Array.from({length:25},(_,i)=>{
+          const a=a0+delta*i/24;
+          return[s.c[0]+r*Math.cos(a),s.c[1]+r*Math.sin(a)]
+        });
         poly(s,arcPts,false);const mid=a0+delta/2,q=[s.c[0]+r*Math.cos(mid),s.c[1]+r*Math.sin(mid)];
         txt(s,q,h,0,`${Math.abs(delta*180/Math.PI).toFixed(1).replace(/\\.0$/,'')}°`);
       }else if(mode==='radius'||mode==='diameter'){
@@ -139,8 +242,16 @@ function dxfBuild(){
         txt(s,[m[0]-ux*tw/2+uy*h*.35,m[1]-uy*tw/2-ux*h*.35],h,ang,str);
       }
     }
-    else if(s.t==='text'){const b=nb(s),a=s.a||0,u=[Math.cos(a),Math.sin(a)],dn=[-Math.sin(a),Math.cos(a)];txt(s,[s.x-u[0]*b.w/2+dn[0]*s.h*.35,s.y-u[1]*b.w/2+dn[1]*s.h*.35],s.h,a,s.txt||'')}
-    else if(s.t==='north'){const r=s.h/2,a=s.a||0,c=[s.x,s.y],T=(u,v)=>rot(c,a,u,v);circ(s,c,r);poly(s,[T(0,-.9*r),T(.35*r,.6*r),T(0,.25*r),T(-.35*r,.6*r)],true);txt(s,T(-.15*r,-1.55*r),r*.5,a,'N')}
+    else if(s.t==='text'){
+      const b=nb(s),a=s.a||0,u=[Math.cos(a),Math.sin(a)],dn=[-Math.sin(a),Math.cos(a)];
+      txt(s,[s.x-u[0]*b.w/2+dn[0]*s.h*.35,s.y-u[1]*b.w/2+dn[1]*s.h*.35],s.h,a,s.txt||'')
+    }
+    else if(s.t==='north'){
+      const r=s.h/2,a=s.a||0,c=[s.x,s.y],T=(u,v)=>rot(c,a,u,v);
+      circ(s,c,r);
+      poly(s,[T(0,-.9*r),T(.35*r,.6*r),T(0,.25*r),T(-.35*r,.6*r)],true);
+      txt(s,T(-.15*r,-1.55*r),r*.5,a,'N')
+    }
     else if(s.t==='door'||s.t==='door2'||s.t==='win'){
       const name=makeCompositeBlock(s);insert(s,name,s.x,s.y,s.a||0);
     }
@@ -158,6 +269,52 @@ async function exportDXF(){
   const r=await saveBlob(nm+'.dxf',new Blob([txt],{type:'application/dxf'}));
   if(r==='ok')toast('تم حفظ ملف DXF');else if(r==='err')toast('الحفظ غير متاح هنا');
 }
+
+// ---- ترميز الملف: بايتات DXF ← نص ----
+// R2007+ (AC1021 وما بعده) تخزّن UTF-8. الأقدم تخزّن النص بصفحة الشفرة المعلنة في $DWGCODEPAGE (ANSI_1256 للعربية في ويندوز)،
+// والحروف التي خارجها تُكتب \U+XXXX (تفكّها dxfUnescape). نجرّب UTF-8 الصارم أولًا لأن برامج كثيرة تكتب UTF-8 تحت إصدار قديم،
+// فإن لم يصحّ فبصفحة الشفرة المعلنة، وإن غابت أو لم يعرفها المتصفح فبـ windows-1256 لأن التطبيق عربي.
+// صفحات DOS (مثل DOS864) لا يفكّها TextDecoder في المتصفحات فتأخذ المسار الاحتياطي نفسه.
+const DXF_CODEPAGES={
+  ANSI_874:'windows-874',
+  ANSI_932:'shift_jis',
+  ANSI_936:'gbk',
+  ANSI_949:'euc-kr',
+  ANSI_950:'big5',
+  ANSI_1250:'windows-1250',
+  ANSI_1251:'windows-1251',
+  ANSI_1252:'windows-1252',
+  ANSI_1253:'windows-1253',
+  ANSI_1254:'windows-1254',
+  ANSI_1255:'windows-1255',
+  ANSI_1256:'windows-1256',
+  ANSI_1257:'windows-1257',
+  ANSI_1258:'windows-1258'
+};
+// الترميز الذي استُعمل في آخر ملف فُكّ (يعرضه dxfImport ثم يصفّره)؛ فارغ إن جاء النص من اللصق
+let dxfEnc='';
+function decodeDxfBytes(u8){
+  const dec=(label,fatal)=>{try{return new TextDecoder(label,{fatal}).decode(u8)}catch(e){return null}};
+  if(u8.length>2&&u8[0]===0xEF&&u8[1]===0xBB&&u8[2]===0xBF){dxfEnc='UTF-8';return dec('utf-8',false)}
+  const u=dec('utf-8',true);if(u!==null){dxfEnc='UTF-8';return u}
+  // ليس UTF-8 صالحًا: الرأس ASCII فنقرأ منه الإصدار وصفحة الشفرة (أول 256 ك.ب تكفي)
+  const head=new TextDecoder('windows-1252').decode(u8.subarray(0,Math.min(u8.length,262144)));
+  const mc=/\$DWGCODEPAGE\s+3\s+([^\r\n]+)/.exec(head),mv=/\$ACADVER\s+1\s+AC(\d+)/.exec(head),cp=mc?mc[1].trim().toUpperCase():'';
+  if(mv&&+mv[1]>=1021){dxfEnc='UTF-8 (به بايتات غير صالحة)';return dec('utf-8',false)}
+  const label=DXF_CODEPAGES[cp],t=label?dec(label,false):null;
+  if(t!==null){dxfEnc=cp;return t}
+  dxfEnc=cp?cp+' غير مدعوم، استُعمل windows-1256':'windows-1256 (لم يُعلن الترميز)';
+  return dec('windows-1256',false);
+}
+// ملف مستورد: JSON دائمًا UTF-8، وما سواه DXF فيُفكّ بحسب ترميزه
+function decodeImportBytes(u8){
+  let i=u8.length>2&&u8[0]===0xEF&&u8[1]===0xBB&&u8[2]===0xBF?3:0;
+  while(i<u8.length&&(u8[i]===32||u8[i]===9||u8[i]===10||u8[i]===13))i++;
+  if(u8[i]===0x5B||u8[i]===0x7B)return new TextDecoder('utf-8').decode(u8);
+  return decodeDxfBytes(u8);
+}
+// \U+XXXX ← الحرف (النصوص وأسماء الطبقات في DXF قبل R2007)
+const dxfUnescape=s=>String(s??'').replace(/\\[Uu]\+([0-9A-Fa-f]{4})/g,(_,h)=>String.fromCharCode(parseInt(h,16)));
 
 function dxfEntities(txt){
   txt=String(txt??'').replace(/^\uFEFF/,'');
@@ -211,11 +368,28 @@ function dxfEntities(txt){
 }
 
 function dxfShapes(E,k){
-  const out=[],lm=new Map(),skip={},BS=String.fromCharCode(92),COL={1:'#dc2626',2:'#ca8a04',3:'#16a34a',4:'#0d9488',5:'#2563eb',6:'#9333ea',8:'#6b7280',30:'#ea580c'};
+  const out=[],
+    lm=new Map(),
+    skip={},
+    BS=String.fromCharCode(92),
+    COL={1:'#dc2626',2:'#ca8a04',3:'#16a34a',4:'#0d9488',5:'#2563eb',6:'#9333ea',8:'#6b7280',30:'#ea580c'};
   const layerColor=nm=>E.layers?.get(nm)?.color||7;
   const lay=nm=>{
-    nm=String(nm||'0').slice(0,64);
-    if(!lm.has(nm)){const ac=layerColor(nm),src=E.layers?.get(nm);lm.set(nm,{id:uid(),name:nm,vis:ac<0?0:1,lock:0,col:COL[Math.abs(ac)],linetype:({DASHED:'dashed',DOTTED:'dotted',DASHDOT:'dashdot',CENTER:'center',HIDDEN:'hidden'})[src?.linetype]})}
+    nm=String(nm||'0').slice(0,512);
+    if(!lm.has(nm)){
+      const ac=layerColor(nm),src=E.layers?.get(nm);
+      lm.set(
+        nm,
+        {
+          id:uid(),
+          name:dxfUnescape(nm).slice(0,64),
+          vis:ac<0?0:1,
+          lock:0,
+          col:COL[Math.abs(ac)],
+          linetype:({DASHED:'dashed',DOTTED:'dotted',DASHDOT:'dashdot',CENTER:'center',HIDDEN:'hidden'})[src?.linetype]
+        }
+      )
+    }
     return lm.get(nm).id;
   };
   (E.layers||new Map()).forEach((v,nm)=>lay(nm));
@@ -226,11 +400,15 @@ function dxfShapes(E,k){
   // فك ترميز الأبعاد المخزنة في أسماء كتل MelkiCAD؛ يجب أن تكون الدالة
   // ضمن نطاق dxfShapes لأن dxfBuild يملك نطاقًا مستقلاً.
   const decNum=v=>Number(String(v??'').replace(/M/g,'-').replace(/P/g,'.'));
-  const dec=s=>String(s??'').replace(/\\U\+([0-9A-Fa-f]{4})/g,(_,h)=>String.fromCharCode(parseInt(h,16))).replace(/\\P/g,' ').replace(/\\[A-Za-z][^;]*;/g,'').replace(/[{}]/g,'').replace(/%%d/gi,'°').replace(/%%p/gi,'±').replace(/%%c/gi,'⌀');
+  const dec=s=>dxfUnescape(s).replace(/\\P/g,' ').replace(/\\[A-Za-z][^;]*;/g,'').replace(/[{}]/g,'').replace(/%%d/gi,'°').replace(/%%p/gi,'±').replace(
+    /%%c/gi,
+    '⌀'
+  );
   const mk=(o,e)=>{
     if(out.length>=30000)return;
     o.ly=lay(g(e,8,'0'));
-    const importedLt=({DASHED:'dashed',DOTTED:'dotted',DASHDOT:'dashdot',CENTER:'center',HIDDEN:'hidden'})[String(g(e,6,'CONTINUOUS')).toUpperCase()];if(importedLt&&isDrawLineShape(o))o.linetype=importedLt;
+    const importedLt=({DASHED:'dashed',DOTTED:'dotted',DASHDOT:'dashdot',CENTER:'center',HIDDEN:'hidden'})[String(g(e,6,'CONTINUOUS')).toUpperCase()];
+    if(importedLt&&isDrawLineShape(o))o.linetype=importedLt;
     const raw=g(e,62,null);
     // لون الطبقة يبقى موروثًا من الطبقة؛ لا نحوله إلى لون مستقل للعنصر.
     if(raw!==null&&Number(raw)!==256){const c=COL[Math.abs(Number(raw))];if(c)o.col=c}
@@ -250,7 +428,10 @@ function dxfShapes(E,k){
     if(pts.length<2)return;
     if(closed&&pts.length===4){
       const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
-      if((eq(pts[0][0],pts[1][0])&&eq(pts[1][1],pts[2][1])&&eq(pts[2][0],pts[3][0])&&eq(pts[3][1],pts[0][1]))||(eq(pts[0][1],pts[1][1])&&eq(pts[1][0],pts[2][0])&&eq(pts[2][1],pts[3][1])&&eq(pts[3][0],pts[0][0]))){
+      if((eq(pts[0][0],pts[1][0])
+        &&eq(pts[1][1],pts[2][1])
+        &&eq(pts[2][0],pts[3][0])
+        &&eq(pts[3][1],pts[0][1]))||(eq(pts[0][1],pts[1][1])&&eq(pts[1][0],pts[2][0])&&eq(pts[2][1],pts[3][1])&&eq(pts[3][0],pts[0][0]))){
         const x=Math.min(...xs),y=Math.min(...ys);mk({t:'rect',x,y,w:Math.max(...xs)-x,h:Math.max(...ys)-y},e);return;
       }
     }
@@ -267,10 +448,37 @@ function dxfShapes(E,k){
     const e=E[i];
     if(e.t==='INSERT'){
       const name=g(e,2,'');
-      if(name.startsWith('MKD_D2_')){const q=name.split('_');if(q.length===6||q.length===7){const w1=decNum(q[2]),w2=decNum(q[3]),th=decNum(q[4]),f=decNum(q[5]),oa=q.length===7?decNum(q[6]):90;if(w1>0&&w2>0&&Number.isFinite(oa))mk({t:'door2',x:X(N(e,10)),y:Y(N(e,20)),w:w1+w2,w1,w2,th,f,oa,h:1,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
-      else if(name.startsWith('MKD_D_')){const q=name.split('_');if(q.length===6||q.length===7){const w=decNum(q[2]),th=decNum(q[3]),f=decNum(q[4]),h=decNum(q[5]),oa=q.length===7?decNum(q[6]):90;if(w>0&&Number.isFinite(oa))mk({t:'door',x:X(N(e,10)),y:Y(N(e,20)),w,th,f,h,oa,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
-      else if(name.startsWith('MKD_W_')){const q=name.split('_');if(q.length===4){const w=decNum(q[2]),th=decNum(q[3]);if(w>0)mk({t:'win',x:X(N(e,10)),y:Y(N(e,20)),w,th,h:1,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
-      else if(name.startsWith('MKD_F_')){const q=name.split('_');if(q.length===5){const k=q[2],w=decNum(q[3]),h=decNum(q[4]),a=-N(e,50)*Math.PI/180;if(w>0&&h>0)mk({t:'furn',k,x:X(N(e,10))-w/2,y:Y(N(e,20))-h/2,w,h,rot:a},e);else skip.INSERT=(skip.INSERT||0)+1}else skip.INSERT=(skip.INSERT||0)+1}
+      if(name.startsWith('MKD_D2_')){
+        const q=name.split('_');
+        if(q.length===6||q.length===7){
+          const w1=decNum(q[2]),w2=decNum(q[3]),th=decNum(q[4]),f=decNum(q[5]),oa=q.length===7?decNum(q[6]):90;
+          if(w1>0&&w2>0&&Number.isFinite(oa))mk(
+            {t:'door2',x:X(N(e,10)),y:Y(N(e,20)),w:w1+w2,w1,w2,th,f,oa,h:1,a:-N(e,50)*Math.PI/180},
+            e
+          );else skip.INSERT=(skip.INSERT||0)+1
+        }else skip.INSERT=(skip.INSERT||0)+1
+      }
+      else if(name.startsWith('MKD_D_')){
+        const q=name.split('_');
+        if(q.length===6||q.length===7){
+          const w=decNum(q[2]),th=decNum(q[3]),f=decNum(q[4]),h=decNum(q[5]),oa=q.length===7?decNum(q[6]):90;
+          if(w>0&&Number.isFinite(oa))mk({t:'door',x:X(N(e,10)),y:Y(N(e,20)),w,th,f,h,oa,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1
+        }else skip.INSERT=(skip.INSERT||0)+1
+      }
+      else if(name.startsWith('MKD_W_')){
+        const q=name.split('_');
+        if(q.length===4){
+          const w=decNum(q[2]),th=decNum(q[3]);
+          if(w>0)mk({t:'win',x:X(N(e,10)),y:Y(N(e,20)),w,th,h:1,a:-N(e,50)*Math.PI/180},e);else skip.INSERT=(skip.INSERT||0)+1
+        }else skip.INSERT=(skip.INSERT||0)+1
+      }
+      else if(name.startsWith('MKD_F_')){
+        const q=name.split('_');
+        if(q.length===5){
+          const k=q[2],w=decNum(q[3]),h=decNum(q[4]),a=-N(e,50)*Math.PI/180;
+          if(w>0&&h>0)mk({t:'furn',k,x:X(N(e,10))-w/2,y:Y(N(e,20))-h/2,w,h,rot:a},e);else skip.INSERT=(skip.INSERT||0)+1
+        }else skip.INSERT=(skip.INSERT||0)+1
+      }
       else skip.INSERT=(skip.INSERT||0)+1;
     }
     else if(e.t==='LINE')mk({t:'line',a:[X(N(e,10)),Y(N(e,20))],b:[X(N(e,11)),Y(N(e,21))]},e);
@@ -297,7 +505,11 @@ function dxfShapes(E,k){
       if(j<E.length&&E[j].t==='SEQEND')j++;
       i=j-1;
       const closed=(Number(g(e,70,0))&1)!==0,pts=[];
-      for(let q=0;q<verts.length;q++){const a=verts[q],b=verts[(q+1)%verts.length];pts.push([X(a.x),Y(a.y)]);if((q<verts.length-1||closed)&&a.b)pts.push(...sampleBulge([a.x,a.y],[b.x,b.y],a.b))}
+      for(let q=0;q<verts.length;q++){
+        const a=verts[q],b=verts[(q+1)%verts.length];
+        pts.push([X(a.x),Y(a.y)]);
+        if((q<verts.length-1||closed)&&a.b)pts.push(...sampleBulge([a.x,a.y],[b.x,b.y],a.b))
+      }
       polyShape(pts,closed,e);
     }
     else if(e.t==='DIMENSION'){
@@ -312,7 +524,13 @@ function dxfShapes(E,k){
     else if(e.t==='TEXT'||e.t==='MTEXT'){
       const raw=e.t==='MTEXT'?[...all(e,3),...all(e,1)].join(''):g(e,1,'');
       const str=dec(raw).trim();if(!str)continue;
-      const h=Math.abs(X(N(e,40)))||.3,a=-N(e,50)*Math.PI/180,w2=str.length*h*.55,u=[Math.cos(a),Math.sin(a)],dn=[-Math.sin(a),Math.cos(a)],ix=X(N(e,10)),iy=Y(N(e,20));
+      const h=Math.abs(X(N(e,40)))||.3,
+        a=-N(e,50)*Math.PI/180,
+        w2=str.length*h*.55,
+        u=[Math.cos(a),Math.sin(a)],
+        dn=[-Math.sin(a),Math.cos(a)],
+        ix=X(N(e,10)),
+        iy=Y(N(e,20));
       mk({t:'text',x:ix+u[0]*w2/2-dn[0]*h*.35,y:iy+u[1]*w2/2-dn[1]*h*.35,h,a,txt:str},e);
     }
     else if(e.t==='SOLID'||e.t==='TRACE'||e.t==='3DFACE'){
@@ -322,10 +540,26 @@ function dxfShapes(E,k){
     }
     else if(e.t==='ELLIPSE'){
       const cx=N(e,10),cy=N(e,20),mx=N(e,11),my=N(e,21),ratio=Math.abs(N(e,40)),a0=N(e,41),a1=N(e,42)||Math.PI*2,major=Math.hypot(mx,my);
-      if(major>0&&ratio>0){let end=a1;if(end<=a0)end+=Math.PI*2;if(Math.abs((end-a0)-Math.PI*2)<1e-4){mk({t:'ellipse',x:X(cx),y:Y(cy),rx:Math.abs(X(major)),ry:Math.abs(X(major*ratio)),rot:Math.atan2(-my,mx)},e)}else{const count=Math.max(12,Math.min(144,Math.ceil((end-a0)*24))),p=[];for(let j=0;j<=count;j++){const t=a0+(end-a0)*j/count,xx=major*Math.cos(t),yy=major*ratio*Math.sin(t);const x=cx+xx*mx/major-yy*my/major,y=cy+xx*my/major+yy*mx/major;p.push([X(x),Y(y)])}polyShape(p,false,e)}}
+      if(major>0&&ratio>0){
+        let end=a1;
+        if(end<=a0)end+=Math.PI*2;
+        if(Math.abs((end-a0)-Math.PI*2)<1e-4){
+          mk({t:'ellipse',x:X(cx),y:Y(cy),rx:Math.abs(X(major)),ry:Math.abs(X(major*ratio)),rot:Math.atan2(-my,mx)},e)
+        }else{
+          const count=Math.max(12,Math.min(144,Math.ceil((end-a0)*24))),p=[];
+          for(let j=0;j<=count;j++){
+            const t=a0+(end-a0)*j/count,xx=major*Math.cos(t),yy=major*ratio*Math.sin(t);
+            const x=cx+xx*mx/major-yy*my/major,y=cy+xx*my/major+yy*mx/major;
+            p.push([X(x),Y(y)])
+          }
+          polyShape(p,false,e)
+        }
+      }
     }
     else if(e.t==='SPLINE'){
-      const xs=all(e,10).map(Number),ys=all(e,20).map(Number),p=[];for(let j=0;j<Math.min(xs.length,ys.length);j++)p.push([X(xs[j]),Y(ys[j])]);polyShape(p,(Number(g(e,70,0))&1)!==0,e);
+      const xs=all(e,10).map(Number),ys=all(e,20).map(Number),p=[];
+      for(let j=0;j<Math.min(xs.length,ys.length);j++)p.push([X(xs[j]),Y(ys[j])]);
+      polyShape(p,(Number(g(e,70,0))&1)!==0,e);
     }
     else if(e.t!=='VERTEX'&&e.t!=='SEQEND'&&e.t!=='ENDSEC')skip[e.t]=(skip[e.t]||0)+1;
   }
@@ -348,6 +582,7 @@ function fitImportedView(items){
 }
 
 function dxfImport(txt){
+  const enc=dxfEnc,garbled=String(txt).includes('\uFFFD');dxfEnc='';
   const E=dxfEntities(txt),meta=E.meta||{},probe=dxfShapes(E,1);
   if(!probe.shapes.length){toast('لا توجد أشكال مدعومة في الملف');return}
   const RB=bounds(probe.shapes),ext=Math.max(RB.X-RB.x,RB.Y-RB.y);
@@ -357,13 +592,28 @@ function dxfImport(txt){
   let u=hasUnit?units[meta.insunits]:(ext>3000?.001:ext>300?.01:1);
   const choices=[[1,'متر'],[.01,'سنتيمتر'],[.001,'مليمتر'],[.0254,'بوصة'],[.3048,'قدم'],[.9144,'ياردة'],[.1,'ديسيمتر'],[1000,'كيلومتر']];
   const sh=$('#sheet'),sk=Object.entries(probe.skip).map(([t,c])=>`${t}×${c}`).join(' ');
-  sh.innerHTML='<b>استيراد DXF</b><div id="dxi" style="color:var(--dim);font-size:12px"></div><b>وحدة القياس في الملف</b><div class="chips" id="dxu">'+choices.map(([v,l])=>`<button class="chip${Math.abs(v-u)<1e-9?' on':''}" data-v="${v}">${l}</button>`).join('')+'</div><div class="row"><button class="fl" id="dxx">إلغاء</button><button class="fl" id="opk">استيراد</button></div>';
-  const info=()=>{$('#dxi').textContent=`${probe.shapes.length} عنصر مدعوم · ${hasUnit?'الوحدة المعلنة في DXF: '+(labels[meta.insunits]||'غير شائعة'):'لم يحدد الملف وحدة القياس؛ تم تقديرها مبدئيًا'} · الحجم بعد التحويل ≈ ${f(ext*u)} م${sk?' · عناصر متجاهلة: '+sk:''}`};
+  sh.innerHTML='<b>استيراد DXF</b><div id="dxi" style="color:var(--dim);font-size:12px"></div><b>وحدة القياس في الملف</b><div class="chips" id="dxu">'
+    +choices.map(([v,l])=>`<button class="chip${Math.abs(v-u)<1e-9?' on':''}" data-v="${v}">${l}</button>`).join('')
+    +'</div><div class="row"><button class="fl" id="dxx">إلغاء</button><button class="fl" id="opk">استيراد</button></div>';
+  const info=()=>{
+    $('#dxi').textContent=`${enc?'الترميز: '+enc+' · ':''}${garbled?'تنبيه: بعض النصوص لم تُفكّ بشكل صحيح · ':''}${probe.shapes.length} عنصر مدعوم · ${hasUnit?'الوحدة المعلنة في DXF: '+(labels[meta.insunits]||'غير شائعة'):'لم يحدد الملف وحدة القياس؛ تم تقديرها مبدئيًا'} · الحجم بعد التحويل ≈ ${f(ext*u)} م${sk?' · عناصر متجاهلة: '+sk:''}`
+  };
   info();
-  sh.querySelectorAll('#dxu .chip').forEach(b=>{b.onclick=()=>{u=+b.dataset.v;sh.querySelectorAll('#dxu .chip').forEach(x=>x.classList.toggle('on',x===b));info()}});
+  sh.querySelectorAll('#dxu .chip').forEach(b=>{
+    b.onclick=()=>{u=+b.dataset.v;sh.querySelectorAll('#dxu .chip').forEach(x=>x.classList.toggle('on',x===b));info()}
+  });
   // الأزرار تحمل E وprobe (كل محتوى DXF المفكوك) في إغلاقاتها؛ تفريغ اللوحة يحرّرها بدل بقائها في الذاكرة حتى فتح لوحة أخرى
   $('#dxx').onclick=()=>{sh.classList.remove('on');sh.innerHTML='';upd()};
-  $('#opk').onclick=()=>{const r=u===1?probe:dxfShapes(E,u);sh.classList.remove('on');sh.innerHTML='';newP('DXF',r.shapes,{LY:r.LY,cl:r.LY[0].id});fitImportedView(r.shapes);save();draw();toast(`تم استيراد ${r.shapes.length} عنصرًا من DXF`)};
+  $('#opk').onclick=()=>{
+    const r=u===1?probe:dxfShapes(E,u);
+    sh.classList.remove('on');
+    sh.innerHTML='';
+    newP('DXF',r.shapes,{LY:r.LY,cl:r.LY[0].id});
+    fitImportedView(r.shapes);
+    save();
+    draw();
+    toast(`تم استيراد ${r.shapes.length} عنصرًا من DXF`)
+  };
   sh.classList.add('on');$('#ctx').style.display='none';
 }
 

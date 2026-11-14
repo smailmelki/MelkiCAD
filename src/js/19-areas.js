@@ -10,9 +10,19 @@
 // ---- جدول المساحات: اضغط على رقم المساحة الكلية في أعلى الشاشة ----
 function inside(s,p){
   if(s.t==='circle')return Math.hypot(p[0]-s.x,p[1]-s.y)<=s.r;
-  if(s.t==='ellipse'){const c=Math.cos(-(s.rot||0)),n=Math.sin(-(s.rot||0)),dx=p[0]-s.x,dy=p[1]-s.y,x=dx*c-dy*n,y=dx*n+dy*c;return x*x/(s.rx*s.rx)+y*y/(s.ry*s.ry)<=1}
-  if(s.t==='rect'){const c=Math.cos(-(s.rot||0)),n=Math.sin(-(s.rot||0)),dx=p[0]-(s.x+s.w/2),dy=p[1]-(s.y+s.h/2);return Math.abs(dx*c-dy*n)<=s.w/2&&Math.abs(dx*n+dy*c)<=s.h/2}
-  const q=s.p;if(!q||q.length<3)return false;let hit=false;for(let i=0,j=q.length-1;i<q.length;j=i++){const a=q[i],b=q[j];if(((a[1]>p[1])!==(b[1]>p[1]))&&(p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0]))hit=!hit}return hit;
+  if(s.t==='ellipse'){
+    const c=Math.cos(-(s.rot||0)),n=Math.sin(-(s.rot||0)),dx=p[0]-s.x,dy=p[1]-s.y,x=dx*c-dy*n,y=dx*n+dy*c;
+    return x*x/(s.rx*s.rx)+y*y/(s.ry*s.ry)<=1
+  }
+  if(s.t==='rect'){
+    const c=Math.cos(-(s.rot||0)),n=Math.sin(-(s.rot||0)),dx=p[0]-(s.x+s.w/2),dy=p[1]-(s.y+s.h/2);
+    return Math.abs(dx*c-dy*n)<=s.w/2&&Math.abs(dx*n+dy*c)<=s.h/2
+  }
+  const q=s.p;
+  if(!q||q.length<3)return false;
+  let hit=false;
+  for(let i=0,j=q.length-1;i<q.length;j=i++){const a=q[i],b=q[j];if(((a[1]>p[1])!==(b[1]>p[1]))&&(p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0]))hit=!hit}
+  return hit;
 }
 
 function roomList(){
@@ -24,7 +34,13 @@ function roomList(){
   });
   return R.map((o,k)=>{
     const s=o.s;
-    const per=s.t==='rect'?2*(s.w+s.h):s.t==='circle'?2*Math.PI*s.r:s.t==='ellipse'?Math.PI*(3*(s.rx+s.ry)-Math.sqrt((3*s.rx+s.ry)*(s.rx+3*s.ry))):s.p.reduce((a,q,j)=>a+Math.hypot(q[0]-s.p[(j+1)%s.p.length][0],q[1]-s.p[(j+1)%s.p.length][1]),0);
+    const per=s.t==='rect'
+      ?2*(s.w+s.h)
+      :s.t==='circle'
+        ?2*Math.PI*s.r
+        :s.t==='ellipse'
+          ?Math.PI*(3*(s.rx+s.ry)-Math.sqrt((3*s.rx+s.ry)*(s.rx+3*s.ry)))
+          :s.p.reduce((a,q,j)=>a+Math.hypot(q[0]-s.p[(j+1)%s.p.length][0],q[1]-s.p[(j+1)%s.p.length][1]),0);
     const dims=s.t==='rect'?`${fu(s.w)} × ${fu(s.h)}`:s.t==='circle'?`R ${fu(s.r)}`:s.t==='ellipse'?`${fu(s.rx)} × ${fu(s.ry)}`:'';
     return{i:o.i,name:s.name||claim.get(o.i)||`غرفة ${k+1}`,dims,area:area(s),per};
   });
@@ -50,7 +66,21 @@ function areaSheet(){
   };
   fill();
   const txt=()=>['الاسم\tالأبعاد\tالمساحة م²\tالمحيط '+ul()].concat(rows.map(r=>`${r.name}\t${r.dims}\t${f(r.area)}\t${fu(r.per)}`)).concat([`المجموع\t\t${f(tot())}\t`]).join('\n');
-  const csv=()=>'\ufeff'+[['#','الاسم','الأبعاد','المساحة م²','المحيط '+ul(),'ضمن المجموع']].concat(rows.map((r,n)=>[n+1,r.name,r.dims,f(r.area),fu(r.per),shapes[r.i].ex?'لا':'نعم'])).concat([['','المجموع','',f(tot()),'','']]).map(a=>a.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const csv=()=>'\ufeff'+[[
+    '#',
+    'الاسم',
+    'الأبعاد',
+    'المساحة م²',
+    'المحيط '+ul(),
+    'ضمن المجموع'
+  ]].concat(rows.map((r,n)=>[
+    n+1,
+    r.name,
+    r.dims,
+    f(r.area),
+    fu(r.per),
+    shapes[r.i].ex?'لا':'نعم'
+  ])).concat([['','المجموع','',f(tot()),'','']]).map(a=>a.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   $('#acp').onclick=async()=>{toast((await copyText(txt()))?'تم النسخ':'تعذّر النسخ، جرّب حفظ CSV')};
   $('#acs').onclick=async()=>{
     const nm=pname().replace(/[^\p{L}\p{N} _.()-]+/gu,'').trim()||'plan',res=await saveBlob(nm+'-areas.csv',new Blob([csv()],{type:'text/csv'}));

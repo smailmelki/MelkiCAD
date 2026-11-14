@@ -20,12 +20,25 @@ const NM={end:'نهاية',mid:'منتصف',int:'تقاطع',cen:'مركز',qua:
 
 let shapes=[],redo=[],hist=nh(),sel=[],clip=[],tool='select',cur=null,polyDraft=null,g=null,box=null,mk=null,V={x:24,y:24,s:40},dpr=1,W=0,H=0;
 
-let polygonSides=6;let S={end:1,mid:1,int:1,cen:1,per:0,nea:0,grid:1,ortho:0,polar:0,parallel:0,perpendicular:0,dyn:1},D={col:'',lw:2},ST={unit:'m',gs:0,axes:1,coord:1,grid:1,showDims:0,showAreas:0},cpos=null,furnKind='bed2',fileHintT=0;
+let polygonSides=6;
+let S={end:1,mid:1,int:1,cen:1,per:0,nea:0,grid:1,ortho:0,polar:0,parallel:0,perpendicular:0,dyn:1},
+  D={col:'',lw:2},
+  ST={unit:'m',gs:0,axes:1,coord:1,grid:1,showDims:0,showAreas:0},
+  cpos=null,
+  furnKind='bed2',
+  fileHintT=0;
 
 // تهريب نص قبل وضعه داخل innerHTML (أسماء الطبقات والمشاريع قد تأتي من ملف مستورد)
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-const toast=m=>{const t=$('#tt');if(!t)return;t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('on'),2600)};
+const toast=m=>{
+  const t=$('#tt');
+  if(!t)return;
+  t.textContent=m;
+  t.classList.add('on');
+  clearTimeout(toast.h);
+  toast.h=setTimeout(()=>t.classList.remove('on'),2600)
+};
 
 const P=new Map();
 
@@ -60,4 +73,16 @@ const grid=v=>S.grid?Math.round(v/step())*step():v;
 // سقف حجم لقطات التراجع (مجموع الأحرف): كل لقطة تحمل المشروع كاملًا، فمشروع بحجم 4 م.ب كان يحجز مئات الميغابايتات في 100 لقطة.
 // المشاريع الصغيرة لا تتأثر (تبقى 100 خطوة)؛ الكبيرة تحتفظ بعدد أقل من الخطوات الأحدث.
 const HIST_BUDGET=40e6;
-function nh(){redo=[];const h=[];h.push=function(x){redo=[];const n=Array.prototype.push.call(this,x);let t=0;for(let i=0;i<this.length;i++)t+=this[i].length;while(t>HIST_BUDGET&&this.length>1)t-=this.shift().length;return n};return h}
+function nh(){
+  redo=[];
+  const h=[];
+  h.push=function(x){
+    redo=[];
+    const n=Array.prototype.push.call(this,x);
+    let t=0;
+    for(let i=0;i<this.length;i++)t+=this[i].length;
+    while(t>HIST_BUDGET&&this.length>1)t-=this.shift().length;
+    return n
+  };
+  return h
+}
