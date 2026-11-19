@@ -17,11 +17,91 @@ const MIN_VIEW_SCALE=48/5001;
 // أدوات تعمل باللمس على الأشكال لا على نقاط التقاط: لا مؤشر التقاط معها (النقل/النسخ بنقطة أساس تحتاجه)
 const snapIdle=()=>(tool==='select'&&!moveFlow)||tool==='pan'||tool==='trim'||tool==='extend'||tool==='fillet'||tool==='chamfer';
 
-function finishPolyline(){if(polyDraft&&polyDraft.p.length>=2&&valid(polyDraft)){snap();shapes.push(polyDraft);sel=[shapes.length-1];if(shapes.length===1&&W<=700)fitView([shapes[0]]);polyDraft=null;$('#polybar').style.display='none';save();upd();draw();}else{polyDraft=null;$('#polybar').style.display='none';draw()}}
+function finishPolyline(){
+  if(polyDraft&&polyDraft.p.length>=2&&valid(polyDraft)){
+    snap();
+    shapes.push(polyDraft);
+    sel=[shapes.length-1];
+    if(shapes.length===1&&W<=700)fitView([shapes[0]]);
+    polyDraft=null;
+    clearOtrack();
+    $('#polybar').style.display='none';
+    save();
+    upd();
+    draw();
+  }else{polyDraft=null;clearOtrack();$('#polybar').style.display='none';draw()}
+}
 
-$('#polyfinish').onclick=finishPolyline;$('#polycancel').onclick=()=>{polyDraft=null;$('#polybar').style.display='none';draw()};
+$('#polyfinish').onclick=finishPolyline;$('#polycancel').onclick=()=>{polyDraft=null;clearOtrack();$('#polybar').style.display='none';draw()};
 
-cv.addEventListener('dblclick',e=>{if(tool==='polyline'&&polyDraft){e.preventDefault();finishPolyline()}});
+cv.addEventListener('dblclick',e=>{if(tool==='polyline'){e.preventDefault();if(polyDraft)finishPolyline();else if(drawFlow)finishDrawFlow()}});
+
+// لا تظهر خيارات القيد إلا بعد الثبات فوق الضلع المرجعي لمدة ثانيتين.
+let guideChoice=null,guideChoiceEl=null,pendingGuideTimer=null,pendingGuideRef=null,pendingGuidePoint=null;
+function cancelPendingGuideChoice(){
+  if(pendingGuideTimer!==null)clearTimeout(pendingGuideTimer);
+  pendingGuideTimer=null;pendingGuideRef=null;pendingGuidePoint=null;
+}
+function sameGuideReference(a,b){
+  if(!a||!b)return false;
+  const e=1e-6;
+  return Math.abs(a.a[0]-b.a[0])<e&&Math.abs(a.a[1]-b.a[1])<e&&Math.abs(a.b[0]-b.b[0])<e&&Math.abs(a.b[1]-b.b[1])<e;
+}
+function hideGuideChoice(){
+  cancelPendingGuideChoice();
+  guideChoice=null;
+  if(guideChoiceEl)guideChoiceEl.style.display='none';
+}
+function showGuideChoice(p,ref){
+  if(!guideChoiceEl){
+    guideChoiceEl=document.createElement('div');
+    guideChoiceEl.setAttribute('aria-hidden','true');
+    guideChoiceEl.style.cssText='position:absolute;z-index:8;display:flex;gap:4px;padding:4px;border:1px solid var(--bd);border-radius:10px;background:var(--ui);box-shadow:0 3px 12px #0004;pointer-events:none;touch-action:none;direction:ltr';
+    guideChoiceEl.innerHTML='<span style="min-width:52px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:7px;background:var(--cv);color:var(--tx);font:600 12px sans-serif">∥ توازٍ</span><span style="min-width:52px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:7px;background:var(--cv);color:var(--tx);font:600 12px sans-serif">⊥ تعامد</span><span aria-label="إلغاء" title="إلغاء" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:7px;background:var(--cv);color:var(--tx);font:600 22px sans-serif">×</span>';
+    $('main').appendChild(guideChoiceEl)
+  }
+  const x=clamp(p[0]-78,4,Math.max(4,W-156)),y=clamp(p[1]-112,4,Math.max(4,H-46));
+  guideChoiceEl.style.left=x+'px';guideChoiceEl.style.top=y+'px';guideChoiceEl.style.display='flex';
+  guideChoice={ref,x,y}
+}
+function moveGuideChoice(p){
+  if(!guideChoice)return false;
+  const x=p[0]-guideChoice.x,y=p[1]-guideChoice.y;
+  let mode=null;
+  if(y>=4&&y<=38&&x>=4&&x<=56)mode='parallel';
+  else if(y>=4&&y<=38&&x>=60&&x<=112)mode='perpendicular';
+  else if(y>=4&&y<=38&&x>=116&&x<=150){parallelRef=null;guideMode=null;parallelGuide=null;hideGuideChoice();draw();return true}
+  if(mode){
+    parallelRef=guideChoice.ref;
+    guideMode=mode;
+    parallelGuide={origin:g&&g.a?g.a.slice():drawFlow&&drawFlow.points[0]?drawFlow.points[0].slice():s2w(...p),target:s2w(...p)};
+    hideGuideChoice();
+    return true
+  }
+  return false
+}
+function updateGestureGuideChoice(p){
+  if(guideChoice)return moveGuideChoice(p);
+  if(guideMode||!g||g.k!=='draw'||!['line','wall','rect'].includes(tool)){cancelPendingGuideChoice();return false}
+  const ref=pickParallelReference(s2w(...p));
+  if(!ref){cancelPendingGuideChoice();return false}
+  if(pendingGuideTimer!==null&&sameGuideReference(ref,pendingGuideRef)){
+    pendingGuidePoint=p.slice();
+    return false
+  }
+  cancelPendingGuideChoice();
+  pendingGuideRef=ref;pendingGuidePoint=p.slice();
+  pendingGuideTimer=setTimeout(()=>{
+    const point=pendingGuidePoint&&pendingGuidePoint.slice(),reference=pendingGuideRef;
+    pendingGuideTimer=null;pendingGuideRef=null;pendingGuidePoint=null;
+    if(!point||!g||g.k!=='draw'||guideMode)return;
+    const stillOver=pickParallelReference(s2w(...point));
+    if(sameGuideReference(stillOver,reference))showGuideChoice(point,reference)
+  },1000);
+  return false
+}
+// يبني المستطيل بمحور موازٍ أو عمودي على الضلع المرجعي عند اختيار القيد بالإيماءة.
+function buildGuidedShape(a,b){return build(a,b)}
 
 function updateDrawFlowPreview(p){
   if(!drawFlow||!['second','next'].includes(drawFlow.stage))return;
@@ -32,6 +112,7 @@ function updateDrawFlowPreview(p){
   else if(t==='polyline')cur={t:'line',a:anchor.slice(),b,ly:cl,col:D.col||undefined,lw:D.lw};
   else{cur=build(anchor,b);if(t==='dim'){cur.la=undefined;cur.lb=mk&&mk.ref||undefined}}
   if((S.parallel||S.perpendicular)&&parallelRef&&['line','wall','polyline','dim'].includes(t))parallelGuide={origin:anchor.slice(),target:b.slice()};
+  updateDrawMetrics(cur)
 }
 
 cv.addEventListener('pointerdown',e=>{
@@ -43,19 +124,49 @@ cv.addEventListener('pointerdown',e=>{
   }
   if(P.size>2)return;
   const p=pos(e);cpos=s2w(...p);
+  if(e.pointerType==='touch'){
+    otrackTouchAcquired=false;
+    otrackTouchStartPos=p.slice();
+    const os=snapIdle()?null:osnap(cpos);
+    if(os&&['end','mid','int','cen'].includes(os.k)){
+      cancelOtrackTimer();
+      otrackHoverCandidate={p:os.p.slice(),k:os.k};
+      otrackTimer=setTimeout(()=>{
+        otrackTimer=null;
+        const cand=otrackHoverCandidate;
+        otrackHoverCandidate=null;
+        if(cand){
+          otrackTouchAcquired=true;
+          toggleOtrackRef(cand);
+          draw();
+        }
+      },1000);
+    }
+  }
+  // في النمط القطبي تكون النقطة التالية رقمية حصراً؛ لا نبدأ رسماً بالسحب أو بالنقر على اللوحة.
+  if(drawFlow&&drawFlow.coordMode==='polar'&&['second','next'].includes(drawFlow.stage)){
+    g=null;cur=null;mk=null;updateDrawMetrics(null);draw();return;
+  }
   if(tool==='dim'&&dimensionPick(p)){g=null;mk=null;return;}
 
   // نقل/نسخ بنقطة أساس: الأساس يُثبَّت بلمسة قصيرة (أو بسحب منه)، والوصول يُحسم عند رفع الإصبع في endPtr،
   // فلا تُثبَّت نقطة بالخطأ عند بدء تكبير بإصبعين.
   if(moveFlow){
     if(tool!=='select'){closeMoveFlow();draw()}
-    else{g={k:'mvflow',sp:p,w:cpos.slice(),from:moveFlow.stage};if(moveFlow.stage==='dest')moveFlowPreview(cpos);else mk=moveFlow.stage==='window'?null:osnap(cpos);draw();return}
+    else{
+      g={k:'mvflow',sp:p,w:cpos.slice(),from:moveFlow.stage};
+      if(moveFlow.stage==='dest')moveFlowPreview(cpos);else mk=moveFlow.stage==='window'?null:osnap(cpos);
+      draw();
+      return
+    }
   }
 
   // عند تفعيل الموازاة، تكون النقرة الأولى لاختيار الخط المرجعي.
   if((S.parallel||S.perpendicular)&&!parallelRef&&(!drawFlow||(drawFlow.stage==='first'&&drawFlow.points.length===0))){
     parallelRef=pickParallelReference(s2w(...p));
-    toast(parallelRef?(S.perpendicular?'تم تحديد الخط المرجعي للتعامد':'تم تحديد الخط المرجعي للموازاة'):'لم يتم العثور على خط قريب؛ المس خطًا أو ضلعًا واضحًا');
+    toast(parallelRef?(S.perpendicular
+      ?'تم تحديد الخط المرجعي للتعامد'
+      :'تم تحديد الخط المرجعي للموازاة'):'لم يتم العثور على خط قريب؛ المس خطًا أو ضلعًا واضحًا');
     g=null;draw();return;
   }
   // أول لمسة في الرسم الموجَّه: السحب يرسم الشكل مباشرة كالرسم العادي، واللمسة القصيرة تثبّت النقطة الأولى (يُحسم عند الرفع في endPtr).
@@ -65,8 +176,42 @@ cv.addEventListener('pointerdown',e=>{
     cur=free?{t:'free',p:[a],ly:cl,col:D.col||undefined,lw:D.lw}:null;
     upd();draw();return;
   }
-  if(drawFlow){const guideTool=['line','wall','polyline','dim'].includes(drawFlow.tool),guideOrigin=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];addDrawPoint(cpos,false);if(drawFlow&&['second','next'].includes(drawFlow.stage)&&(S.parallel||S.perpendicular)&&parallelRef&&guideTool&&guideOrigin){parallelGuide={origin:guideOrigin.slice(),target:cpos.slice()}}draw();return}$('#sheet').classList.remove('on');$('#smenu').classList.remove('on');$$('.gm').forEach(m=>m.classList.remove('on'));
-  if(tool==='polyline'){const q=snapPt(s2w(...p));if(!polyDraft){polyDraft={t:'polyline',p:[q],ly:cl,col:D.col||undefined,lw:D.lw};toast('أضف الرؤوس، ثم اضغط إنهاء POLYLINE')}else{let q=snapPt(s2w(...p));const first=polyDraft.p[0];if(polyDraft.p.length>=3&&Math.hypot((q[0]-first[0])*V.s,(q[1]-first[1])*V.s)<14){polyDraft.t='polygon';finishPolyline();return}const last=polyDraft.p[polyDraft.p.length-1];if(!mk&&(S.ortho||(S.parallel||S.perpendicular)&&parallelRef))q=constrain(last,q);if(Math.hypot(q[0]-last[0],q[1]-last[1])>.01)polyDraft.p.push(q)}$('#polybar').style.display='flex';mk=null;draw();return}
+  if(drawFlow){
+    if(drawFlow.stage==='second'&&['line','wall','rect'].includes(drawFlow.tool)){
+      const a=drawFlow.points[0].slice();
+      g=lazyBefore({k:'draw',a,flow:cpos.slice(),sp:p});
+      cur=buildGuidedShape(a,snapPt(cpos));
+      updateDrawMetrics(cur);draw();return
+    }
+    const guideTool=['line','wall','polyline','dim'].includes(drawFlow.tool),guideOrigin=drawFlow.tool==='polyline'?drawFlow.points.at(-1):drawFlow.points[0];
+    addDrawPoint(cpos,false);
+    if(drawFlow&&['second','next'].includes(drawFlow.stage)&&(S.parallel||S.perpendicular)&&parallelRef&&guideTool&&guideOrigin){
+      parallelGuide={origin:guideOrigin.slice(),target:cpos.slice()}
+    }
+    draw();
+    return
+  }
+  $('#sheet').classList.remove('on');
+  $('#smenu').classList.remove('on');
+  $$('.gm').forEach(m=>m.classList.remove('on'));
+  if(tool==='polyline'){
+    const q=snapPt(s2w(...p));
+    if(!polyDraft){
+      polyDraft={t:'polyline',p:[q],ly:cl,col:D.col||undefined,lw:D.lw};
+      toast('أضف الرؤوس، ثم اضغط إنهاء POLYLINE')
+    }else{
+      let q=snapPt(s2w(...p));
+      const first=polyDraft.p[0];
+      if(polyDraft.p.length>=3&&Math.hypot((q[0]-first[0])*V.s,(q[1]-first[1])*V.s)<14){polyDraft.t='polygon';finishPolyline();return}
+      const last=polyDraft.p[polyDraft.p.length-1];
+      if(!mk&&(S.ortho||(S.parallel||S.perpendicular)&&parallelRef))q=constrain(last,q);
+      if(Math.hypot(q[0]-last[0],q[1]-last[1])>.01)polyDraft.p.push(q)
+    }
+    $('#polybar').style.display='flex';
+    mk=null;
+    draw();
+    return
+  }
   if(tool==='pan')g={k:'pan',px:p[0],py:p[1],vx:V.x,vy:V.y};
   else if(tool==='select'){
     const gr=gripAt(p);
@@ -78,9 +223,19 @@ cv.addEventListener('pointerdown',e=>{
     }
     const i=hit(...p);
     if(i>=0){
-      if(!sel.includes(i)){sel=[i];setMoveMode(false);g=null}
-      else if(moveArmed)g={k:'move',w0:s2w(...p),o:sel.map(j=>copy(shapes[j])),before:snapStr()};
-      else g=null;
+      if(!sel.includes(i)){
+        // النقر/اللمس المتتابع يضيف العناصر إلى التحديد بدل استبدال العنصر السابق.
+        sel=[...new Set([...sel,i])].sort((a,b)=>a-b);
+        setMoveMode(false);
+        g=null;
+      }else if(moveArmed){
+        // عند تفعيل التحريك، النقر على عنصر محدد يحرك مجموعة التحديد كاملة.
+        g={k:'move',w0:s2w(...p),o:sel.map(j=>copy(shapes[j])),before:snapStr()};
+      }else if(sel.length>1){
+        // النقر مرة أخرى على عنصر محدد يزيله من المجموعة، على الفأرة واللمس.
+        sel=sel.filter(j=>j!==i);
+        g=null;
+      }else g=null;
     }else{sel=[];setMoveMode(false);g={k:'box',a:p}}
   }else if(tool==='furn'){
     const a=snapPt(s2w(...p)),d=SYM[furnKind],s={t:'furn',k:furnKind,x:a[0]-d.w/2,y:a[1]-d.h/2,w:d.w,h:d.h,rot:0,ly:cl,col:D.col||undefined};
@@ -99,7 +254,24 @@ cv.addEventListener('pointerdown',e=>{
     return;
   }else if(tool==='door'||tool==='door2'||tool==='win'){
     const w=wallAt(s2w(...p),28/V.s);sel=[];
-    if(w){const double=tool==='door2',w1=.75,w2=.75,s={t:tool,x:w.q[0],y:w.q[1],a:w.a,th:w.th,w:double?w1+w2:tool==='door'?.9:1.2,w1:double?w1:undefined,w2:double?w2:undefined,f:1,h:1,ly:cl,col:D.col||undefined,lw:D.lw};
+    if(w){const double=tool==='door2',
+      w1=.75,
+      w2=.75,
+      s={
+        t:tool,
+        x:w.q[0],
+        y:w.q[1],
+        a:w.a,
+        th:w.th,
+        w:double?w1+w2:tool==='door'?.9:1.2,
+        w1:double?w1:undefined,
+        w2:double?w2:undefined,
+        f:1,
+        h:1,
+        ly:cl,
+        col:D.col||undefined,
+        lw:D.lw
+      };
       snap();shapes.push(s);sel=[shapes.length-1];g={k:'move',w0:s2w(...p),o:[copy(s)],moved:1}}
   }else{
     sel=[];const a=tool==='free'?s2w(...p):snapPt(s2w(...p));if(tool==='free')mk=null;
@@ -110,20 +282,61 @@ cv.addEventListener('pointerdown',e=>{
 
 cv.addEventListener('pointermove',e=>{
   const p=pos(e);
+  // لا معاينة ولا رسم بالسحب في النمط القطبي؛ الإدخال يتم من حقلي المسافة والزاوية فقط.
+  if(drawFlow&&drawFlow.coordMode==='polar'&&['second','next'].includes(drawFlow.stage)){
+    if(P.has(e.pointerId))P.set(e.pointerId,p);
+    if(e.pointerType==='mouse'||P.has(e.pointerId))cpos=s2w(...p);
+    mk=null;cur=null;updateDrawMetrics(null);redraw();return;
+  }
   if(!P.has(e.pointerId)){
     if(e.pointerType!=='mouse')return;
-    cpos=s2w(...p);mk=snapIdle()?null:osnap(cpos);
-    if(drawFlow)updateDrawFlowPreview(cpos);
+    cpos=s2w(...p);
+    const os=snapIdle()?null:osnap(cpos);
+    handleOtrackHover(cpos,os);
+    if(os){mk=os;otrackActive=[]}
+    else if(!snapIdle()&&otrackRefs.length){snapPt(cpos)}
+    else{mk=null;otrackActive=[]}
+    // عند فتح لوحة الإدخال الرقمي لا نعرض خطًا يتبع حركة الفأرة؛ يعتمد تحديد النقطة على القيم المدخلة.
+    if(drawFlow&&!diOpen)updateDrawFlowPreview(cpos);
     if(moveFlow)moveFlowPreview(cpos);
     if(!drawFlow)parallelGuide=null;
     redraw();return;
   }
   P.set(e.pointerId,p);cpos=s2w(...p);
-  if(!g){if(drawFlow){mk=osnap(cpos);updateDrawFlowPreview(cpos);redraw();return}if(e.pointerType==='mouse'){mk=snapIdle()?null:osnap(cpos);redraw()}return;}
+  if(otrackTimer!==null&&otrackTouchStartPos){
+    if(Math.hypot(p[0]-otrackTouchStartPos[0],p[1]-otrackTouchStartPos[1])>=FLOW_TAP_PX){
+      cancelOtrackTimer();
+    }
+  }
+  if(!g){
+    if(drawFlow){
+      const os=osnap(cpos);
+      handleOtrackHover(cpos,os);
+      snapPt(cpos);
+      updateDrawFlowPreview(cpos);
+      redraw();
+      return
+    }
+    if(e.pointerType==='mouse'){
+      const os=snapIdle()?null:osnap(cpos);
+      handleOtrackHover(cpos,os);
+      if(os){mk=os;otrackActive=[]}
+      else if(!snapIdle()&&otrackRefs.length){snapPt(cpos)}
+      else{mk=null;otrackActive=[]}
+      redraw();
+    }
+    return;
+  }
   if(g.k==='mvflow'&&moveFlow){
     if(moveFlow.stage==='window'&&g.from==='window'){stretchWindowDrag(g.w,cpos);redraw();return}
     if(moveFlow.stage==='base'&&g.from==='base'){
-      if(Math.hypot(p[0]-g.sp[0],p[1]-g.sp[1])>=FLOW_TAP_PX){moveFlow.base=snapPt(g.w);moveFlow.at=moveFlow.base;moveFlow.stage='dest';moveFlowPanel();moveFlowPreview(cpos)}
+      if(Math.hypot(p[0]-g.sp[0],p[1]-g.sp[1])>=FLOW_TAP_PX){
+        moveFlow.base=snapPt(g.w);
+        moveFlow.at=moveFlow.base;
+        moveFlow.stage='dest';
+        moveFlowPanel();
+        moveFlowPreview(cpos)
+      }
       else mk=osnap(cpos);
     }else moveFlowPreview(cpos);
     redraw();return;
@@ -147,26 +360,64 @@ cv.addEventListener('pointermove',e=>{
     if(g.gr.ins!==undefined&&!g.ins)gripInsert(g,s);   // سحب مقبض منتصف ضلع: أضف رأسًا جديدًا عند أول حركة (بعد لقطة التراجع) ثم اسحبه
     const o=g.o,id=g.gr.id;
     if(s.t==='dim'){
-      if(id==='o'){if(s.mode==='angular')s.off=Math.max(.1,Math.hypot(q[0]-s.c[0],q[1]-s.c[1]));else{const L=len(s)||1,nx=-(s.b[1]-s.a[1])/L,ny=(s.b[0]-s.a[0])/L;s.off=(q[0]-s.a[0])*nx+(q[1]-s.a[1])*ny}}
+      if(id==='o'){
+        if(s.mode==='angular')s.off=Math.max(.1,Math.hypot(q[0]-s.c[0],q[1]-s.c[1]));else{
+          const L=len(s)||1,nx=-(s.b[1]-s.a[1])/L,ny=(s.b[0]-s.a[0])/L;
+          s.off=(q[0]-s.a[0])*nx+(q[1]-s.a[1])*ny
+        }
+      }
       else if(id==='c'){s.c=q}
-      else{s[id]=q;if(s.circleId)delete s.circleId;const L2=mk&&mk.ref&&mk.ref.s!==s?{id:sid(mk.ref.s),i:mk.ref.i,m:mk.ref.m||0}:undefined;if(id==='a')s.la=L2;else if(id==='b')s.lb=L2}
+      else{
+        s[id]=q;
+        if(s.circleId)delete s.circleId;
+        const L2=mk&&mk.ref&&mk.ref.s!==s?{id:sid(mk.ref.s),i:mk.ref.i,m:mk.ref.m||0}:undefined;
+        if(id==='a')s.la=L2;else if(id==='b')s.lb=L2
+      }
     }else if(s.t==='line'||s.t==='wall'){const oth=s[id==='a'?'b':'a'];s[id]=mk?q:constrain(oth,q)}
     else if(s.t==='tri')s.p=o.p.map((r,i)=>i===id?q:r);
     else if(s.t==='polyline'||s.t==='polygon')s.p=o.p.map((r,i)=>i===id?q:r);
     else if(s.t==='arc')arcGripDrag(s,o,id,q);
     else if(s.t==='circle')s.r=Math.max(.05,Math.hypot(q[0]-s.x,q[1]-s.y));
-    else if(s.t==='rect'||s.t==='furn'){const opp=rc(o)[(id+2)%4],rt=-(o.rot||0),c=Math.cos(rt),n=Math.sin(rt),dx=q[0]-opp[0],dy=q[1]-opp[1],w=Math.max(.05,Math.abs(dx*c-dy*n)),h=Math.max(.05,Math.abs(dx*n+dy*c));s.w=w;s.h=h;s.x=(q[0]+opp[0])/2-w/2;s.y=(q[1]+opp[1])/2-h/2;if(o.cornerBase)resizeCornerGeometry(s,o)}
+    else if(s.t==='rect'||s.t==='furn'){
+      const opp=rc(o)[(id+2)%4],
+        rt=-(o.rot||0),
+        c=Math.cos(rt),
+        n=Math.sin(rt),
+        dx=q[0]-opp[0],
+        dy=q[1]-opp[1],
+        w=Math.max(.05,Math.abs(dx*c-dy*n)),
+        h=Math.max(.05,Math.abs(dx*n+dy*c));
+      s.w=w;
+      s.h=h;
+      s.x=(q[0]+opp[0])/2-w/2;
+      s.y=(q[1]+opp[1])/2-h/2;
+      if(o.cornerBase)resizeCornerGeometry(s,o)
+    }
   }else if(g.k==='box'){if(Math.hypot(p[0]-g.a[0],p[1]-g.a[1])>6){box={x0:g.a[0],y0:g.a[1],x1:p[0],y1:p[1]};sel=boxSel()}}
   else if(g.k==='draw'){
-    let b=tool==='free'?s2w(...p):snapPt(s2w(...p));if(tool==='dim'&&dimMode==='horizontal')b[1]=g.a[1];if(tool==='dim'&&dimMode==='vertical')b[0]=g.a[0];if(!mk&&(tool==='line'||tool==='wall'||tool==='dim'))b=constrain(g.a,b);
+    updateGestureGuideChoice(p);
+    const os=osnap(s2w(...p));
+    handleOtrackHover(s2w(...p),os);
+    let b=tool==='free'?s2w(...p):snapPt(s2w(...p));
+    if(tool==='dim'&&dimMode==='horizontal')b[1]=g.a[1];
+    if(tool==='dim'&&dimMode==='vertical')b[0]=g.a[0];
+    if(!mk&&(tool==='line'||tool==='wall'||tool==='dim'))b=constrain(g.a,b,guideMode);
     if(tool==='free'){if(cur){const l=cur.p[cur.p.length-1];if(Math.hypot(b[0]-l[0],b[1]-l[1])*V.s>=4)cur.p.push(b)}}
-    else{if(!mk&&(tool==='line'||tool==='wall'||tool==='dim')&&(S.ortho||(S.parallel||S.perpendicular)&&parallelRef))b=constrain(g.a,b);parallelGuide=(S.parallel||S.perpendicular)&&parallelRef&&['line','wall','dim'].includes(tool)?{origin:g.a.slice(),target:b.slice()}:null;cur=build(g.a,b);if(tool==='dim'){cur.la=g.la||undefined;cur.lb=(mk&&mk.ref)||undefined}}
+    else{
+      if(!mk&&(tool==='line'||tool==='wall'||tool==='dim')&&(guideMode||S.ortho||(S.parallel||S.perpendicular)&&parallelRef))b=constrain(g.a,b,guideMode);
+      parallelGuide=(guideMode||S.parallel||S.perpendicular)&&parallelRef&&['line','wall','rect','dim'].includes(tool)?{origin:g.a.slice(),target:b.slice()}:null;
+      cur=buildGuidedShape(g.a,b);
+      if(tool==='dim'){cur.la=g.la||undefined;cur.lb=(mk&&mk.ref)||undefined}
+    }
+    updateDrawMetrics(cur)
   }
   redraw();
 });
 
 function endPtr(e){
   if(!P.has(e.pointerId))return;P.delete(e.pointerId);
+  cancelPendingGuideChoice();
+  cancelOtrackTimer();
   const gk=g&&g.k;
   // لمسة قصيرة على مقبض رأس (بلا سحب) تجعله «الرأس النشط» ليُحذف بزر «حذف رأس»
   if(g&&gk==='grip'&&e.type==='pointerup'&&!g.moved&&g.gr&&g.gr.kind==='v'&&shapes[g.i])vtxActive={s:shapes[g.i],k:g.gr.id};
@@ -175,8 +426,24 @@ function endPtr(e){
   const viewMoved=!!g&&(gk==='pan'?(V.x!==g.vx||V.y!==g.vy):gk==='pinch');
   const ep=pos(e),flowTapUp=!!g&&g.k==='draw'&&!!g.flow&&e.type==='pointerup'&&Math.hypot(ep[0]-g.sp[0],ep[1]-g.sp[1])<FLOW_TAP_PX;
   let flowDone=false;
+  if(otrackTouchAcquired){
+    otrackTouchAcquired=false;
+    if(flowTapUp){
+      cur=null;g=null;box=null;mk=null;
+      redraw();
+      return;
+    }
+  }
   if(g&&e.type==='pointerup'){
-    if(g.k==='draw'&&!flowTapUp&&cur&&valid(cur)){dirty=true;flowDone=!!g.flow;hist.push(g.before);if(cur.t==='dim')linkDim(cur);shapes.push(cur);sel=[shapes.length-1];if(shapes.length===1&&W<=700)fitView([cur]);}
+    if(g.k==='draw'&&!flowTapUp&&cur&&valid(cur)){
+      dirty=true;
+      flowDone=!!g.flow;
+      hist.push(g.before);
+      if(cur.t==='dim')linkDim(cur);
+      shapes.push(cur);
+      sel=[shapes.length-1];
+      if(shapes.length===1&&W<=700)fitView([cur]);
+    }
     else if(g.k==='box'&&box){
       sel=boxSel();
     }
@@ -189,7 +456,14 @@ function endPtr(e){
   }
   const flowPt=flowTapUp?g.flow:null;
   cur=null;g=null;box=null;mk=null;
-  if(flowDone)closeDrawFlow();           // رُسم الشكل بالسحب: أغلق الشريط الرقمي كما بعد أي شكل منجز
+  if(guideChoice)hideGuideChoice();
+  if(!drawFlow){hideGuideChoice();if(guideMode){guideMode=null;parallelRef=null}}
+  updateDrawMetrics(null);
+  if(flowDone){           // رُسم الشكل بالسحب: الانتقال للرسم التالي مع طي الشريط بالحالة الأولية
+    clearOtrack();
+    if(drawFlow&&tool===drawFlow.tool)nextDrawFlow();
+    else closeDrawFlow();
+  }
   if(flowPt)addDrawPoint(flowPt,false);  // لمسة قصيرة: النقطة الأولى ثابتة والشريط يطلب الثانية
   if(!drawFlow)parallelGuide=null;
   if(dirty)save();else if(viewMoved)saveSoon();
@@ -197,7 +471,10 @@ function endPtr(e){
 }
 
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
-cv.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&!P.has(e.pointerId)){mk=null;draw()}});
+cv.addEventListener('pointerleave',e=>{
+  cancelOtrackTimer();
+  if(e.pointerType==='mouse'&&!P.has(e.pointerId)){mk=null;otrackActive=[];updateDrawMetrics(null);draw()}
+});
 
 cv.addEventListener('wheel',e=>{
   e.preventDefault();const p=pos(e),w=s2w(...p);

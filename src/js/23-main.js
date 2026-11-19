@@ -13,4 +13,7 @@ if(document.fonts&&document.fonts.load)document.fonts.load('400 14px "IBM Plex S
 // التخزين غير متزامن (IndexedDB): نحمّل المشاريع بعد جاهزيته ثم نرسم. save() لا تكتب قبل ذلك.
 Store.init().then(()=>{load();upd();draw()}).catch(e=>{console.error(e);toast('تعذّر تحميل المشاريع')});
 // تسجيل عامل الخدمة: يحفظ التطبيق للعمل بلا إنترنت بعد أول فتح
-if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))window.addEventListener(
+  'load',
+  ()=>navigator.serviceWorker.register('sw.js').catch(()=>{})
+);

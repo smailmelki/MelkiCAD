@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- شاشة البدء: خلفية بيضاء وأيقونة MelkiCAD في الوسط بحجم ثابت (لا تتمدد على الشاشة).
+     اسم الملف splash مقصود: قالب Capacitor يشير إلى @drawable/splash، وتُحذف صوره الافتراضية في سير البناء قبل نسخ هذا الملف. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/melkicad_splash_background" />
+    <item
+        android:width="192dp"
+        android:height="192dp"
+        android:gravity="center">
+        <bitmap
+            android:gravity="fill"
+            android:src="@drawable/melkicad_splash_logo" />
+    </item>
+</layer-list>

@@ -3,32 +3,65 @@
  * الرسم على اللوحة: ألوان الثيم، رسم الأشكال والتعبئة والنصوص، إطار الرسم الكامل
  * draw، تغيير الحجم، ملاءمة العرض، ولقطة الشاشة.
  *
- * يعرّف: colors، tag، fillShape، drawNote، drawShape، marker، OPEN_FAST، drawShapes، drawStretchWindow، drawMoveGhost، draw، redraw، resize، quickShot
+ * يعرّف: mkPath، colors، tag، fillShape، drawNote، drawShape، marker، OPEN_FAST، drawShapes، drawStretchWindow، drawMoveGhost، draw، redraw، resize، quickShot
  * يعتمد على: 01-core.js، 02-geometry.js، 04-selection.js، 05-persistence.js،
  *            06-layers.js، 10-dimensions.js، 11-furniture.js، 12-openings.js
  * ================================================================== */
 
 // ---- الرسم ----
+// مصنع مسارات الرسم: Path2D عادةً، ويبدّله تصدير PDF المتجهي (18-print.js) إلى PdfPath أثناء الرسم فقط
+let mkPath=()=>new Path2D();
 const DRAW_LINE_TYPES=new Set(['line','wall','rect','circle','arc','ellipse','polygon','polyline','tri','free']);
-const LINE_PATTERNS={continuous:[],dashed:[.45,.22],dotted:[.08,.18],dashdot:[.45,.16,.08,.16],center:[.8,.16,.12,.16],hidden:[.22,.14]};
+// بلا نموذج أولي: وإلا صار LINE_PATTERNS['constructor'] قيمة صادقة ورمى الرسم TypeError في كل إطار
+const LINE_PATTERNS=Object.assign(
+  Object.create(null),
+  {continuous:[],dashed:[.45,.22],dotted:[.08,.18],dashdot:[.45,.16,.08,.16],center:[.8,.16,.12,.16],hidden:[.22,.14]}
+);
 const isDrawLineShape=s=>!!s&&DRAW_LINE_TYPES.has(s.t);
-const effectiveLineType=s=>isDrawLineShape(s)?(LINE_PATTERNS[s.linetype]?s.linetype:(LINE_PATTERNS[layerOf(s).linetype]?layerOf(s).linetype:'continuous')):'continuous';
+const effectiveLineType=s=>isDrawLineShape(s)?(LINE_PATTERNS[s.linetype]
+  ?s.linetype
+  :(LINE_PATTERNS[layerOf(s).linetype]?layerOf(s).linetype:'continuous')):'continuous';
 const linePattern=s=>LINE_PATTERNS[effectiveLineType(s)].map(v=>v*V.s);
 function offsetLinePoints(P,d,closed){
  if(!P||P.length<2)return P||[];const n=P.length,O=[];
  for(let i=0;i<n;i++){const a=P[(i-1+n)%n],b=P[i],c=P[(i+1)%n];
   if(!closed&&i===0){const x=c[0]-b[0],y=c[1]-b[1],l=Math.hypot(x,y)||1;O.push([b[0]-y/l*d,b[1]+x/l*d]);continue}
   if(!closed&&i===n-1){const x=b[0]-a[0],y=b[1]-a[1],l=Math.hypot(x,y)||1;O.push([b[0]-y/l*d,b[1]+x/l*d]);continue}
-  const x1=b[0]-a[0],y1=b[1]-a[1],l1=Math.hypot(x1,y1)||1,x2=c[0]-b[0],y2=c[1]-b[1],l2=Math.hypot(x2,y2)||1,nx=-y1/l1-y2/l2,ny=x1/l1+x2/l2,m=Math.hypot(nx,ny)||1,dot=(nx/m)*(-y2/l2)+(ny/m)*(x2/l2),k=Math.abs(dot)>.15?d/dot:d;O.push([b[0]+nx/m*k,b[1]+ny/m*k]);
+  const x1=b[0]-a[0],
+    y1=b[1]-a[1],
+    l1=Math.hypot(x1,y1)||1,
+    x2=c[0]-b[0],
+    y2=c[1]-b[1],
+    l2=Math.hypot(x2,y2)||1,
+    nx=-y1/l1-y2/l2,
+    ny=x1/l1+x2/l2,
+    m=Math.hypot(nx,ny)||1,
+    dot=(nx/m)*(-y2/l2)+(ny/m)*(x2/l2),
+    k=Math.abs(dot)>.15?d/dot:d;
+  O.push([b[0]+nx/m*k,b[1]+ny/m*k]);
  }return O;
 }
 function strokeDoubleShape(s,col,lw){
  const gap=Math.max(.01,Number(s.doubleLineGap)||.1)/2;ctx.save();ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.setLineDash(linePattern(s));
- if(s.t==='circle'){const q=w2s(s.x,s.y),r=s.r*V.s,g=gap*V.s;[r-g,r+g].filter(v=>v>0).forEach(v=>{ctx.beginPath();ctx.arc(q[0],q[1],v,0,Math.PI*2);ctx.stroke()})}
- else{const P=s.t==='arc'?arcPtsShape(s):pts(s),closed=['rect','tri','polygon','ellipse'].includes(s.t)||!!s.closed;if(P&&P.length>1)for(const d of[-1,1]){const Q=new Path2D();offsetLinePoints(P,gap*d,closed).forEach((p,i)=>{const q=w2s(p[0],p[1]);i?Q.lineTo(q[0],q[1]):Q.moveTo(q[0],q[1])});if(closed)Q.closePath();ctx.stroke(Q)}}
+ if(s.t==='circle'){
+   const q=w2s(s.x,s.y),r=s.r*V.s,g=gap*V.s;
+   [r-g,r+g].filter(v=>v>0).forEach(v=>{ctx.beginPath();ctx.arc(q[0],q[1],v,0,Math.PI*2);ctx.stroke()})
+ }
+ else{
+   const P=s.t==='arc'?arcPtsShape(s):pts(s),closed=['rect','tri','polygon','ellipse'].includes(s.t)||!!s.closed;
+   if(P&&P.length>1)for(const d of[-1,1]){
+     const Q=mkPath();
+     offsetLinePoints(P,gap*d,closed).forEach((p,i)=>{const q=w2s(p[0],p[1]);i?Q.lineTo(q[0],q[1]):Q.moveTo(q[0],q[1])});
+     if(closed)Q.closePath();
+     ctx.stroke(Q)
+   }
+ }
  ctx.restore();
 }
-const colors=()=>{const s=getComputedStyle(document.documentElement),v=n=>s.getPropertyValue(n).trim();return{bg:v('--cv'),grid:v('--grid'),major:v('--major'),ln:v('--ln'),ac:v('--ac'),dim:v('--dim')}};
+const colors=()=>{
+  const s=getComputedStyle(document.documentElement),v=n=>s.getPropertyValue(n).trim();
+  return{bg:v('--cv'),grid:v('--grid'),major:v('--major'),ln:v('--ln'),ac:v('--ac'),dim:v('--dim')}
+};
 
 function tag(t,x,y,c,big){
   ctx.font=`${big?600:400} ${big?15:12}px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';
@@ -46,8 +79,19 @@ function fillShape(s,Q,col){
   if((x1-x0+y1-y0)/sp>700||(k==='dots'&&(x1-x0)*(y1-y0)/(sp*sp)>2500))return;
   const X=x=>V.x+x*V.s,Y=y=>V.y+y*V.s;
   ctx.save();ctx.clip(Q);ctx.strokeStyle=fc;ctx.globalAlpha=.55;ctx.lineWidth=1;ctx.setLineDash([]);ctx.beginPath();
-  if(k==='tile'){for(let x=Math.floor(x0/sp)*sp;x<=x1;x+=sp){ctx.moveTo(X(x),Y(y0));ctx.lineTo(X(x),Y(y1))}for(let y=Math.floor(y0/sp)*sp;y<=y1;y+=sp){ctx.moveTo(X(x0),Y(y));ctx.lineTo(X(x1),Y(y))}}
-  else if(k==='wood'){const L=sp*7;let r=0;for(let y=Math.floor(y0/sp)*sp;y<=y1;y+=sp,r++){ctx.moveTo(X(x0),Y(y));ctx.lineTo(X(x1),Y(y));for(let x=Math.floor(x0/L)*L+(r%3)*L/3;x<=x1;x+=L){ctx.moveTo(X(x),Y(y));ctx.lineTo(X(x),Y(y+sp))}}}
+  if(k==='tile'){
+    for(let x=Math.floor(x0/sp)*sp;x<=x1;x+=sp){ctx.moveTo(X(x),Y(y0));ctx.lineTo(X(x),Y(y1))}
+    for(let y=Math.floor(y0/sp)*sp;y<=y1;y+=sp){ctx.moveTo(X(x0),Y(y));ctx.lineTo(X(x1),Y(y))}
+  }
+  else if(k==='wood'){
+    const L=sp*7;
+    let r=0;
+    for(let y=Math.floor(y0/sp)*sp;y<=y1;y+=sp,r++){
+      ctx.moveTo(X(x0),Y(y));
+      ctx.lineTo(X(x1),Y(y));
+      for(let x=Math.floor(x0/L)*L+(r%3)*L/3;x<=x1;x+=L){ctx.moveTo(X(x),Y(y));ctx.lineTo(X(x),Y(y+sp))}
+    }
+  }
   else if(k==='hatch'){const h=y1-y0;for(let d=x0-h;d<=x1;d+=sp){ctx.moveTo(X(d),Y(y1));ctx.lineTo(X(d+h),Y(y0))}}
   else{for(let x=Math.floor(x0/sp)*sp;x<=x1;x+=sp)for(let y=Math.floor(y0/sp)*sp;y<=y1;y+=sp){ctx.moveTo(X(x)+1.3,Y(y));ctx.arc(X(x),Y(y),1.3,0,7)}}
   ctx.stroke();ctx.restore();
@@ -76,7 +120,10 @@ function drawShape(s,on,prev,c){
   if(s.t==='furn')return drawFurn(s,on,c);
   if(s.t==='text'||s.t==='north')return drawNote(s,on,c);
   if(s.t==='door'||s.t==='door2'||s.t==='win')return drawOpen(s,on,c);
-  const Q=new Path2D(),col=s.col||layerOf(s).col||c.ln,lw=s.t==='wall'?Math.max(2,s.th*V.s):s.lw||2,closed=['rect','tri','polygon','circle','ellipse'].includes(s.t);
+  const Q=mkPath(),
+    col=s.col||layerOf(s).col||c.ln,
+    lw=s.t==='wall'?Math.max(2,s.th*V.s):s.lw||2,
+    closed=['rect','tri','polygon','circle','ellipse'].includes(s.t);
   if(s.t==='circle'){const r=w2s(s.x,s.y);Q.arc(r[0],r[1],s.r*V.s,0,7)}
   else if(s.t==='ellipse'){pts(s).forEach((q,i)=>{const r=w2s(...q);i?Q.lineTo(r[0],r[1]):Q.moveTo(r[0],r[1])});Q.closePath()}
   else{pts(s).forEach((q,i)=>{const r=w2s(...q);i?Q.lineTo(r[0],r[1]):Q.moveTo(r[0],r[1])});if(closed)Q.closePath()}
@@ -88,33 +135,72 @@ function drawShape(s,on,prev,c){
   else{ctx.setLineDash(prev?[8,6]:linePattern(s));ctx.stroke(Q)}
   ctx.setLineDash([]);
   const b=bx(s),a0=w2s(b.x,b.y),a1=w2s(b.X,b.Y),cx=(a0[0]+a1[0])/2,cy=(a0[1]+a1[1])/2;
-  if((s.t==='line'||s.t==='wall')&&ST.showDims){const a=w2s(...s.a),e=w2s(...s.b);tag(`${fl(len(s))}${(on||prev)&&s.t==='wall'?` · ${f(s.th*100)} cm`:''}`,(a[0]+e[0])/2,(a[1]+e[1])/2-14-(s.th||0)*V.s/2,c)}
-  else if(['free','polyline','arc'].includes(s.t)){if(ST.showDims&&(on||prev)){const q=w2s(...pts(s).at(-1));tag(s.t==='arc'?fl(s.r*(s.a1-s.a0)):fl(plen(s.p)),q[0],q[1]-16,c)}}
+  if((s.t==='line'||s.t==='wall')&&ST.showDims){
+    const a=w2s(...s.a),e=w2s(...s.b);
+    tag(`${fl(len(s))}${(on||prev)&&s.t==='wall'?` · ${f(s.th*100)} cm`:''}`,(a[0]+e[0])/2,(a[1]+e[1])/2-14-(s.th||0)*V.s/2,c)
+  }
+  else if(['free','polyline','arc'].includes(s.t)){
+    if(ST.showDims&&(on||prev)){const q=w2s(...pts(s).at(-1));tag(s.t==='arc'?fl(s.r*(s.a1-s.a0)):fl(plen(s.p)),q[0],q[1]-16,c)}
+  }
   else{
     const A=area(s),L=[];if(s.name)L.push([s.name,1]);
     if(ST.showDims){if(s.t==='circle')L.push([`R ${fl(s.r)}`,0]);else if(s.t==='rect')L.push([`${fu(s.w)} × ${fl(s.h)}`,0]);}
     if(ST.showAreas)L.push([`${f(A)} m²`,1]);
     const pw=a1[0]-a0[0],ph=a1[1]-a0[1];
-    if(L.length&&pw>96&&ph>L.length*22+10)L.forEach((l,i)=>tag(l[0],cx,cy+(i-(L.length-1)/2)*20,c,l[1]));else if(ST.showAreas&&pw>44&&ph>26)tag(`${f(A)} m²`,cx,cy,c,1);
+    if(L.length&&pw>96&&ph>L.length*22+10)L.forEach((l,i)=>tag(
+      l[0],
+      cx,
+      cy+(i-(L.length-1)/2)*20,
+      c,
+      l[1]
+    ));else if(ST.showAreas&&pw>44&&ph>26)tag(`${f(A)} m²`,cx,cy,c,1);
     if(ST.showDims&&(on||prev)){
-      if(s.t==='rect'){const k=rc(s).map(q=>w2s(...q));tag(fu(s.w),(k[0][0]+k[1][0])/2,(k[0][1]+k[1][1])/2-14,c);tag(fu(s.h),(k[1][0]+k[2][0])/2+22,(k[1][1]+k[2][1])/2,c)}
-      else if(s.t==='tri')s.p.forEach((q,i)=>{const n=s.p[(i+1)%3],u=w2s(...q),e=w2s(...n);tag(fu(Math.hypot(q[0]-n[0],q[1]-n[1])),(u[0]+e[0])/2,(u[1]+e[1])/2,c)});
-      else if(s.t==='circle'){ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(a1[0],cy);ctx.strokeStyle=c.ac;ctx.lineWidth=1.5;ctx.stroke();tag(fu(s.r),(cx+a1[0])/2,cy-14,c)}
+      if(s.t==='rect'){
+        const k=rc(s).map(q=>w2s(...q));
+        tag(fu(s.w),(k[0][0]+k[1][0])/2,(k[0][1]+k[1][1])/2-14,c);
+        tag(fu(s.h),(k[1][0]+k[2][0])/2+22,(k[1][1]+k[2][1])/2,c)
+      }
+      else if(s.t==='tri')s.p.forEach((q,i)=>{
+        const n=s.p[(i+1)%3],u=w2s(...q),e=w2s(...n);
+        tag(fu(Math.hypot(q[0]-n[0],q[1]-n[1])),(u[0]+e[0])/2,(u[1]+e[1])/2,c)
+      });
+      else if(s.t==='circle'){
+        ctx.beginPath();
+        ctx.moveTo(cx,cy);
+        ctx.lineTo(a1[0],cy);
+        ctx.strokeStyle=c.ac;
+        ctx.lineWidth=1.5;
+        ctx.stroke();
+        tag(fu(s.r),(cx+a1[0])/2,cy-14,c)
+      }
       else if(s.t==='ellipse'){tag(`RX ${fu(s.rx)}`,cx,cy-14,c);tag(`RY ${fu(s.ry)}`,cx,cy+14,c)}
     }
   }
 }
 
 function marker(c){
-  const q=w2s(...mk.p),x=q[0],y=q[1];ctx.strokeStyle=c.ac;ctx.lineWidth=2.5;ctx.beginPath();
+  const q=w2s(...mk.p),x=q[0],y=q[1];
+  const isOtrack=mk.k&&mk.k.startsWith('otrack');
+  ctx.strokeStyle=isOtrack?'#06b6d4':c.ac;
+  ctx.lineWidth=2.5;ctx.beginPath();
   if(mk.k==='end')ctx.rect(x-7,y-7,14,14);
   else if(mk.k==='mid'){ctx.moveTo(x,y-8);ctx.lineTo(x+8,y+6);ctx.lineTo(x-8,y+6);ctx.closePath()}
   else if(mk.k==='int'){ctx.moveTo(x-7,y-7);ctx.lineTo(x+7,y+7);ctx.moveTo(x+7,y-7);ctx.lineTo(x-7,y+7)}
   else if(mk.k==='cen')ctx.arc(x,y,7,0,7);
   else if(mk.k==='per'){ctx.moveTo(x-7,y-7);ctx.lineTo(x-7,y+7);ctx.lineTo(x+7,y+7);ctx.moveTo(x-7,y+1);ctx.lineTo(x-1,y+1);ctx.lineTo(x-1,y+7)}
   else if(mk.k==='nea'){ctx.moveTo(x-7,y-7);ctx.lineTo(x+7,y-7);ctx.lineTo(x-7,y+7);ctx.lineTo(x+7,y+7);ctx.closePath()}
+  else if(mk.k==='otrack_int'){
+    ctx.rect(x-6,y-6,12,12);
+    ctx.moveTo(x-6,y-6);ctx.lineTo(x+6,y+6);
+    ctx.moveTo(x+6,y-6);ctx.lineTo(x-6,y+6);
+  }
+  else if(mk.k==='otrack_h'||mk.k==='otrack_v'||mk.k==='otrack'){
+    ctx.arc(x,y,5,0,7);
+    ctx.moveTo(x-8,y);ctx.lineTo(x+8,y);
+    ctx.moveTo(x,y-8);ctx.lineTo(x,y+8);
+  }
   else{ctx.moveTo(x,y-8);ctx.lineTo(x+8,y);ctx.lineTo(x,y+8);ctx.lineTo(x-8,y);ctx.closePath()}
-  ctx.stroke();tag(NM[mk.k],x,y-22,c);
+  ctx.stroke();tag(NM[mk.k]||'تتبع',x,y-22,c);
 }
 
 // اختيار سلم شبكي تلقائي ضمن الحدود المطلوبة (من 1 سم إلى 10,000 م).
@@ -134,11 +220,11 @@ const OPEN_FAST=new Set(['line','polyline','free','arc']);
 //  2) ضربة stroke منفصلة وPath2D جديد لكل خط → نجمع الخطوط البسيطة المتجاورة في ضربة واحدة لكل نمط
 //     (الجمع داخل مقطع متجاور فقط، فلا يتغير ترتيب الرسم بالنسبة للتعبئات والأشكال المركّبة والتحديد).
 //  3) مئات الشظايا الأصغر من بكسل ونصوص بحجم لا يُقرأ → في الملفات الكبيرة (> 1500 شكل) لا تُرسم.
-function drawShapes(picked,c){
+function drawShapes(picked,c,preserveDetail=false,range=null,onlyPass=null){
   const lm=new Map();for(const l of LY)lm.set(l.id,l);
   const L0=LY[0]||{vis:1,lock:0},lay=s=>lm.get(s.ly)||L0;
   const vs=Math.max(V.s,1e-9),vx0=-V.x/vs,vy0=-V.y/vs,vx1=(W-V.x)/vs,vy1=(H-V.y)/vs;
-  const heavy=shapes.length>1500,o=[0,0,0,0],groups=new Map();
+  const heavy=!preserveDetail&&shapes.length>1500,o=[0,0,0,0],groups=new Map();
   // tiny=true: الشكل أصغر من بضعة بكسلات في ملف كبير، فيكفي مقطع مستقيم بين طرفيه (لا يُرى فرق)
   const trace=(s,tiny)=>{
     const X=V.x,Y=V.y,k=V.s;
@@ -146,7 +232,11 @@ function drawShapes(picked,c){
     if(s.t==='circle'){const cx=X+s.x*k,cy=Y+s.y*k,r=s.r*k;ctx.moveTo(cx+r,cy);ctx.arc(cx,cy,r,0,7);return}
     if(s.t==='rect'){ctx.rect(X+s.x*k,Y+s.y*k,s.w*k,s.h*k);return}
     if(tiny){
-      if(s.t==='arc'){ctx.moveTo(X+(s.x+s.r*Math.cos(s.a0))*k,Y+(s.y+s.r*Math.sin(s.a0))*k);ctx.lineTo(X+(s.x+s.r*Math.cos(s.a1))*k,Y+(s.y+s.r*Math.sin(s.a1))*k);return}
+      if(s.t==='arc'){
+        ctx.moveTo(X+(s.x+s.r*Math.cos(s.a0))*k,Y+(s.y+s.r*Math.sin(s.a0))*k);
+        ctx.lineTo(X+(s.x+s.r*Math.cos(s.a1))*k,Y+(s.y+s.r*Math.sin(s.a1))*k);
+        return
+      }
       const p0=s.p&&s.p[0],p1=s.p&&s.p[s.p.length-1];
       if(p0&&p1){ctx.moveTo(X+p0[0]*k,Y+p0[1]*k);ctx.lineTo(X+p1[0]*k,Y+p1[1]*k)}
       return;
@@ -174,8 +264,10 @@ function drawShapes(picked,c){
     }
     groups.clear();
   };
-  for(const pass of[0,1]){
-    for(let i=0;i<shapes.length;i++){
+  const start=range?Math.max(0,range[0]):0,end=range?Math.min(shapes.length,range[1]):shapes.length;
+  const passes=onlyPass===null?[0,1]:[onlyPass];
+  for(const pass of passes){
+    for(let i=start;i<end;i++){
       const s=shapes[i],l=lay(s);
       if(l.vis===0)continue;
       if((s.t==='door'||s.t==='door2'||s.t==='win')!==!!pass)continue;
@@ -206,7 +298,15 @@ function drawShapes(picked,c){
 function drawStretchWindow(c){
   const F=moveFlow;if(!F||F.mode!=='stretch'||!F.win)return;
   const a=w2s(F.win.x0,F.win.y0),b=w2s(F.win.x1,F.win.y1);
-  ctx.save();ctx.setLineDash([7,4]);ctx.lineWidth=1.5;ctx.strokeStyle=ctx.fillStyle='#16a34a';ctx.globalAlpha=.12;ctx.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]);ctx.globalAlpha=1;ctx.strokeRect(a[0],a[1],b[0]-a[0],b[1]-a[1]);ctx.restore();
+  ctx.save();
+  ctx.setLineDash([7,4]);
+  ctx.lineWidth=1.5;
+  ctx.strokeStyle=ctx.fillStyle='#16a34a';
+  ctx.globalAlpha=.12;
+  ctx.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]);
+  ctx.globalAlpha=1;
+  ctx.strokeRect(a[0],a[1],b[0]-a[0],b[1]-a[1]);
+  ctx.restore();
   tag(`شدّ: ${F.hits||0} شكل`,(a[0]+b[0])/2,Math.min(a[1],b[1])-14,c);
 }
 function drawMoveGhost(c){
@@ -214,7 +314,15 @@ function drawMoveGhost(c){
   if(!F||F.stage!=='dest'||!F.base||!F.at)return;
   const dx=F.at[0]-F.base[0],dy=F.at[1]-F.base[1];
   if(F.ghost)F.ghost.forEach(s=>drawShape(s,false,true,c));
-  else if(F.bb){const a=w2s(F.bb.x+dx,F.bb.y+dy),b=w2s(F.bb.X+dx,F.bb.Y+dy);ctx.save();ctx.strokeStyle=c.ac;ctx.lineWidth=1.5;ctx.setLineDash([8,6]);ctx.strokeRect(a[0],a[1],b[0]-a[0],b[1]-a[1]);ctx.restore()}
+  else if(F.bb){
+    const a=w2s(F.bb.x+dx,F.bb.y+dy),b=w2s(F.bb.X+dx,F.bb.Y+dy);
+    ctx.save();
+    ctx.strokeStyle=c.ac;
+    ctx.lineWidth=1.5;
+    ctx.setLineDash([8,6]);
+    ctx.strokeRect(a[0],a[1],b[0]-a[0],b[1]-a[1]);
+    ctx.restore()
+  }
   const p0=w2s(F.base[0],F.base[1]),p1=w2s(F.at[0],F.at[1]);
   ctx.save();ctx.strokeStyle=c.ac;ctx.fillStyle=c.ac;ctx.lineWidth=1.5;ctx.setLineDash([4,5]);
   ctx.beginPath();ctx.moveTo(p0[0],p0[1]);ctx.lineTo(p1[0],p1[1]);ctx.stroke();
@@ -224,6 +332,7 @@ function drawMoveGhost(c){
 }
 
 function draw(){
+  if(sheetSwap){sheetDeferred=1;return}   // معاينة الطباعة تستعير ctx وV وW وH مؤقتًا؛ نؤجّل رسم الشاشة حتى تعيدها
   const c=colors();syncDims();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.direction='ltr';
   ctx.fillStyle=c.bg;ctx.fillRect(0,0,W,H);
   const gs=autoGridScale(),L=gs*V.s;
@@ -238,46 +347,168 @@ function draw(){
   }
   drawShapes(new Set(sel),c);
   // أثناء الرسم الموازي: إبراز ضلع المرجع ورسم دليل متقطع ممتد عبر مساحة اللوحة.
-  if(parallelGuide&&parallelRef&&parallelGuide.target&&referenceWithinTolerance(parallelGuide.origin,parallelGuide.target)){
-    const rx=parallelRef.b[0]-parallelRef.a[0],ry=parallelRef.b[1]-parallelRef.a[1],len=Math.hypot(rx,ry),dx=S.perpendicular?-ry:rx,dy=S.perpendicular?rx:ry;
+  if(parallelGuide&&parallelRef&&parallelGuide.target&&referenceWithinTolerance(parallelGuide.origin,parallelGuide.target,guideMode||null)){
+    const rx=parallelRef.b[0]-parallelRef.a[0],ry=parallelRef.b[1]-parallelRef.a[1],len=Math.hypot(rx,ry),perpendicular=guideMode?guideMode==='perpendicular':S.perpendicular,dx=perpendicular?-ry:rx,dy=perpendicular?rx:ry;
     if(len>1e-9){
       const ux=dx/len,uy=dy/len,origin=parallelGuide.origin||parallelGuide.a;
       const corners=[[0,0],[W,0],[0,H],[W,H]].map(q=>s2w(...q));
       const ts=corners.map(q=>(q[0]-origin[0])*ux+(q[1]-origin[1])*uy),lo=Math.min(...ts)-2/Math.max(V.s,1e-9),hi=Math.max(...ts)+2/Math.max(V.s,1e-9);
       const p0=w2s(origin[0]+ux*lo,origin[1]+uy*lo),p1=w2s(origin[0]+ux*hi,origin[1]+uy*hi);
-      ctx.save();ctx.strokeStyle='#06b6d4';ctx.globalAlpha=.95;ctx.lineWidth=2;ctx.setLineDash([4,5]);ctx.beginPath();ctx.moveTo(p0[0],p0[1]);ctx.lineTo(p1[0],p1[1]);ctx.stroke();ctx.setLineDash([]);
+      ctx.save();
+      ctx.strokeStyle='#06b6d4';
+      ctx.globalAlpha=.95;
+      ctx.lineWidth=2;
+      ctx.setLineDash([4,5]);
+      ctx.beginPath();
+      ctx.moveTo(p0[0],p0[1]);
+      ctx.lineTo(p1[0],p1[1]);
+      ctx.stroke();
+      ctx.setLineDash([]);
       const r0=w2s(...parallelRef.a),r1=w2s(...parallelRef.b);
       ctx.globalAlpha=.28;ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(r0[0],r0[1]);ctx.lineTo(r1[0],r1[1]);ctx.stroke();
       ctx.globalAlpha=1;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(r0[0],r0[1]);ctx.lineTo(r1[0],r1[1]);ctx.stroke();
-      ctx.restore();tag(S.perpendicular?'خط التعامد المرجعي':'الخط المرجعي',(r0[0]+r1[0])/2,(r0[1]+r1[1])/2-15,c);
+      ctx.restore();tag(perpendicular?'خط التعامد المرجعي':'الخط الموازي المرجعي',(r0[0]+r1[0])/2,(r0[1]+r1[1])/2-15,c);
     }
+  }
+  // نقاط مرجع التتبع (OTRACK): علامة + صغيرة باللون السماوي
+  if(otrackRefs&&otrackRefs.length){
+    ctx.save();
+    ctx.strokeStyle='#06b6d4';
+    ctx.lineWidth=2;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    for(const r of otrackRefs){
+      const q=w2s(r.p[0],r.p[1]);
+      ctx.moveTo(q[0]-5,q[1]);ctx.lineTo(q[0]+5,q[1]);
+      ctx.moveTo(q[0],q[1]-5);ctx.lineTo(q[0]+5,q[1]);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  // محاور التتبع النشطة (OTRACK): خطوط إرشادية متقطعة تمتد عبر اللوحة
+  if(otrackActive&&otrackActive.length){
+    ctx.save();
+    ctx.strokeStyle='#06b6d4';
+    ctx.lineWidth=1.5;
+    ctx.setLineDash([5,4]);
+    ctx.globalAlpha=.85;
+    ctx.beginPath();
+    for(const trk of otrackActive){
+      if(trk.type==='h'){
+        const Y=V.y+trk.val*V.s;
+        ctx.moveTo(0,Y);ctx.lineTo(W,Y);
+      }else if(trk.type==='v'){
+        const X=V.x+trk.val*V.s;
+        ctx.moveTo(X,0);ctx.lineTo(X,H);
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
   }
   if(cur)drawShape(cur,false,true,c);
   if(polyDraft)drawShape(polyDraft,false,true,c);
   drawMoveGhost(c);
   if(box){
     const cr=box.x1<box.x0,k=cr?'#16a34a':'#2563eb',bw=box.x1-box.x0,bh=box.y1-box.y0;
-    ctx.setLineDash(cr?[7,4]:[]);ctx.lineWidth=1.5;ctx.strokeStyle=k;ctx.fillStyle=k;ctx.globalAlpha=.12;ctx.fillRect(box.x0,box.y0,bw,bh);ctx.globalAlpha=1;ctx.strokeRect(box.x0,box.y0,bw,bh);ctx.setLineDash([]);
+    ctx.setLineDash(cr?[7,4]:[]);
+    ctx.lineWidth=1.5;
+    ctx.strokeStyle=k;
+    ctx.fillStyle=k;
+    ctx.globalAlpha=.12;
+    ctx.fillRect(box.x0,box.y0,bw,bh);
+    ctx.globalAlpha=1;
+    ctx.strokeRect(box.x0,box.y0,bw,bh);
+    ctx.setLineDash([]);
     tag(`${cr?'تحديد بالتقاطع':'تحديد داخلي'} (${sel.length})`,(box.x0+box.x1)/2,Math.min(box.y0,box.y1)-14,c);
-  }else if(tool==='select'&&!sel.length&&shapes.length){ctx.font=`400 12px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText('إطار من اليسار: داخلي · من اليمين: بالتقاطع',W/2,16)}
+  }else if(tool==='select'&&!sel.length&&shapes.length){
+    ctx.font=`400 12px ${FONT}`;
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillStyle=c.dim;
+    ctx.fillText('إطار من اليسار: داخلي · من اليمين: بالتقاطع',W/2,16)
+  }
   if(g&&g.k==='rot'&&g.moved){const q=w2s(...g.c);tag(`${Math.round(g.deg)}°`,q[0],q[1],c,1)}
   else grips().forEach(q=>{
-    if(q.id==='rot'){ctx.strokeStyle=c.ac;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(q.top[0],q.top[1]);ctx.lineTo(q.sp[0],q.sp[1]);ctx.stroke();ctx.fillStyle=c.ac;ctx.beginPath();ctx.arc(q.sp[0],q.sp[1],11,0,7);ctx.fill();ctx.fillStyle=c.bg;ctx.font=`600 15px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('↻',q.sp[0],q.sp[1]+1)}
+    if(q.id==='rot'){
+      ctx.strokeStyle=c.ac;
+      ctx.lineWidth=1.5;
+      ctx.beginPath();
+      ctx.moveTo(q.top[0],q.top[1]);
+      ctx.lineTo(q.sp[0],q.sp[1]);
+      ctx.stroke();
+      ctx.fillStyle=c.ac;
+      ctx.beginPath();
+      ctx.arc(q.sp[0],q.sp[1],11,0,7);
+      ctx.fill();
+      ctx.fillStyle=c.bg;
+      ctx.font=`600 15px ${FONT}`;
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillText('↻',q.sp[0],q.sp[1]+1)
+    }
     else if(q.kind==='m'){ctx.fillStyle=c.bg;ctx.strokeStyle=c.ac;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(q.sp[0],q.sp[1],5,0,7);ctx.fill();ctx.stroke()}
     else{ctx.fillStyle=q.on?c.ac:c.bg;ctx.strokeStyle=c.ac;ctx.lineWidth=2;ctx.fillRect(q.sp[0]-6,q.sp[1]-6,12,12);ctx.strokeRect(q.sp[0]-6,q.sp[1]-6,12,12)}
   });
   if(ST.axes){
     const o=w2s(0,0),at=o[0]>12&&o[0]<W-40&&o[1]>44&&o[1]<H-12,b0=at?o:[34,H-58],n2=34;
     ctx.lineWidth=2;ctx.lineCap='round';ctx.font=`600 11px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.strokeStyle=ctx.fillStyle='#dc2626';ctx.beginPath();ctx.moveTo(b0[0],b0[1]);ctx.lineTo(b0[0]+n2,b0[1]);ctx.moveTo(b0[0]+n2-6,b0[1]-4);ctx.lineTo(b0[0]+n2,b0[1]);ctx.lineTo(b0[0]+n2-6,b0[1]+4);ctx.stroke();ctx.fillText('X',b0[0]+n2+9,b0[1]);
-    ctx.strokeStyle=ctx.fillStyle='#16a34a';ctx.beginPath();ctx.moveTo(b0[0],b0[1]);ctx.lineTo(b0[0],b0[1]-n2);ctx.moveTo(b0[0]-4,b0[1]-n2+6);ctx.lineTo(b0[0],b0[1]-n2);ctx.lineTo(b0[0]+4,b0[1]-n2+6);ctx.stroke();ctx.fillText('Y',b0[0],b0[1]-n2-9);
-    if(at){ctx.strokeStyle=c.dim;ctx.lineWidth=1.5;ctx.strokeRect(b0[0]-4,b0[1]-4,8,8);ctx.fillStyle=c.dim;ctx.textAlign='left';ctx.font=`400 10px ${FONT}`;ctx.fillText('0,0',b0[0]+7,b0[1]+13)}
+    ctx.strokeStyle=ctx.fillStyle='#dc2626';
+    ctx.beginPath();
+    ctx.moveTo(b0[0],b0[1]);
+    ctx.lineTo(b0[0]+n2,b0[1]);
+    ctx.moveTo(b0[0]+n2-6,b0[1]-4);
+    ctx.lineTo(b0[0]+n2,b0[1]);
+    ctx.lineTo(b0[0]+n2-6,b0[1]+4);
+    ctx.stroke();
+    ctx.fillText('X',b0[0]+n2+9,b0[1]);
+    ctx.strokeStyle=ctx.fillStyle='#16a34a';
+    ctx.beginPath();
+    ctx.moveTo(b0[0],b0[1]);
+    ctx.lineTo(b0[0],b0[1]-n2);
+    ctx.moveTo(b0[0]-4,b0[1]-n2+6);
+    ctx.lineTo(b0[0],b0[1]-n2);
+    ctx.lineTo(b0[0]+4,b0[1]-n2+6);
+    ctx.stroke();
+    ctx.fillText('Y',b0[0],b0[1]-n2-9);
+    if(at){
+      ctx.strokeStyle=c.dim;
+      ctx.lineWidth=1.5;
+      ctx.strokeRect(b0[0]-4,b0[1]-4,8,8);
+      ctx.fillStyle=c.dim;
+      ctx.textAlign='left';
+      ctx.font=`400 10px ${FONT}`;
+      ctx.fillText('0,0',b0[0]+7,b0[1]+13)
+    }
   }
-  if(ST.coord&&(mk||cpos)){const q=mk?mk.p:cpos;ctx.font=`400 11px ${FONT}`;ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText(`X ${fu(q[0])}   Y ${fu(-q[1])}  ${ul()}`,W-10,H-14)}
+  if(ST.coord&&(mk||cpos)){
+    const q=mk?mk.p:cpos;
+    ctx.font=`400 11px ${FONT}`;
+    ctx.textAlign='right';
+    ctx.textBaseline='middle';
+    ctx.fillStyle=c.dim;
+    ctx.fillText(`X ${fu(q[0])}   Y ${fu(-q[1])}  ${ul()}`,W-10,H-30)
+  }
   if(mk)marker(c);
-  if(tool==='polyline'){ctx.font=`400 13px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText('انقر لإضافة الرؤوس ثم اضغط إنهاء POLYLINE',W/2,20)}
-  if(tool==='door'||tool==='door2'||tool==='win'){ctx.font=`400 13px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=c.dim;ctx.fillText(`المس جدارًا لوضع ${tool==='door2'?'الباب المزدوج':tool==='door'?'الباب':'النافذة'} ثم اسحب لتحريكه`,W/2,20)}
-  if(!shapes.length&&!cur&&!polyDraft){ctx.font=`400 15px ${FONT}`;ctx.textAlign='center';ctx.fillStyle=c.dim;ctx.fillText('اختر شكلًا من الأسفل ثم اسحب على اللوحة',W/2,H/2)}
+  if(tool==='polyline'){
+    ctx.font=`400 13px ${FONT}`;
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillStyle=c.dim;
+    ctx.fillText('انقر لإضافة الرؤوس ثم اضغط إنهاء POLYLINE',W/2,20)
+  }
+  if(tool==='door'||tool==='door2'||tool==='win'){
+    ctx.font=`400 13px ${FONT}`;
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillStyle=c.dim;
+    ctx.fillText(`المس جدارًا لوضع ${tool==='door2'?'الباب المزدوج':tool==='door'?'الباب':'النافذة'} ثم اسحب لتحريكه`,W/2,20)
+  }
+  if(!shapes.length&&!cur&&!polyDraft){
+    ctx.font=`400 15px ${FONT}`;
+    ctx.textAlign='center';
+    ctx.fillStyle=c.dim;
+    ctx.fillText('اختر شكلًا من الأسفل ثم اسحب على اللوحة',W/2,H/2)
+  }
   ctx.strokeStyle=c.dim;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(12,H-14);ctx.lineTo(12+L,H-14);ctx.stroke();
   ctx.font=`400 11px ${FONT}`;ctx.textAlign='left';ctx.fillStyle=c.dim;ctx.fillText(fl(gs),12,H-26);
 }
@@ -285,9 +516,11 @@ function draw(){
 // رسم مؤجَّل: يدمج طلبات الرسم المتتالية (حركة المؤشر والعجلة) في إطار واحد لكل تحديث للشاشة.
 // draw() يبقى متزامنًا للأماكن التي تحتاج النتيجة فورًا (لقطة الشاشة، التصدير).
 let drawQueued=0;
+// sheetSwap>0 أثناء استعارة المتغيرات العامة لرسم ورقة الطباعة (معاينة غير متزامنة)؛ sheetDeferred: وصل رسم أو تغيير حجم وقتها فيُعاد بعده
+let sheetSwap=0,sheetDeferred=0;
 function redraw(){if(drawQueued)return;drawQueued=requestAnimationFrame(()=>{drawQueued=0;draw()})}
 
-function resize(){dpr=devicePixelRatio||1;const r=$('main').getBoundingClientRect();W=r.width;H=r.height;cv.width=W*dpr;cv.height=H*dpr;draw()}
+function resize(){if(sheetSwap){sheetDeferred=1;return}dpr=devicePixelRatio||1;const r=$('main').getBoundingClientRect();W=r.width;H=r.height;cv.width=W*dpr;cv.height=H*dpr;draw()}
 
 // ملاءمة العناصر لمساحة العرض مع الحفاظ على الأبعاد الحقيقية.
 function fitView(items=shapes){

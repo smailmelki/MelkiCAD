@@ -16,18 +16,59 @@ function drawOpen(s,on,c){
   ctx.beginPath();L(T(-w/2,0),T(w/2,0));ctx.strokeStyle=c.bg;ctx.lineWidth=Math.max(12,(s.th||0)*V.s+3);ctx.stroke();
   if(on){ctx.beginPath();L(T(-w/2,0),T(w/2,0));ctx.strokeStyle=c.ac;ctx.globalAlpha=.3;ctx.lineWidth=lw+14;ctx.stroke();ctx.globalAlpha=1}
   ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();
-  if(s.t==='win'){ctx.lineWidth=Math.max(1.2,lw*.75);const hf=Math.max(4,(s.th||0)*V.s/2);[-hf,0,hf].forEach(v=>L(T(-w/2,v),T(w/2,v)));L(T(-w/2,-hf),T(-w/2,hf));L(T(w/2,-hf),T(w/2,hf));ctx.stroke()}
+  if(s.t==='win'){
+    ctx.lineWidth=Math.max(1.2,lw*.75);
+    const hf=Math.max(4,(s.th||0)*V.s/2);
+    [-hf,0,hf].forEach(v=>L(T(-w/2,v),T(w/2,v)));
+    L(T(-w/2,-hf),T(-w/2,hf));
+    L(T(w/2,-hf),T(w/2,hf));
+    ctx.stroke()
+  }
   else if(s.t==='door2'){
-    const f=s.f||1,of=(s.th||0)*V.s/2*f,leaf=(hx,span,dir)=>{const z=span*V.s,H=T(hx*V.s,of),v=doorLeafVector(span,dir,f,s.oa),E=T((hx+v[0])*V.s,of+v[1]*V.s),C=T((hx+dir*span)*V.s,of);ctx.beginPath();L(H,E);ctx.stroke();const aE=Math.atan2(E[1]-H[1],E[0]-H[0]),aC=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=aC-aE;d=Math.atan2(Math.sin(d),Math.cos(d));ctx.beginPath();ctx.lineWidth=Math.max(1,lw*.6);ctx.globalAlpha=.7;ctx.arc(H[0],H[1],z,aE,aE+d,d<0);ctx.stroke();ctx.globalAlpha=1;ctx.lineWidth=lw};
+    const f=s.f||1,of=(s.th||0)*V.s/2*f,leaf=(hx,span,dir)=>{
+      const z=span*V.s,H=T(hx*V.s,of),v=doorLeafVector(span,dir,f,s.oa),E=T((hx+v[0])*V.s,of+v[1]*V.s),C=T((hx+dir*span)*V.s,of);
+      ctx.beginPath();
+      L(H,E);
+      ctx.stroke();
+      const aE=Math.atan2(E[1]-H[1],E[0]-H[0]),aC=Math.atan2(C[1]-H[1],C[0]-H[0]);
+      let d=aC-aE;
+      d=Math.atan2(Math.sin(d),Math.cos(d));
+      ctx.beginPath();
+      ctx.lineWidth=Math.max(1,lw*.6);
+      ctx.globalAlpha=.7;
+      ctx.arc(H[0],H[1],z,aE,aE+d,d<0);
+      ctx.stroke();
+      ctx.globalAlpha=1;
+      ctx.lineWidth=lw
+    };
     leaf(-s.w1/2-s.w2/2,s.w1,1);leaf((s.w1+s.w2)/2,s.w2,-1);
   }
   else{
-    const hinge=s.h===-1?-1:1,hu=-hinge*w/2,of=(s.th||0)*V.s/2*(s.f||1),v=doorLeafVector(w,hinge,s.f||1,s.oa),H=T(hu,of),E=T(hu+v[0],of+v[1]),C=T(hu+hinge*w,of);L(H,E);ctx.stroke();
+    const hinge=s.h===-1?-1:1,
+      hu=-hinge*w/2,
+      of=(s.th||0)*V.s/2*(s.f||1),
+      v=doorLeafVector(w,hinge,s.f||1,s.oa),
+      H=T(hu,of),
+      E=T(hu+v[0],of+v[1]),
+      C=T(hu+hinge*w,of);
+    L(H,E);
+    ctx.stroke();
     const aE=Math.atan2(E[1]-H[1],E[0]-H[0]),aC=Math.atan2(C[1]-H[1],C[0]-H[0]);let d=aC-aE;d=Math.atan2(Math.sin(d),Math.cos(d));
     ctx.beginPath();ctx.lineWidth=Math.max(1,lw*.6);ctx.globalAlpha=.7;ctx.arc(H[0],H[1],w,aE,aE+d,d<0);ctx.stroke();ctx.globalAlpha=1;
   }
-  if(on&&ST.showDims){if(s.t==='door2'){const a=T(-s.w2/2,-22),b=T(s.w1/2,-22);tag(fl(s.w1),a[0],a[1],c);tag(fl(s.w2),b[0],b[1],c)}else{const m=T(0,-22);tag(fl(s.w),m[0],m[1],c)}}
+  if(on&&ST.showDims){
+    if(s.t==='door2'){const a=T(-s.w2/2,-22),b=T(s.w1/2,-22);tag(fl(s.w1),a[0],a[1],c);tag(fl(s.w2),b[0],b[1],c)}else{const m=T(0,-22);tag(fl(s.w),m[0],m[1],c)}
+  }
 }
 // أقرب نقطة على جدار (خط أو ضلع غرفة/مثلث) ضمن نصف قطر r بالمتر
-function wallAt(p,r){let best=null,bd=r;for(const s of shapes)if(shown(s))for(const e of segs(s)){const a=e[0],b=e[1],dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;if(!l)continue;const t=clamp(((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l,0,1),q=[a[0]+t*dx,a[1]+t*dy],d=Math.hypot(q[0]-p[0],q[1]-p[1]);if(d<bd){bd=d;best={q,a:Math.atan2(dy,dx),th:s.t==='wall'?s.th:0}}}return best}
+function wallAt(p,r){
+  let best=null,bd=r;
+  for(const s of shapes)if(shown(s))for(const e of segs(s)){
+    const a=e[0],b=e[1],dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;
+    if(!l)continue;
+    const t=clamp(((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l,0,1),q=[a[0]+t*dx,a[1]+t*dy],d=Math.hypot(q[0]-p[0],q[1]-p[1]);
+    if(d<bd){bd=d;best={q,a:Math.atan2(dy,dx),th:s.t==='wall'?s.th:0}}
+  }
+  return best
+}
 

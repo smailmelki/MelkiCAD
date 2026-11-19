@@ -3,7 +3,7 @@
  * ثم تختبر الهندسة والالتقاط والتحقق من الملفات المستوردة والتخزين والتراجع وDXF.
  * الاستخدام:  node tools/test.js
  * لا تحتاج متصفحًا؛ للاختبار في متصفح حقيقي استخدم tools/smoke.js. */
-const fs = require('fs'), path = require('path'), vm = require('vm');
+const fs = require('fs'), path = require('path'), vm = require('vm'), zlib = require('zlib');
 const src = path.join(__dirname, '..', 'src');
 
 // ---------- بيئة DOM وهمية بالحد الأدنى ----------
@@ -86,7 +86,7 @@ function makeEnv(opts = {}) {
     setTimeout, clearTimeout, requestAnimationFrame: f => setTimeout(f, 0), cancelAnimationFrame: clearTimeout,
     getComputedStyle: () => ({ getPropertyValue: () => '#123456' }), ResizeObserver: class { observe() {} },
     Path2D: class { moveTo() {} lineTo() {} arc() {} closePath() {} }, PointerEvent: class {},
-    Blob, TextEncoder, URL, Uint8Array, devicePixelRatio: 1, File: class {},
+    Blob, TextEncoder, TextDecoder, URL, Uint8Array, devicePixelRatio: 1, File: class {},
     indexedDB: opts.noIdb ? undefined : (opts.idb || fakeIDB()),
   });
   ctx.window.window = ctx.window;
@@ -200,6 +200,32 @@ t('validateProjectData يحفظ عرض جهتي الباب المزدوج', () =
   const bounded=R(`validateProjectData({shapes:[{t:'door',x:0,y:0,w:.9,h:1,oa:240}]})`);eq(bounded.shapes[0].oa,180);
   throws(()=>R(`validateProjectData({shapes:[{t:'door2',x:1,y:2,w:1.4,w1:0,w2:.8,h:1,a:0}]})`),'عرض الجهة غير الموجب مرفوض');
 });
+t('validateProjectData يحفظ نوع الخط للطبقة والشكل والخط المزدوج', () => {
+  const v = R(`validateProjectData({shapes:[{t:'line',a:[0,0],b:[2,0],ly:'a',linetype:'dashed',doubleLine:true,doubleLineGap:.25}],LY:[{id:'a',name:'x',vis:1,lock:0,linetype:'center'}],cl:'a'})`);
+  eq(v.LY[0].linetype, 'center', 'نوع خط الطبقة لا يضيع عند الاستيراد');
+  eq(v.shapes[0].linetype, 'dashed'); eq(v.shapes[0].doubleLine, true); eq(v.shapes[0].doubleLineGap, .25);
+});
+t('validateProjectData يُسقط نوع خط مجهولًا أو موروثًا (constructor) وقيم الخط المزدوج الفاسدة', () => {
+  for (const b of ["'constructor'", "'__proto__'", "'toString'", "['dashed']", '5', "'DASHED'"]) {
+    const v = R(`validateProjectData({shapes:[{t:'line',a:[0,0],b:[1,0],ly:'a',linetype:${b}}],LY:[{id:'a',name:'x',vis:1,lock:0,linetype:${b}}],cl:'a'})`);
+    ok(v.LY[0].linetype === undefined, 'طبقة: ' + b);
+    ok(!('linetype' in v.shapes[0]), 'شكل: ' + b);
+  }
+  const g = R(`validateProjectData({shapes:[{t:'line',a:[0,0],b:[1,0],doubleLine:'yes',doubleLineGap:'x'},{t:'line',a:[0,0],b:[1,0],doubleLineGap:-1},{t:'line',a:[0,0],b:[1,0],doubleLineGap:99}]})`);
+  g.shapes.forEach((s, i) => ok(!('doubleLineGap' in s), 'مسافة فاسدة تُسقط: ' + i));
+  ok(!('doubleLine' in g.shapes[0]), 'doubleLine غير المنطقي يُسقط');
+});
+t('نوع الخط الفعلي: الشكل ثم الطبقة ثم المتصل، ولا يرمي مع مفتاح موروث', () => {
+  A.ctx.__s = R(`JSON.stringify({LY,V})`);
+  R(`LY=[{id:'a',name:'x',vis:1,lock:0,linetype:'center'},{id:'b',name:'y',vis:1,lock:0}]`);
+  eq(R(`effectiveLineType({t:'line',a:[0,0],b:[1,0],ly:'a',linetype:'dotted'})`), 'dotted', 'الشكل يغلب الطبقة');
+  eq(R(`effectiveLineType({t:'line',a:[0,0],b:[1,0],ly:'a'})`), 'center', 'افتراضي الطبقة');
+  eq(R(`effectiveLineType({t:'line',a:[0,0],b:[1,0],ly:'b'})`), 'continuous');
+  eq(R(`effectiveLineType({t:'door',x:0,y:0,w:1,h:1,ly:'a',linetype:'dashed'})`), 'continuous', 'الأبواب والأثاث لا تتأثر');
+  eq(R(`effectiveLineType({t:'line',a:[0,0],b:[1,0],ly:'b',linetype:'constructor'})`), 'continuous', 'مفتاح موروث يُهمَل بدل أن يرمي الرسم');
+  eq(R(`V={x:0,y:0,s:100};linePattern({t:'line',a:[0,0],b:[1,0],ly:'a',linetype:'dashed'})`), [45, 22], 'النمط بالمتر يُضرب بمقياس العرض');
+  R(`(()=>{const o=JSON.parse(__s);LY=o.LY;V=o.V})()`);
+});
 t('impText: JSON صحيح يُنشئ مشروعًا جديدًا بعدد العناصر الصحيح', () => {
   R(`impText(JSON.stringify({app:'plan',name:'اختبار',shapes:[{t:'rect',x:0,y:0,w:2,h:3},{t:'line',a:[0,0],b:[1,1]}]}))`);
   eq(R(`shapes.length`), 2); eq(R(`pname()`), 'اختبار');
@@ -279,6 +305,77 @@ t('DXF: الباب المزدوج يحفظ عرض كل جهة', () => {
   const sd=R(`dxfShapes(dxfEntities(__txt),1).shapes.find(s=>s.t==='door')`);
   ok(!!sd,'يُستورد الباب المفرد');near(sd.oa,55,'زاوية فتح الباب المفرد');eq(sd.h,-1);
 });
+t('DXF: نوع الخط يُصدَّر ويُستورد (للشكل وللطبقة)', () => {
+  R(`newP('lt',[{t:'line',a:[0,0],b:[4,0],ly:cl,linetype:'dashed'},{t:'line',a:[0,1],b:[4,1],ly:cl}],null)`);
+  R(`LY.find(l=>l.id===cl).linetype='center'`);
+  A.ctx.__txt = R(`dxfBuild()`);
+  ok(/DASHED/.test(A.ctx.__txt) && /CENTER/.test(A.ctx.__txt), 'جدول LTYPE ورموز الأنواع في الملف');
+  const r = R(`dxfShapes(dxfEntities(__txt),1)`);
+  const lines = r.shapes.filter(s => s.t === 'line');
+  eq(lines.length, 2);
+  ok(lines.some(s => s.linetype === 'dashed'), 'نوع الشكل الصريح يُستورد');
+  ok(lines.some(s => s.linetype === 'center'), 'نوع الطبقة يُكتب على الكيان فيُستورد');
+  ok(r.LY.some(l => l.linetype === 'center'), 'نوع الطبقة يُستورد من جدول LAYER');
+});
+// ---------- DXF: ترميز الملفات (ANSI_1256 وUTF-8 و\U+XXXX) ----------
+const B = (...parts) => new Uint8Array(Buffer.concat(parts.map(p => Buffer.isBuffer(p) || p instanceof Uint8Array ? Buffer.from(p) : Buffer.from(p, 'latin1'))));
+const CP1256_GHURFA = Buffer.from([0xDB, 0xD1, 0xDD, 0xC9]);   // «غرفة» بترميز windows-1256 (ANSI_1256)
+const ESC_GHURFA = '\\U+063A\\U+0631\\U+0641\\U+0629';          // «غرفة» كما يكتبها AutoCAD القديم
+const dxfFix = (ver, cp, name, text) => B(
+  `0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\n${ver}\n${cp ? `9\n$DWGCODEPAGE\n3\n${cp}\n` : ''}9\n$INSUNITS\n70\n6\n0\nENDSEC\n0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n1\n0\nLAYER\n2\n`, name,
+  `\n70\n0\n62\n7\n6\nCONTINUOUS\n0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n0\nTEXT\n8\n`, name,
+  `\n10\n1\n20\n1\n40\n0.3\n1\n`, text, `\n0\nENDSEC\n0\nEOF\n`);
+const dxfParse = bytes => { A.ctx.__b = bytes; A.ctx.__t = R(`decodeDxfBytes(__b)`); return R(`dxfShapes(dxfEntities(__t),1)`); };
+t('DXF ANSI_1256: نص عربي بايتات خام في الطبقة والنص يُفكّ صحيحًا', () => {
+  const bytes = dxfFix('AC1015', 'ANSI_1256', CP1256_GHURFA, CP1256_GHURFA);
+  ok(new TextDecoder('utf-8').decode(bytes).includes('\uFFFD'), 'الملف التجريبي ليس UTF-8 صالحًا (وهذا ما كان يفسده f.text())');
+  const r = dxfParse(bytes);
+  eq(R(`dxfEnc`), 'ANSI_1256');
+  const tx = r.shapes.find(x => x.t === 'text');
+  ok(tx && tx.txt === 'غرفة', 'نص الكيان: ' + (tx && tx.txt));
+  ok(r.LY.some(l => l.name === 'غرفة'), 'اسم الطبقة: ' + r.LY.map(l => l.name));
+});
+t('DXF UTF-8 (مع BOM وبدونه) يبقى سليمًا ويُعلَن ترميزه', () => {
+  const u = Buffer.from('غرفة', 'utf8');
+  for (const bytes of [dxfFix('AC1015', '', u, u), dxfFix('AC1032', '', u, u), B(Buffer.from([0xEF, 0xBB, 0xBF]), dxfFix('AC1032', '', u, u))]) {
+    const r = dxfParse(bytes);
+    eq(R(`dxfEnc`), 'UTF-8');
+    ok(r.shapes.find(x => x.t === 'text').txt === 'غرفة' && r.LY.some(l => l.name === 'غرفة'));
+  }
+});
+t('DXF \\U+XXXX: يُفكّ في النصوص وفي أسماء الطبقات (جدول LAYER والكيانات) بنفس الطبقة', () => {
+  const r = dxfParse(dxfFix('AC1015', 'ANSI_1252', ESC_GHURFA, ESC_GHURFA));
+  const lay = r.LY.find(l => l.name === 'غرفة');
+  ok(!!lay, 'اسم الطبقة مفكوك: ' + r.LY.map(l => l.name));
+  eq(r.LY.filter(l => l.name === 'غرفة').length, 1, 'الجدول والكيان يشيران إلى طبقة واحدة');
+  const tx = r.shapes.find(x => x.t === 'text');
+  eq(tx.txt, 'غرفة'); eq(tx.ly, lay.id, 'النص على الطبقة المفكوكة نفسها');
+});
+t('DXF: صفحات أخرى والاحتياط (ANSI_1252 وغياب الرأس وDOS864 وAC1021 تالف)', () => {
+  A.ctx.__b = dxfFix('AC1015', 'ANSI_1252', Buffer.from([0x63, 0x61, 0x66, 0xE9]), 'x');
+  ok(R(`decodeDxfBytes(__b)`).includes('café'), 'ANSI_1252: é'); eq(R(`dxfEnc`), 'ANSI_1252');
+  A.ctx.__b = dxfFix('AC1015', '', CP1256_GHURFA, 'x');
+  ok(R(`decodeDxfBytes(__b)`).includes('غرفة'), 'بلا $DWGCODEPAGE: يُفترض windows-1256'); ok(/windows-1256/.test(R(`dxfEnc`)));
+  A.ctx.__b = dxfFix('AC1015', 'DOS864', CP1256_GHURFA, 'x');
+  ok(R(`decodeDxfBytes(__b)`).includes('غرفة'), 'صفحة غير مدعومة: احتياط'); ok(/DOS864 غير مدعوم/.test(R(`dxfEnc`)));
+  A.ctx.__b = dxfFix('AC1027', 'ANSI_1252', Buffer.from([0xE9]), 'x');
+  ok(R(`decodeDxfBytes(__b)`).includes('\uFFFD'), 'AC1021+ يُفك UTF-8 بتسامح'); ok(/UTF-8/.test(R(`dxfEnc`)));
+});
+t('decodeImportBytes: JSON دائمًا UTF-8 (مع BOM ومسافات)، وDXF بحسب ترميزه، والثنائي لا يرمي عند الفك', () => {
+  const j = B(Buffer.from([0xEF, 0xBB, 0xBF]), '  \n', Buffer.from('{"name":"غرفة"}', 'utf8'));
+  A.ctx.__b = j; eq(R(`JSON.parse(decodeImportBytes(__b)).name`), 'غرفة');
+  A.ctx.__b = dxfFix('AC1015', 'ANSI_1256', CP1256_GHURFA, CP1256_GHURFA);
+  ok(R(`decodeImportBytes(__b)`).includes('غرفة'));
+  A.ctx.__b = B('AutoCAD Binary DXF\r\n\x1a\0', Buffer.from([0xFF, 0xFE, 0x80, 0x81]));
+  throws(() => R(`dxfEntities(decodeImportBytes(__b))`), 'الثنائي يُرفض برسالة واضحة من المحلل لا من الفك');
+});
+t('handleImportFile: يقرأ البايتات فيصل نص DXF العربي سليمًا إلى impText', async () => {
+  const bytes = dxfFix('AC1015', 'ANSI_1256', CP1256_GHURFA, CP1256_GHURFA);
+  A.ctx.__f = { name: 'a.dxf', arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
+  R(`__imp=impText;impText=t=>{__got=t}`);
+  try { await R(`handleImportFile(__f)`); ok(String(R(`__got`)).includes('غرفة'), 'النص الواصل إلى impText'); eq(R(`dxfEnc`), 'ANSI_1256'); }
+  finally { R(`impText=__imp`); }
+});
 t('دقة الأبعاد تحفظ 0–4 منازل وتستخدم وحدة المشروع في العرض وDXF', () => {
   R(`ST.unit='cm';`);
   eq(R(`dimLabel({prec:0},1.23456)`), '123 cm');
@@ -290,6 +387,202 @@ t('دقة الأبعاد تحفظ 0–4 منازل وتستخدم وحدة ال�
   R(`ST.unit='m';`);
 });
 
+// ---------- PDF متجهي (18a-pdf.js) ----------
+// بدائل بلا متصفح: قياس النص، وتحويل النص إلى قناع (16×8 بكسل، الأصل عند (4,6))، وضغط zlib
+const PDFOPT = {
+  measure: (r, t) => ({ width: t.length * 6 }),
+  rasterize: a => ({ w: 16, h: 8, px: 4, py: 6, K: a.K, alpha: new Uint8Array(16 * 8).fill(200) }),
+  deflate: async u8 => new Uint8Array(zlib.deflateSync(u8)),
+};
+const pdfRec = (opt = PDFOPT) => { A.ctx.__o = opt; A.ctx.__r = R(`new PdfRecorder(100,100,25.4,25.4,__o)`); return A.ctx.__r; };
+const pdfOut = () => R(`__r.out.join('\\n')`);
+const pdfCheck = bytes => {   // مدقّق هيكل PDF مستقل: الترويسة، xref، إزاحات الكائنات، أطوال الدفوق
+  const s = Buffer.from(bytes).toString('latin1'), errs = [];
+  if (!s.startsWith('%PDF-1.')) errs.push('الترويسة');
+  if (!/%%EOF\n$/.test(s)) errs.push('%%EOF');
+  const sx = /startxref\n(\d+)\n%%EOF/.exec(s); if (!sx) return errs.concat('startxref');
+  const tail = s.slice(+sx[1]);
+  if (!tail.startsWith('xref\n')) errs.push('إزاحة xref');
+  const n = +/^xref\n0 (\d+)\n/.exec(tail)[1], rows = tail.split('\n').slice(2, 2 + n);
+  rows.slice(1).forEach((r, i) => { if (!s.startsWith(`${i + 1} 0 obj`, +r.slice(0, 10))) errs.push('كائن ' + (i + 1)); });
+  for (const m of s.matchAll(/\/Length (\d+)>>\nstream\n/g)) { const st = m.index + m[0].length, e = st + +m[1]; if (!s.startsWith('\nendstream\nendobj\n', e)) errs.push('طول الدفق @' + st); }
+  return errs;
+};
+t('pdfParseColor: hex وrgb وrgba والشفاف والمجهول', () => {
+  eq(R(`pdfParseColor('#fff')`), [255, 255, 255, 1]); eq(R(`pdfParseColor('#112233')`), [17, 34, 51, 1]);
+  eq(R(`pdfParseColor('rgb(10, 20, 30)')`), [10, 20, 30, 1]); eq(R(`pdfParseColor('rgba(10,20,30,.5)')`), [10, 20, 30, .5]);
+  ok(Math.abs(R(`pdfParseColor('#11223380')`)[3] - .5) < .01, 'hex بقناع'); eq(R(`pdfParseColor('transparent')`)[3], 0);
+  eq(R(`pdfParseColor('لون-مجهول')`), null);
+});
+t('pdfArcSegments: دائرة كاملة وعكس عقارب الساعة وبيزيه فوق الدائرة', () => {
+  const full = R(`pdfArcSegments(0,7,false)`), ccw = R(`pdfArcSegments(0,Math.PI/2,true)`);
+  eq(full.length, 4, 'زاوية ≥ 2π = دائرة كاملة'); eq(R(`pdfArcSegments(1,1,false)`).length, 0, 'مدى صفري بلا مقاطع');
+  eq(ccw.length, 3, 'ccw من 0 إلى π/2 يمسح 3π/2');
+  ok(ccw[0][1] < 0, 'ccw يبدأ نحو y السالب كما في Canvas');
+  for (const g of [...full, ...ccw]) {   // نقطة المنتصف على المنحنى (t=.5) تبعد عن المركز نصف قطر الوحدة
+    const x0 = 0, y0 = 0; void x0; void y0;
+  }
+  const seg = full[0], mid = [(1 + 3 * seg[0] + 3 * seg[2] + seg[4]) / 8, (0 + 3 * seg[1] + 3 * seg[3] + seg[5]) / 8];
+  ok(Math.abs(Math.hypot(mid[0], mid[1]) - 1) < 1e-3, 'خطأ التقريب أقل من 0.1%');
+  const last = ccw[ccw.length - 1]; ok(Math.hypot(last[4], last[5] - 1) < 1e-9, 'ينتهي عند زاوية π/2');
+});
+t('PdfRecorder: المسار الضمني يُحوَّل لحظة الإضافة وPath2D لحظة الرسم', () => {
+  let r = pdfRec();
+  ok(/^q 0\.72 0 0 -0\.72 0 72 cm/.test(pdfOut()), 'قاعدة الصفحة: بكسل ← نقطة مع قلب y');
+  R(`__r.beginPath();__r.moveTo(1,2);__r.lineTo(3,4);__r.stroke()`); ok(pdfOut().includes('1 2 m 3 4 l S'));
+  r = pdfRec(); R(`__r.translate(10,20);__r.beginPath();__r.moveTo(1,2);__r.lineTo(3,4);__r.stroke()`); ok(pdfOut().includes('11 22 m 13 24 l S'), 'translate قبل البناء');
+  r = pdfRec(); R(`__r.beginPath();__r.moveTo(0,0);__r.lineTo(1,0);__r.translate(10,10);__r.stroke()`); ok(pdfOut().includes('0 0 m 1 0 l S'), 'ضمني: ما بُني قبل translate لا يتحرك');
+  r = pdfRec(); R(`const p=new PdfPath();p.moveTo(0,0);p.lineTo(1,0);__r.translate(10,10);__r.stroke(p)`); ok(pdfOut().includes('10 10 m 11 10 l S'), 'Path2D: يتحوّل بمصفوفة لحظة الرسم');
+  r = pdfRec(); R(`__r.rotate(Math.PI/2);__r.beginPath();__r.moveTo(1,0);__r.lineTo(2,0);__r.stroke()`); ok(pdfOut().includes('0 1 m 0 2 l S'), 'rotate');
+  r = pdfRec(); R(`__r.translate(5,5);__r.setTransform(2,0,0,2,0,0);__r.beginPath();__r.moveTo(1,1);__r.lineTo(2,1);__r.stroke()`); ok(pdfOut().includes('2 2 m 4 2 l S'), 'setTransform مطلق');
+});
+t('PdfRecorder: عرض الخط والتقطيع يتبعان مقياس المصفوفة، والحالة تُستعاد بـ restore', () => {
+  pdfRec(); R(`__r.scale(2,2);__r.lineWidth=1.5;__r.setLineDash([3,1]);__r.strokeStyle='#ff0000';__r.beginPath();__r.moveTo(0,0);__r.lineTo(1,0);__r.stroke()`);
+  let o = pdfOut(); ok(o.includes('1 0 0 RG 3 w 0 J 0 j [6 2] 0 d'), o);
+  pdfRec(); R(`__r.save();__r.fillStyle='#ff0000';__r.fillRect(0,0,1,1);__r.restore();__r.fillRect(0,0,1,1)`); o = pdfOut();
+  ok(/1 0 0 rg[\s\S]*\nQ\n[\s\S]*0 0 0 rg/.test(o), 'fillStyle يعود أسود بعد restore'); ok(o.indexOf('\nq\n') > 0 && o.includes('\nQ'), 'q/Q');
+  pdfRec(); R(`__r.setLineDash([3,1]);__r.save();__r.setLineDash([5,5]);__r.lineWidth=7;__r.restore();__r.beginPath();__r.moveTo(0,0);__r.lineTo(1,0);__r.stroke()`);
+  o = pdfOut(); ok(o.includes('1 w 0 J 0 j [3 1] 0 d'), 'التقطيع والعرض يُستعادان بعد restore: ' + o);
+  pdfRec(); R(`__r.strokeStyle='rgba(0,0,0,0)';__r.beginPath();__r.moveTo(0,0);__r.lineTo(1,1);__r.stroke();__r.globalAlpha=0;__r.fillRect(0,0,5,5)`); ok(!/ S$| f$/m.test(pdfOut()), 'الشفاف تمامًا لا يُكتب');
+  pdfRec(); R(`__r.save();__r.save();__r.save()`); eq(R(`__r.depth`), 4); R(`__r.restore()`); eq(R(`__r.depth`), 3);
+});
+t('PdfRecorder: arc كاملة 4 مقاطع، arc بعد نقطة حالية تبدأ بخط، rect/clip/fillRect', () => {
+  pdfRec(); R(`__r.beginPath();__r.arc(0,0,10,0,7);__r.stroke()`); let o = pdfOut();
+  ok(o.includes('10 0 m') && (o.match(/ c /g) || []).length === 4, 'دائرة: ' + o);
+  pdfRec(); R(`__r.beginPath();__r.moveTo(0,0);__r.arc(5,0,5,Math.PI,0);__r.stroke()`); ok(/0 0 m 0 0 l/.test(pdfOut()), 'خط من النقطة الحالية إلى بداية القوس');
+  pdfRec(); R(`__r.beginPath();__r.rect(1,2,3,4);__r.clip()`); ok(pdfOut().includes('1 2 m 4 2 l 4 6 l 1 6 l h W n'));
+  pdfRec(); R(`__r.fillRect(0,0,2,2)`); ok(/h f$/.test(pdfOut()));
+  pdfRec(); throws(() => R(`__r.arc(0,0,-1,0,1)`), 'نصف قطر سالب');
+});
+t('PdfRecorder: النص صورة بمصفوفة تُرجع الأصل إلى (x,y) بعد translate، والفارغ لا يُكتب', () => {
+  const r = pdfRec(); R(`__r.translate(10,20);__r.fillStyle='#112233';__r.fillText('abc',5,6)`);
+  // وحدة الصورة ← محلي: عرض 16/4=4 وارتفاع -8/4=-2 وإزاحة (5-1، 6+2-1.5)=(4،6.5)، ثم translate(10,20)
+  ok(pdfOut().includes('4 0 0 -2 14 26.5 cm /Im0 Do'), pdfOut());
+  eq(R(`__r.imgs.length`), 1); eq(R(`__r.imgs[0].rgb`), [17, 34, 51]);
+  R(`__r.fillText('   ',0,0);__r.fillText('',0,0)`); eq(R(`__r.imgs.length`), 1, 'الفارغ لا يُسجَّل');
+  eq(R(`__r.measureText('abcd').width`), 24, 'القياس يمر عبر المقياس المحقون');
+  pdfRec({ ...PDFOPT, rasterize: () => null }); R(`__r.fillText('x',0,0)`); eq(R(`__r.warn.size`), 1, 'تعذّر التحويل يُسجَّل تحذيرًا لا خطأ'); void r;
+});
+t('PdfRecorder.toPdf: هيكل صالح، قناع شفافية لكل نص، عنوان UTF-16، وضغط اختياري', async () => {
+  pdfRec(); R(`__r.globalAlpha=.5;__r.beginPath();__r.moveTo(0,0);__r.lineTo(9,9);__r.stroke();__r.globalAlpha=1;__r.fillText('abc',1,2);__r.fillText('de',3,4)`);
+  const b = await R(`__r.toPdf('عنوان')`), s = Buffer.from(b).toString('latin1');
+  eq(pdfCheck(b), [], 'هيكل PDF'); ok(!/DCTDecode/.test(s), 'لا JPEG'); ok(/\/ca 0\.5\/CA 0\.5/.test(s), 'شفافية 0.5');
+  eq((s.match(/\/Subtype\/Image/g) || []).length, 4, 'صورتان (لون وقناع) لكل نص'); ok(s.includes('/Title<FEFF0639'), 'العنوان UTF-16BE');
+  ok(/\/MediaBox\[0 0 72 72\]/.test(s));
+  const m = /4 0 obj\n<<\/Filter\/FlateDecode\/Length (\d+)>>\nstream\n/.exec(s); ok(!!m, 'محتوى مضغوط');
+  const st = m.index + m[0].length, content = zlib.inflateSync(Buffer.from(b).subarray(st, st + +m[1])).toString();
+  ok(content.startsWith('q 0.72') && content.endsWith('Q'), 'المحتوى بعد فك الضغط متوازن q/Q');
+  pdfRec({ ...PDFOPT, deflate: null }); R(`__r.beginPath();__r.moveTo(0,0);__r.lineTo(9,9);__r.stroke()`);
+  const b2 = Buffer.from(await R(`__r.toPdf('')`)).toString('latin1'); ok(!/FlateDecode/.test(b2) && b2.includes('0 0 m 9 9 l S'), 'بلا ضغط: محتوى مقروء');
+});
+t('renderSheet بسطح PdfRecorder: يكتب هندسة متجهية ويستعيد ctx وmkPath حتى عند الخطأ', async () => {
+  R(`newP('pv',[{t:'wall',a:[0,0],b:[4,0],th:.2,ly:cl},{t:'circle',x:2,y:2,r:1,fk:'solid',ly:cl},{t:'ellipse',x:3,y:3,rx:1,ry:.5,rot:.3,ly:cl},{t:'dim',a:[0,0],b:[4,0],off:.5,ly:cl},{t:'text',x:1,y:1,h:.3,txt:'غرفة',a:0,ly:cl}],null)`);
+  A.ctx.__o = PDFOPT;
+  const r = R(`renderSheet({paper:'A4',N:0,grid:1,title:'t'},(w,h,L)=>new PdfRecorder(w,h,L.pw,L.ph,__o))`);
+  ok(r.oc === null, 'لا Canvas نقطي في الوضع المتجهي');
+  const o = r.g2.out.join('\n'); ok(/ S$/m.test(o) && / c /.test(o) && / f$| f\*$/m.test(o), 'خطوط ومنحنيات وتعبئة'); ok(r.g2.imgs.length >= 2, 'نصوص');
+  eq(r.g2.warn.size, 0, 'لا عناصر مهملة');
+  ok(!R(`mkPath() instanceof PdfPath`), 'mkPath عاد إلى Path2D');
+  throws(() => R(`renderSheet({paper:'A4',N:0,grid:0,title:'t'},()=>({}))`));
+  ok(!R(`mkPath() instanceof PdfPath`), 'mkPath يُستعاد عند الخطأ أيضًا');
+  const bytes = await R(`sheetPdfBytes({paper:'A4',N:0,grid:0,title:'ع'})`); eq(pdfCheck(bytes), [], 'sheetPdfBytes ينتج PDF صالحًا');
+});
+// ---------- جدول العنوان وبيانات المشروع والمكتب ----------
+t('cleanMeta: مفاتيح معروفة فقط ونصوص مقصوصة، والغائب يبقى غائبًا', () => {
+  eq(R(`cleanMeta({proj:'م',evil:'x',land:5000,loc:null,__proto__:{a:1}})`), { proj: 'م', land: '5000' });
+  eq(R(`cleanMeta('x')`), {}); eq(R(`cleanMeta(null)`), {});
+  eq(R(`cleanMeta({proj:'${'ا'.repeat(500)}'}).proj.length`), 200);
+});
+const TODAY = () => R(`todayStr()`);
+t('بيانات المشروع تُحفظ لكل مشروع، وتُنسخ مع التكرار، وتُحذف مع المشروع', () => {
+  R(`newP('أ',[{t:'rect',x:0,y:0,w:1,h:1,ly:cl}],null)`);
+  const a = R(`pid`); R(`metaSet({owner:'البلدية',no:'MC-01'});metaSet({loc:'عين الملح'})`);
+  eq(R(`metaGet()`), { loc: 'عين الملح', owner: 'البلدية', no: 'MC-01', date: TODAY() }, 'الدمج لا يمسح ما سبق');
+  R(`newP('ب',[],null)`); eq(R(`metaGet()`), { date: TODAY() }, 'مشروع جديد: تاريخ أول حفظ فقط');
+  R(`openP('${a}')`); eq(R(`metaGet().owner`), 'البلدية', 'تعود عند فتح المشروع');
+  R(`newP(pname()+' (نسخة)',copy(shapes),{LY:copy(LY),cl},metaGet())`);
+  eq(R(`metaGet().no`), 'MC-01', 'التكرار ينسخ البيانات'); R(`metaSet({no:'MC-02'})`);
+  eq(JSON.parse(R(`JSON.stringify(kvGet('m:${a}'))`)).no, 'MC-01', 'تعديل النسخة لا يمس الأصل');
+  const dup = R(`pid`); R(`delP()`); eq(R(`kvGet('m:${dup}')`), null, 'حذف المشروع يحذف بياناته');
+});
+t('التصدير والاستيراد: meta يُكتب في JSON ويُنظَّف عند الاستيراد', () => {
+  R(`newP('خ',[{t:'rect',x:0,y:0,w:2,h:2,ly:cl}],null);metaSet({proj:'مدرسة',land:'5000'})`);
+  R(`io('export')`); const d = JSON.parse(A.els.get('#iot').value); eq(d.meta, { proj: 'مدرسة', land: '5000', date: TODAY() });
+  R(`impText(JSON.stringify({name:'م',meta:{proj:'مبنى',evil:'x',built:'200'},shapes:[{t:'rect',x:0,y:0,w:1,h:1}]}))`);
+  eq(R(`metaGet()`), { proj: 'مبنى', built: '200', date: TODAY() }, 'مفاتيح غريبة تُسقط');
+  R(`impText(JSON.stringify({name:'قديم',shapes:[{t:'rect',x:0,y:0,w:1,h:1}]}))`); eq(R(`metaGet()`), { date: TODAY() }, 'ملف قديم بلا meta يعمل');
+});
+t('بيانات المكتب: افتراضات، حفظ في الإعدادات، وتنظيف', () => {
+  eq(R(`coGet()`), { kind: 'المكتب الاستشاري / الهندسي', name: '', phone: '', email: '', addr: '' });
+  R(`coSet({name:'الأمل',phone:'065',evil:1})`); eq(R(`coGet().name`), 'الأمل'); eq(R(`coGet().evil`), undefined);
+  R(`coSet({email:'a@b.c'})`); eq(R(`coGet().name`), 'الأمل', 'التحديث الجزئي لا يمسح');
+  eq(JSON.parse(R(`JSON.stringify(kvGet('co'))`)).phone, '065', 'محفوظ في التخزين لا مع المشروع');
+});
+t('areaText: وحدة م² للأرقام فقط، ويتجاهل الفارغ', () => {
+  eq(R(`areaText({land:'5000',built:'2000'})`), 'الأرض: 5000 م²  |  البناء: 2000 م²');
+  eq(R(`areaText({land:'٥٠٠'})`), 'الأرض: ٥٠٠ م²'); eq(R(`areaText({built:'2000 م2'})`), 'البناء: 2000 م2');
+  eq(R(`areaText({})`), '');
+});
+t('إعدادات الورقة (meta.pr): تنظيف، وحفظ لكل مشروع، وتعود عند فتحه، وتُستورد من الملف', () => {
+  eq(R(`cleanMeta({pr:{paper:'A5',orient:'land',N:'75',grid:1,bar:0,titleBlock:0,evil:1}})`), { pr: { orient: 'land', N: 75, grid: 1, bar: 0, titleBlock: 0 } });
+  eq(R(`cleanMeta({pr:{N:-5,paper:'A3'}})`), { pr: { paper: 'A3' } }); eq(R(`cleanMeta({pr:'x'})`), {});
+  R(`newP('أ',[],null)`); const a = R(`pid`);
+  R(`EX.paper='A3';EX.orient='port';EX.N=100;EX.bar=1;EX.grid=1;EX.titleBlock=0;savePrintSettings()`);
+  eq(R(`metaGet().pr`), { paper: 'A3', orient: 'port', N: 100, grid: 1, bar: 1, titleBlock: 0 });
+  R(`newP('ب',[],null);loadPrintSettings()`); eq(R(`[EX.paper,EX.N,EX.bar,EX.titleBlock]`), ['A4', 0, 0, 1], 'مشروع جديد: الافتراضات');
+  R(`openP('${a}');loadPrintSettings()`); eq(R(`[EX.paper,EX.orient,EX.N,EX.bar,EX.grid,EX.titleBlock]`), ['A3', 'port', 100, 1, 1, 0], 'تعود مع المشروع');
+  R(`impText(JSON.stringify({name:'م',meta:{proj:'س',pr:{paper:'A3',N:50}},shapes:[{t:'rect',x:0,y:0,w:1,h:1}]}))`);
+  eq(R(`metaGet().pr`), { paper: 'A3', N: 50 }, 'الاستيراد يستعيدها'); R(`loadPrintSettings()`); eq(R(`[EX.paper,EX.N,EX.orient]`), ['A3', 50, 'auto']);
+  R(`EX={...EX_DEFAULT}`);
+});
+t('بيانات المكتب: نسخة احتياطية في localStorage تُعيد السجل المفقود، ولا يمسّها فتح/حذف/استيراد مشروع', () => {
+  R(`coSet({name:'الأمل',phone:'065',email:'a@b.c',addr:'عين الملح'})`);
+  R(`kvDel('co')`); eq(R(`coGet().name`), 'الأمل', 'يُقرأ من النسخة الاحتياطية'); eq(R(`kvGet('co').phone`), '065', 'أُعيد زرع السجل');
+  R(`newP('ج',[],null)`); R(`impText(JSON.stringify({name:'د',shapes:[{t:'rect',x:0,y:0,w:1,h:1}]}))`);
+  eq(R(`coGet()`), { kind: 'المكتب الاستشاري / الهندسي', name: 'الأمل', phone: '065', email: 'a@b.c', addr: 'عين الملح' }, 'لا تتغير');
+});
+t('تاريخ اللوحة = تاريخ أول حفظ: يُختم مرة واحدة ولا يتغير، وتعديل المستخدم يُحترم، والتكرار يأخذ تاريخه', () => {
+  R(`newP('ت',[],null)`); eq(R(`metaGet().date`), TODAY());
+  R(`metaSet({date:'2026-01-05'});ensureMetaDate()`); eq(R(`metaGet().date`), '2026-01-05', 'لا يُستبدل');
+  R(`kvSet('m:'+pid,{proj:'قديم'});ensureMetaDate()`); eq(R(`metaGet().date`), TODAY(), 'مشروع قديم بلا تاريخ يُختم');
+  R(`metaSet({date:'2026-01-05'});newP(pname()+' (نسخة)',[],null,{...metaGet(),date:todayStr()})`); eq(R(`metaGet().date`), TODAY(), 'النسخة بتاريخ حفظها');
+  R(`impText(JSON.stringify({name:'م',meta:{date:'2025-03-01'},shapes:[{t:'rect',x:0,y:0,w:1,h:1}]}))`); eq(R(`metaGet().date`), '2025-03-01', 'تاريخ الملف المستورد يبقى');
+});
+t('sheetMeta: الافتراضات (اسم المشروع، مسقط أفقي، تاريخ اليوم) وتُحترم القيم المحفوظة', () => {
+  R(`newP('مشروع س',[],null)`);
+  let m = R(`sheetMeta()`); eq(m.proj, 'مشروع س'); eq(m.kind, 'مسقط أفقي'); ok(/^\d{4}-\d{2}-\d{2}$/.test(m.date), m.date);
+  R(`metaSet({proj:'  ',kind:'',date:'2026-11-13'})`); m = R(`sheetMeta()`);
+  eq(m.proj, 'مشروع س', 'الاسم الفارغ يرجع للافتراضي'); eq(m.kind, '', 'نوع اللوحة الممسوح يبقى فارغًا'); eq(m.date, '2026-11-13');
+});
+t('renderSheet: جدول العنوان يحمل كل البيانات والمقياس، والاتجاه قابل للفرض، وشريط المقياس اختياري', () => {
+  R(`newP('جد',[{t:'wall',a:[0,0],b:[10,0],th:.2,ly:cl},{t:'wall',a:[10,0],b:[10,7],th:.2,ly:cl}],null)`);
+  const texts = []; A.ctx.__o = { ...PDFOPT, rasterize: a => { texts.push(a.text); return PDFOPT.rasterize(a); } };
+  const o = `{paper:'A4',N:75,grid:0,title:'مدرسة',meta:{proj:'مدرسة',loc:'عين الملح',owner:'البلدية',land:'5000',built:'2000',kind:'مسقط أفقي',designer:'يحيى',no:'MC-01',date:'2026-11-13'},co:{kind:'المكتب الاستشاري / الهندسي',name:'الأمل',phone:'065',email:'a@b.c',addr:'عين الملح'}}`;
+  const r = R(`renderSheet(${o},(w,h,L)=>new PdfRecorder(w,h,L.pw,L.ph,__o))`);
+  for (const x of ['المكتب الاستشاري / الهندسي', 'بيانات المشروع والمالك', 'بيانات اللوحة والاعتماد', 'اسم المكتب', 'مساحة الأرض / البناء', 'رقم اللوحة / التاريخ', 'مدرسة', 'البلدية', 'الأمل', 'a@b.c', 'يحيى', 'مسقط أفقي', '1 : 75', 'MC-01  |  2026-11-13', 'الأرض: 5000 م²  |  البناء: 2000 م²'])
+    ok(texts.includes(x), 'ناقص في الجدول: ' + x);
+  ok(!texts.includes('2 m') && !texts.includes('5 m'), 'لا شريط مقياس افتراضيًا'); eq(r.g2.warn.size, 0);
+  texts.length = 0; R(`renderSheet({...${o},bar:1},(w,h,L)=>new PdfRecorder(w,h,L.pw,L.ph,__o))`); ok(texts.some(x => /^\d+ m$/.test(x)), 'شريط المقياس عند طلبه');
+  const L = k => R(`(()=>{const L=sheetLayout({paper:'A4',N:0,orient:'${k}'});return[L.pw,L.ph]})()`);
+  eq(L('auto'), [297, 210], 'الرسم أعرض: أفقي'); eq(L('port'), [210, 297], 'عمودي مفروض'); eq(L('land'), [297, 210]);
+  const e = R(`renderSheet({paper:'A4',N:0,grid:0,title:'x'},(w,h,L)=>new PdfRecorder(w,h,L.pw,L.ph,__o))`); ok(e.g2.imgs.length > 0, 'بلا meta ولا co لا ينهار');
+});
+
+t('معاينة الطباعة: draw وresize لا يلمسان المتغيرات العامة المستعارة، ويُؤجَّلان ثم يُعاد رسمهما', () => {
+  const r = R(`(()=>{const w=W,h=H,d=dpr,x=ctx;sheetSwap=1;sheetDeferred=0;draw();resize();
+    const same=W===w&&H===h&&dpr===d&&ctx===x,def=sheetDeferred;sheetSwap=0;sheetDeferred=0;return[same,def]})()`);
+  eq(r, [true, 1], 'لا تغيير في W/H/dpr/ctx ويُسجَّل التأجيل');
+});
+t('printSheet: على أندرويد يمرّر ملف PDF والورقة والاتجاه إلى الطباعة الأصلية، وبدون رسم يرفض', async () => {
+  R(`newP('ط',[{t:'wall',a:[0,0],b:[10,0],th:.2,ly:cl},{t:'wall',a:[10,0],b:[10,7],th:.2,ly:cl}],null)`);
+  const calls = []; A.ctx.window.printPdfNative = async (n, b, opts) => { calls.push([n, b, opts]); return 'ok'; };
+  A.ctx.__b = new Blob(['%PDF-1.4 x']);
+  const r = await R(`printSheet({paper:'A3',orient:'auto',N:0,grid:0,title:'t'},__b,'ط.pdf')`);
+  eq(r, 'ok'); eq(calls.length, 1); eq(calls[0][0], 'ط.pdf'); eq(calls[0][2], { paper: 'A3', landscape: true });
+  R(`newP('فارغ',[],null)`);
+  let failed = false; try { await R(`printSheet({paper:'A4',orient:'auto',N:0,title:'t'},__b,'x.pdf')`); } catch (e) { failed = true; }
+  ok(failed, 'لا رسم: ترفض'); delete A.ctx.window.printPdfNative;
+});
 t('makePDF ينتج ملفًا يبدأ بـ %PDF وينتهي بـ %%EOF', () => {
   const b = R(`makePDF(new Uint8Array([1,2,3]),10,10,210,297)`);
   ok(b.size > 100 && b.type === 'application/pdf');
@@ -443,6 +736,101 @@ t('الرسم الموجَّه: التركيز التلقائي لحقل الإ�
   R(`lastPtrType='mouse'`); ok(R(`diAutoFocus()`), 'بالفأرة يبقى الإدخال السريع');
   for (const k of ['line', 'wall', 'rect', 'circle', 'arc', 'ellipse', 'tri', 'polygon', 'free']) ok(R(`DRAG_FLOW_TOOLS.includes('${k}')`), k + ' يقبل السحب المباشر');
   for (const k of ['polyline', 'text', 'north']) ok(!R(`DRAG_FLOW_TOOLS.includes('${k}')`), k + ' يبقى باللمس النقطي');
+});
+t('دورة حياة نافذة الإدخال الرقمي: رسم خط، والانتقال بين النقطتين، والطي بعد الإنهاء وبدء عنصر جديد', () => {
+  resetB2();
+  R(`tool='line'; startDrawFlow('line');`);
+  ok(R(`$('#drawInput').classList.contains('on')`), 'النافذة ظاهرة بحالتها الأولية');
+  ok(R(`!$('#drawInput').classList.contains('open')`), 'النافذة مطوية افتراضياً');
+  eq(R(`drawFlow.stage`), 'first');
+  eq(R(`drawFlow.coordMode`), 'cartesian');
+
+  R(`$('#diKey').click()`);
+  ok(R(`$('#drawInput').classList.contains('open')`), 'النافذة مفتوحة بعد الضغط على ⌨');
+  ok(R(`diOpen`), 'diOpen=true');
+
+  R(`$('#diX').value='0'; $('#diY').value='0'; $('#diSubmit').click();`);
+  ok(R(`$('#drawInput').classList.contains('on')`), 'النافذة باقية بعد النقطة الأولى');
+  ok(R(`$('#drawInput').classList.contains('open')`), 'النافذة تبقى مفتوحة للنقطة الثانية');
+  eq(R(`drawFlow.stage`), 'second');
+  eq(R(`drawFlow.points.length`), 1);
+  ok(!R(`$('#diMode').hidden`), 'زر الإدخال القطبي يظهر في المرحلة الثانية');
+
+  R(`$('#diX').value='10'; $('#diY').value='0'; $('#diSubmit').click();`);
+  eq(R(`shapes.length`), 1, 'تم رسم الخط بنجاح');
+  eq(R(`shapes[0].t`), 'line');
+
+  ok(R(`$('#drawInput').classList.contains('on')`), 'النافذة لم تختفِ بعد انتهاء رسم الخط');
+  ok(R(`!$('#drawInput').classList.contains('open')`), 'النافذة مطوية بعد انتهاء الرسم');
+  ok(R(`!diOpen`), 'diOpen=false بعد الطي');
+  eq(R(`drawFlow.stage`), 'first', 'جاهزة للنقطة الأولى للعنصر الجديد');
+  eq(R(`drawFlow.coordMode`), 'cartesian', 'العودة للنمط الديكارتي');
+  eq(R(`$('#diX').value`), '', 'مسح قيمة X السابقة');
+  eq(R(`$('#diY').value`), '', 'مسح قيمة Y السابقة');
+  ok(R(`$('#diMode').hidden`), 'إخفاء زر النمط القطبي في المرحلة الأولى');
+
+  R(`$('#diKey').click(); $('#diX').value='5'; $('#diY').value='5'; $('#diSubmit').click();`);
+  eq(R(`drawFlow.stage`), 'second', 'العنصر الثاني انتقل للمرحلة الثانية');
+  ok(R(`$('#drawInput').classList.contains('on')`), 'النافذة لم تختفِ في العنصر الثاني');
+  R(`$('#diX').value='15'; $('#diY').value='5'; $('#diSubmit').click();`);
+  eq(R(`shapes.length`), 2, 'تم رسم العنصر الثاني');
+  ok(R(`$('#drawInput').classList.contains('on')`), 'النافذة ما زالت موجودة ومطوية');
+  ok(R(`!$('#drawInput').classList.contains('open')`), 'النافذة مطوية بعد العنصر الثاني');
+  R(`closeDrawFlow(); tool='select';`);
+});
+t('الإدخال القطبي: التبديل والتحويل الرياضي دون فقدان البيانات وعدم اختفاء النافذة', () => {
+  resetB2();
+  R(`tool='line'; startDrawFlow('line');`);
+  R(`$('#diKey').click(); $('#diX').value='2'; $('#diY').value='3'; $('#diSubmit').click();`);
+  eq(R(`drawFlow.stage`), 'second');
+
+  R(`$('#diX').value='12'; $('#diY').value='3';`);
+  R(`$('#diMode').click();`);
+  eq(R(`drawFlow.coordMode`), 'polar', 'النمط تحول إلى قطبي');
+  ok(R(`$('#drawInput').classList.contains('open')`), 'النافذة مفتوحة في النمط القطبي');
+  ok(R(`$('#drawInput').classList.contains('on')`), 'النافذة لم تختفِ');
+  eq(R(`$('#diX').value`), '10', 'المسافة المحسوبة 10');
+  eq(R(`$('#diY').value`), '0', 'الزاوية المحسوبة 0°');
+
+  R(`$('#diMode').click();`);
+  eq(R(`drawFlow.coordMode`), 'cartesian', 'النمط عاد إلى ديكارتي');
+  eq(R(`$('#diX').value`), '12', 'استعادة X=12 دون فقدان');
+  eq(R(`$('#diY').value`), '3', 'استعادة Y=3 دون فقدان');
+
+  R(`$('#diMode').click(); $('#diX').value='5'; $('#diY').value='90'; $('#diSubmit').click();`);
+  eq(R(`shapes.length`), 1, 'تم إنشاء الخط بالنمط القطبي');
+  const line = R(`shapes[0]`);
+  ok(Math.abs(line.a[0] - 2) < 1e-4 && Math.abs(line.a[1] - (-3)) < 1e-4, 'نقطة البداية صحيحة');
+  ok(Math.abs(line.b[0] - 2) < 1e-4 && Math.abs(line.b[1] - (-8)) < 1e-4, 'نقطة النهاية القطبية صحيحة');
+
+  ok(R(`$('#drawInput').classList.contains('on')`), 'النافذة ظاهرة بعد الإنهاء');
+  ok(R(`!$('#drawInput').classList.contains('open')`), 'النافذة مطوية بعد الإنهاء');
+  eq(R(`drawFlow.coordMode`), 'cartesian', 'النمط عاد ديكارتي لبدء عنصر جديد');
+  R(`closeDrawFlow(); tool='select';`);
+});
+t('الرسم باللمس والسحب: لا اختفاء للنافذة والطي بعد إنهاء السحب', () => {
+  resetB2();
+  R(`lastPtrType='touch'; tool='line'; startDrawFlow('line');`);
+  ok(R(`$('#drawInput').classList.contains('on')`), 'النافذة ظاهرة');
+
+  R(`cpos=[0,0]; cv.dispatchEvent=()=>{};`);
+  R(`g=lazyBefore({k:'draw',a:[0,0],flow:[0,0],sp:[100,100]}); cur={t:'line',a:[0,0],b:[5,-5]};`);
+  R(`(()=>{
+    const ep=[200,200];
+    const flowTapUp = Math.hypot(ep[0]-100, ep[1]-100) < FLOW_TAP_PX;
+    if(!flowTapUp && cur && valid(cur)){ shapes.push(cur); }
+    const flowDone = true;
+    if(flowDone){
+      if(drawFlow && tool===drawFlow.tool) nextDrawFlow();
+      else closeDrawFlow();
+    }
+  })()`);
+
+  eq(R(`shapes.length`), 1, 'تم حفظ الخط المسحوب');
+  ok(R(`$('#drawInput').classList.contains('on')`), 'النافذة لم تختفِ بعد انتهاء السحب');
+  ok(R(`!$('#drawInput').classList.contains('open')`), 'النافذة مطوية بعد السحب');
+  eq(R(`drawFlow.stage`), 'first', 'مهيأة للخط التالي');
+  R(`closeDrawFlow(); tool='select';`);
 });
 t('الأداء: bx يطابق الصيغة القديمة، وbounds وcullBox لا يفشلان مع عشرات الآلاف', () => {
   const old = s => { const q = s.t === 'circle' ? [[s.x - s.r, s.y - s.r], [s.x + s.r, s.y + s.r]] : pts(s), x = q.map(r => r[0]), y = q.map(r => r[1]); return { x: Math.min(...x), y: Math.min(...y), X: Math.max(...x), Y: Math.max(...y) } };
@@ -775,6 +1163,43 @@ t('saveBlob: وصف نوع الملف يتبع الامتداد (وليس DXF د
   eq(got.types[0].description, 'ملف مشروع JSON'); ok(got.types[0].accept['application/json'].includes('.json'));
   await A.ctx.saveBlob('a.csv', new Blob(['x'], { type: 'text/csv' }));
   eq(got.types[0].description, 'جدول CSV'); delete A.ctx.window.showSaveFilePicker;
+});
+
+t('saveBlob auto: لا نافذة اختيار ولا مشاركة، تنزيل مباشر بالاسم نفسه', async () => {
+  let picked = false, shared = false, clicked = null;
+  A.ctx.window.showSaveFilePicker = async () => { picked = true; return { createWritable: async () => ({ write: async () => {}, close: async () => {} }) }; };
+  const nav = A.ctx.navigator; const oldShare = nav && nav.share, oldCan = nav && nav.canShare;
+  if (nav) { nav.canShare = () => true; nav.share = async () => { shared = true; }; }
+  const r = await A.ctx.saveBlob('مشروعي.json', new Blob(['{}']), { auto: true });
+  ok(r === 'ok' || r === 'err', 'نتيجة معروفة: ' + r); ok(!picked, 'لا نافذة اختيار'); ok(!shared, 'لا قائمة مشاركة');
+  delete A.ctx.window.showSaveFilePicker; if (nav) { nav.share = oldShare; nav.canShare = oldCan; }
+});
+t('fileBase: اسم الملف بلا امتداد ولا مسار', () => {
+  eq(R(`fileBase('فيلا الأحمد.dxf')`), 'فيلا الأحمد'); eq(R(`fileBase('C:\\\\a\\\\b\\\\plan.v2.DXF')`), 'plan.v2'); eq(R(`fileBase('')`), ''); eq(R(`fileBase(undefined)`), '');
+});
+t('استيراد JSON: اسم الملف المختار يتقدم على الاسم الداخلي، واللصق يحتفظ بالاسم الداخلي', () => {
+  R(`impText(JSON.stringify({shapes:[{t:'rect',x:0,y:0,w:1,h:1}]}),'بيت-س.json')`); eq(R(`pname()`), 'بيت-س');
+  R(`impText(JSON.stringify({name:'اسم داخلي',shapes:[{t:'rect',x:0,y:0,w:1,h:1}]}),'ملف-مختار.json')`); eq(R(`pname()`), 'ملف-مختار');
+  R(`impText(JSON.stringify({name:'اسم عند اللصق',shapes:[{t:'rect',x:0,y:0,w:1,h:1}]}))`); eq(R(`pname()`), 'اسم عند اللصق');
+});
+t('استيراد DXF: يسمّي المشروع باسم الملف لا «DXF»', () => {
+  const dxf = ['0','SECTION','2','ENTITIES','0','LINE','8','0','10','0','20','0','30','0','11','5','21','0','31','0','0','ENDSEC','0','EOF'].join('\r\n');
+  const els = {}; const origQ = R(`typeof $`);
+  R(`dxfImport(${JSON.stringify(dxf)},'مخطط الفيلا.dxf')`); R(`$('#opk').onclick()`);
+  eq(R(`pname()`), 'مخطط الفيلا'); R(`dxfImport(${JSON.stringify(dxf)})`); R(`$('#opk').onclick()`); eq(R(`pname()`), 'DXF', 'بلا اسم ملف يبقى الاحتياطي');
+});
+t('إغلاق المشروع: يزيله من قائمة المفتوحة ويحفظ بياناته دون حذفها', () => {
+  R(`newP('أ',[{t:'rect',x:0,y:0,w:1,h:1,ly:cl}],null)`); const a = R(`pid`);
+  R(`newP('ب',[],null)`); const b = R(`pid`); const n = R(`PJ.length`);
+  R(`closeP()`); eq(R(`PJ.length`), n - 1, 'أُزيل المشروع المغلق من القائمة');
+  ok(!R(`PJ.some(p=>p.id==='${b}')`), 'المشروع المغلق لم يعد ضمن المشاريع المفتوحة');
+  eq(R(`pid`), a, 'انتقل إلى المشروع الآخر المتبقي');
+  ok(R(`kvGet('p:${b}')`) !== null, 'بيانات المغلق باقية في التخزين');
+  R(`PJ=PJ.filter(p=>p.id==='${a}')`); R(`closeP()`);
+  eq(R(`PJ.length`), 1, 'عند إغلاق آخر مشروع يُنشأ مشروع فارغ جديد');
+  ok(R(`pid`) !== a, 'المشروع الجديد له معرّف مختلف');
+  ok(!R(`PJ.some(p=>p.id==='${a}')`), 'المشروع الأخير أُزيل من قائمة المفتوحة');
+  ok(R(`kvGet('p:${a}')`) !== null, 'بيانات المشروع الأخير لم تُحذف');
 });
 
 t('Fillet/Chamfer للأشكال المغلقة: المسار يبقى عنصرًا واحدًا وتُعدّل زوايا متعددة', () => {

@@ -7,6 +7,7 @@
  *  5) لا تعريفات مكررة بين الملفات (النطاق العام مشترك فيُستبدل الأول بصمت)، وخريطة الملفات في index.html كاملة
  *  6) سطر VER في sw.js سليم (يُختم تلقائيًا عند النشر)، وكل أيقونات manifest موجودة
  *  7) كل url(...) في CSS موجود ومخزَّن في CORE، ولا روابط خارجية (خطوط/سكربتات) تعطّل العمل بلا إنترنت
+ *  8) أيقونة أندرويد وشاشة البدء (android-wrapper/native/res): أسماء فريدة لا تصطدم بموارد Capacitor الافتراضية، ومراجع الموارد موجودة
  * الاستخدام:  node tools/check.js            */
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const src = path.join(__dirname, '..', 'src');
@@ -68,6 +69,36 @@ for (const cssFile of fs.readdirSync(path.join(src, 'css')).filter(f => f.endsWi
   }
 }
 for (const m of html.matchAll(/<(?:link|script)\b[^>]*\b(?:href|src)=["'](https?:\/\/[^"']+)["']/g)) errs.push(`index.html: مرجع خارجي ${m[1]} (لن يعمل بلا إنترنت)`);
+
+// 8) أيقونة أندرويد: Capacitor يولّد موارد افتراضية بأسماء ic_launcher_foreground/ic_launcher_background (شعار Capacitor)،
+//    فإن سمّينا موردنا بالاسم نفسه فقد يغلب الافتراضي أيقونتنا في الجهاز. نشترط أسماء فريدة ومراجع تُحَلّ ضمن native/res
+const nat = path.join(__dirname, '..', 'android-wrapper', 'native', 'res');
+if (fs.existsSync(nat)) {
+  const RESERVED = new Set(['ic_launcher_foreground', 'ic_launcher_background']);
+  const files = walk(nat).map(f => ({ dir: path.basename(path.dirname(f)), name: path.basename(f).replace(/\.[^.]+$/, ''), file: f }));
+  const colors = new Set();
+  for (const f of files.filter(f => f.dir.startsWith('values'))) {
+    for (const m of fs.readFileSync(f.file, 'utf8').matchAll(/<color\s+name="([^"]+)"/g)) colors.add(m[1]);
+  }
+  for (const f of files) if (!f.dir.startsWith('values') && RESERVED.has(f.name)) errs.push(`native/res/${f.dir}/${f.name}: الاسم محجوز لموارد Capacitor الافتراضية، استعمل اسمًا فريدًا`);
+  for (const c of colors) if (RESERVED.has(c)) errs.push(`native/res/values: اللون ${c} محجوز لموارد Capacitor الافتراضية`);
+  for (const f of files.filter(f => /^(mipmap-anydpi|drawable)/.test(f.dir) && f.file.endsWith('.xml'))) {
+    for (const m of fs.readFileSync(f.file, 'utf8').matchAll(/@(drawable|mipmap|color)\/([\w]+)/g)) {
+      const [, type, name] = m;
+      if (RESERVED.has(name)) errs.push(`native/res/${f.dir}/${f.name}.xml: يشير إلى ${name} (مورد Capacitor الافتراضي)`);
+      const ok = type === 'color' ? colors.has(name) : files.some(x => x.dir.startsWith(type) && x.name === name);
+      if (!ok) errs.push(`native/res/${f.dir}/${f.name}.xml: المورد @${type}/${name} غير موجود`);
+    }
+  }
+  // شاشة البدء: قالب Capacitor يشير إلى @drawable/splash. يجب أن يكون لدينا drawable/splash.xml وحده بهذا الاسم،
+  // وإلا يتصادم مع splash.png الافتراضي (خطأ موارد مكررة) أو يغلب الافتراضي شاشتنا (سير البناء يحذف الافتراضيات قبل النسخ)
+  const splashes = files.filter(f => f.dir.startsWith('drawable') && f.name === 'splash');
+  if (!splashes.some(f => f.dir === 'drawable' && f.file.endsWith('.xml'))) errs.push('native/res/drawable/splash.xml غير موجود (شاشة البدء)');
+  for (const f of splashes) if (!(f.dir === 'drawable' && f.file.endsWith('.xml'))) errs.push(`native/res/${f.dir}/${path.basename(f.file)}: يتصادم مع شاشة البدء drawable/splash.xml`);
+  for (const d of ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
+    for (const n of ['ic_launcher', 'ic_launcher_round']) if (!files.some(x => x.dir === 'mipmap-' + d && x.name === n)) errs.push(`native/res/mipmap-${d}/${n}.png غير موجود`);
+  }
+}
 
 if (errs.length) { console.error('✗ فشل الفحص:\n - ' + errs.join('\n - ')); process.exit(1); }
 console.log(`✓ سليم: ${jsFiles.length} ملف JS، ${core.length} مدخلة في CORE، ${refs.length} مرجع في index.html`);

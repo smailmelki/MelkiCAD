@@ -8,7 +8,12 @@
  * ================================================================== */
 
 // الطبقات: LY=[{id,name,vis,lock}]، cl=الطبقة الحالية، كل شكل له ly (بدونه = الطبقة الأولى)
-function setLY(d){LY=d&&d.LY&&d.LY.length?d.LY:[{id:'l1',name:'طبقة 1',vis:1,lock:0}];cl=d&&d.cl&&LY.some(l=>l.id===d.cl)?d.cl:LY[0].id;const c0=LY.find(l=>l.id===cl);if(c0)c0.vis=1}
+function setLY(d){
+  LY=d&&d.LY&&d.LY.length?d.LY:[{id:'l1',name:'طبقة 1',vis:1,lock:0}];
+  cl=d&&d.cl&&LY.some(l=>l.id===d.cl)?d.cl:LY[0].id;
+  const c0=LY.find(l=>l.id===cl);
+  if(c0)c0.vis=1
+}
 
 const layerOf=s=>LY.find(l=>l.id===s.ly)||LY[0]||{vis:1,lock:0},shown=s=>layerOf(s).vis!==0,ed=s=>{const l=layerOf(s);return l.vis!==0&&!l.lock};
 
@@ -19,10 +24,34 @@ function layerSheet(){
   const pl=sh.querySelector('.pl'),ch=()=>{const c0=LY.find(l=>l.id===cl);if(c0)c0.vis=1;sel=sel.filter(i=>ed(shapes[i]));save();upd();draw();fill()},
     btn=(t,fn)=>{const b=document.createElement('button');b.textContent=t;b.onclick=fn;return b};
   const fill=()=>{pl.textContent='';LY.forEach(l=>{
-    const r=document.createElement('div'),nm=document.createElement('input'),lc=document.createElement('input'),lt=document.createElement('select');r.className='lr'+(l.id===cl?' on':'');nm.value=l.name;
-    lt.className='layer-linetype';lt.title='نوع الخط الافتراضي لعناصر مجموعة رسم';lt.innerHTML='<option value="">متصل (افتراضي)</option><option value="continuous">متصل</option><option value="dashed">متقطع</option><option value="dotted">منقط</option><option value="dashdot">شرطة ونقطة</option><option value="center">محوري</option><option value="hidden">مخفي</option>';lt.value=l.linetype||'';lt.onchange=()=>{snap();l.linetype=lt.value||undefined;save();draw()};nm.oninput=()=>{l.name=nm.value;save()};lc.type='color';lc.className='layer-color';lc.title='لون الطبقة';lc.value=l.col||'#15324b';lc.onchange=()=>{snap();l.col=lc.value;save();draw()};
+    const r=document.createElement('div'),nm=document.createElement('input'),lc=document.createElement('input'),lt=document.createElement('select');
+    r.className='lr'+(l.id===cl?' on':'');
+    nm.value=l.name;
+    lt.className='layer-linetype';
+    lt.title='نوع الخط الافتراضي لعناصر مجموعة رسم';
+    lt.innerHTML='<option value="">متصل (افتراضي)</option><option value="continuous">متصل</option><option value="dashed">متقطع</option><option value="dotted">منقط</option><option value="dashdot">شرطة ونقطة</option><option value="center">محوري</option><option value="hidden">مخفي</option>';
+    lt.value=l.linetype||'';
+    lt.onchange=()=>{snap();l.linetype=lt.value||undefined;save();draw()};
+    nm.oninput=()=>{l.name=nm.value;save()};
+    lc.type='color';
+    lc.className='layer-color';
+    lc.title='لون الطبقة';
+    lc.value=l.col||'#15324b';
+    lc.onchange=()=>{snap();l.col=lc.value;save();draw()};
     if(mm&&l.id!==cl)r.append(btn(mg.has(l.id)?'☑':'☐',()=>{mg.has(l.id)?mg.delete(l.id):mg.add(l.id);mgUi()}));
-    r.append(btn(l.id===cl?'●':'○',()=>{cl=l.id;l.vis=1;mg.delete(cl);save();draw();mgUi()}),nm,lc,lt,btn(l.vis!==0?'ظاهرة':'مخفية',()=>{if(l.id===cl&&l.vis!==0){toast('لا يمكن إخفاء الطبقة الحالية');return}snap();l.vis=l.vis!==0?0:1;ch()}),btn(l.lock?'مقفلة':'مفتوحة',()=>{snap();l.lock=l.lock?0:1;ch()}));
+    r.append(btn(l.id===cl?'●':'○',()=>{
+      cl=l.id;
+      l.vis=1;
+      mg.delete(cl);
+      save();
+      draw();
+      mgUi()
+    }),nm,lc,lt,btn(l.vis!==0?'ظاهرة':'مخفية',()=>{
+      if(l.id===cl&&l.vis!==0){toast('لا يمكن إخفاء الطبقة الحالية');return}
+      snap();
+      l.vis=l.vis!==0?0:1;
+      ch()
+    }),btn(l.lock?'مقفلة':'مفتوحة',()=>{snap();l.lock=l.lock?0:1;ch()}));
     pl.append(r)})};
   fill();
   $('#lnew').onclick=()=>{snap();LY.push({id:uid(),name:`طبقة ${LY.length+1}`,vis:1,lock:0,col:'#15324b'});cl=LY[LY.length-1].id;save();fill()};

@@ -31,11 +31,13 @@ const CORE=[
   'js/16-edit-tools.js',
   'js/17-dxf.js',
   'js/18-print.js',
-  'js/19-areas.js',
+  'js/18a-pdf.js',
   'js/20-keyboard.js',
   'js/21-settings.js',
   'js/22-toolbar.js',
-  'js/23-main.js'
+  'js/23-main.js',
+  'js/24-groups.js',
+  'js/25-associative.js'
 ];
 
 self.addEventListener('install',event=>{
