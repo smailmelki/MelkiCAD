@@ -37,7 +37,8 @@ const CORE=[
   'js/22-toolbar.js',
   'js/23-main.js',
   'js/24-groups.js',
-  'js/25-associative.js'
+  'js/25-associative.js',
+  'js/26-cloud-sync.js'
 ];
 
 self.addEventListener('install',event=>{
