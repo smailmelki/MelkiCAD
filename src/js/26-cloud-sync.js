@@ -74,6 +74,7 @@
   }
   async function upload(){
     const u=await currentUser();
+    if(!u)throw new Error('سجّل الدخول أولاً');
     save();
     if(!await Store.flush())throw new Error('تعذّر إنهاء الحفظ المحلي. لم نرفع أي مشروع.');
     const rows=PJ.map(p=>({user_id:u.id,local_id:p.id,name:String(p.name||'مشروع بدون اسم').slice(0,200),data:snapshot(p.id)}));
