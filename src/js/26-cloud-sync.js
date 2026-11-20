@@ -38,7 +38,7 @@
       '<div class="chips"><button class="chip" id="cloudSignIn">دخول</button><button class="chip" id="cloudSignUp">إنشاء حساب</button><button class="chip" id="cloudGoogle">الدخول عبر Google</button><button class="chip" id="cloudOut">خروج</button></div>'+
       '<div class="divider"></div><b>المزامنة اليدوية</b>'+
       '<div class="hint">ارفع المشاريع المحلية إلى حسابك، أو نزّل مشاريع الحساب إلى هذا الجهاز. عند وجود مشروع بالمعرّف نفسه سيطلب التطبيق تأكيد استبداله.</div>'+
-      '<div class="chips"><button class="chip" id="cloudUpload">رفع مشاريعي</button><button class="chip" id="cloudDownload">تنزيل مشاريعي</button></div>'+
+      '<div class="chips"><button class="chip" id="cloudUpload">حفظ ومزامنة</button><button class="chip" id="cloudDownload">تنزيل مشاريعي</button></div>'+
       '<div class="hint" id="cloudResult" aria-live="polite"></div>'+
       '<button id="ok">إغلاق</button>';
     const state=$id('cloudState'),result=$id('cloudResult');
