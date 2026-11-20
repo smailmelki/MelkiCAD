@@ -85,6 +85,7 @@
   }
   async function download(){
     const u=await currentUser();
+    if(!u)throw new Error('سجّل الدخول أولاً');
     save();
     if(!await Store.flush())throw new Error('تعذّر إنهاء الحفظ المحلي.');
     const {data,error}=await getClient().from('projects').select('local_id,name,data,updated_at').eq('user_id',u.id).order('updated_at',{ascending:true});
