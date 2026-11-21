@@ -267,8 +267,9 @@ async function exportDXF(){
   let txt;try{txt=dxfBuild()}catch(e){toast('تعذّر إنشاء ملف DXF');return}
   const nm=pname().replace(/[^\p{L}\p{N} _.()-]+/gu,'').trim()||'plan';
   const r=await saveBlob(nm+'.dxf',new Blob([txt],{type:'application/dxf'}));
-  if(r==='ok')toast('تم حفظ ملف DXF');else if(r==='err')toast('الحفظ غير متاح هنا');
-}
+  const status=r?.status||r;
+  if(status==='ok')toast('تم حفظ ملف DXF');
+  else if(status==='err')toast('الحفظ غير متاح هنا');}
 
 // ---- ترميز الملف: بايتات DXF ← نص ----
 // R2007+ (AC1021 وما بعده) تخزّن UTF-8. الأقدم تخزّن النص بصفحة الشفرة المعلنة في $DWGCODEPAGE (ANSI_1256 للعربية في ويندوز)،

@@ -38,6 +38,7 @@ const CORE=[
   'js/23-main.js',
   'js/24-groups.js',
   'js/25-associative.js',
+  'vendor/supabase.js',
   'js/26-cloud-sync.js'
 ];
 
