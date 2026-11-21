@@ -92,24 +92,44 @@ function closeP(){
   }else newP();
 }
 
+function closeFileMenu(){
+  const sh=$('#sheet');
+  sh.classList.remove('on','is-file-menu');
+  sh.style.position='';
+  sh.style.top='';sh.style.right='';sh.style.left='';sh.style.bottom='';
+  const pj=$('#pj');if(pj)pj.classList.remove('on');
+  upd();
+}
+
+function toggleFileMenu(e){
+  if(e&&e.stopPropagation)e.stopPropagation();
+  const sh=$('#sheet');
+  if(sh.classList.contains('on')&&sh.classList.contains('is-file-menu')){
+    closeFileMenu();
+    return;
+  }
+  projSheet();
+}
+
 function projSheet(){
   const sh=$('#sheet');
   sh.classList.add('is-file-menu');
+  sh.style.position='fixed';
+  
+  // التصاق القائمة بزر «ملف ▾» أعلى الشاشة مباشرة وبدقة تامة
+  const pj=$('#pj');
+  if(pj){
+    const r=pj.getBoundingClientRect();
+    sh.style.top=Math.round(r.bottom)+'px';
+    sh.style.right=Math.max(0,Math.round(document.documentElement.clientWidth - r.right))+'px';
+    sh.style.left='auto';
+    sh.style.bottom='auto';
+    pj.classList.add('on');
+  }
+
   sh.innerHTML=`
     <div class="fmenu">
-      <div class="fmenu-head">
-        <div class="fmenu-title">
-          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <b>ملف</b>
-        </div>
-        <button id="ok" class="fmenu-close" title="إغلاق">✕</button>
-      </div>
-
-      <div class="fmenu-name-row">
-        <label for="pnm">المشروع الحالي</label>
-        <input id="pnm" placeholder="اسم المشروع..." autocomplete="off">
-      </div>
-
+      <!-- أوامر ملف الأساسية -->
       <div class="fmenu-actions">
         <button class="fmenu-item" id="pnew" title="مشروع جديد (Ctrl+N)">
           <span class="fmenu-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span>
@@ -143,63 +163,127 @@ function projSheet(){
           <span class="fmenu-arrow">‹</span>
         </button>
 
+        <button class="fmenu-item" id="pimport" title="استيراد مشروع أو ملف DXF">
+          <span class="fmenu-icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+          <span class="fmenu-label">استيراد (DXF / JSON)...</span>
+          <span class="fmenu-arrow">‹</span>
+        </button>
+
         <button class="fmenu-item" id="pprint" title="طباعة أو تصدير PDF (Ctrl+P)">
           <span class="fmenu-icon"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6z"/><path d="M18 12h.01"/></svg></span>
           <span class="fmenu-label">طباعة المخطط / PDF...</span>
           <kbd class="fmenu-kbd">Ctrl+P</kbd>
         </button>
-
-        <div class="fmenu-sep"></div>
-
-        <button class="fmenu-item" id="pdup" title="تكرار المشروع الحالي">
-          <span class="fmenu-icon"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
-          <span class="fmenu-label">تكرار المشروع (نسخة)</span>
-        </button>
-
-        <button class="fmenu-item danger" id="pdel" title="إغلاق المشروع الحالي">
-          <span class="fmenu-icon"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></span>
-          <span class="fmenu-label">إغلاق المشروع</span>
-        </button>
       </div>
 
-      <div class="fmenu-recents-hdr">
-        <span>المشاريع المفتوحة</span>
-        <span class="fmenu-badge" id="pjcount"></span>
+      <div class="fmenu-sep"></div>
+
+      <!-- المشاريع المفتوحة في الأسفل مع أزرار التكرار والإغلاق لكل مشروع -->
+      <div class="fmenu-bottom-projects">
+        <div class="fmenu-recents-hdr">
+          <span>المشاريع المفتوحة</span>
+          <span class="fmenu-badge" id="pjcount"></span>
+        </div>
+        <div class="fmenu-proj-list" id="pjlist"></div>
       </div>
-      <div class="pl fmenu-recents" id="pjlist"></div>
     </div>
   `;
-  const nm=$('#pnm'),pl=$('#pjlist'),count=$('#pjcount');
+
+  const pl=$('#pjlist'),count=$('#pjcount');
+
+  const dupProject = (id)=>{
+    const target=PJ.find(x=>x.id===id);
+    if(!target)return;
+    if(id===pid){
+      newP(pname()+' (نسخة)',copy(shapes),{LY:copy(LY),cl},{...metaGet(),date:todayStr()});
+    }else{
+      const d=kvGet('p:'+id)||{};
+      const m=cleanMeta(kvGet('m:'+id));
+      if(m.date===undefined)m.date=todayStr();
+      newP((target.name||'مشروع')+' (نسخة)',copy(d.shapes||[]),d.LY?{LY:copy(d.LY),cl:d.cl}:null,m);
+    }
+    fill();
+  };
+
+  const closeProject = (id)=>{
+    if(id===pid){
+      closeP();
+    }else{
+      PJ=PJ.filter(x=>x.id!==id);
+      save();
+    }
+    fill();
+  };
+
   const fill=()=>{
     pl.textContent='';
     if(count)count.textContent=String(PJ.length);
     PJ.forEach(p=>{
       const isCur = p.id===pid;
-      const b=document.createElement('button');
-      b.className='pi fmenu-proj-item'+(isCur?' on':'');
-      b.innerHTML=`
-        <svg viewBox="0 0 24 24" class="fmenu-proj-ico"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-        <span class="fmenu-proj-name">${esc(p.name||'بدون اسم')}</span>
-        ${isCur?'<span class="fmenu-proj-badge">نشط</span>':''}
+      const row=document.createElement('div');
+      row.className='fmenu-proj-row'+(isCur?' on':'');
+
+      const ico=`<span class="fmenu-proj-ico" title="${isCur?'المشروع الحالي':'مشروع'}"><svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span>`;
+      
+      let nameHtml = '';
+      if(isCur){
+        nameHtml = `<input class="fmenu-proj-input" id="pnm" value="${esc(p.name||'بدون اسم')}" placeholder="اسم المشروع...">`;
+      }else{
+        nameHtml = `<span class="fmenu-proj-name" title="التبديل إلى هذا المشروع">${esc(p.name||'بدون اسم')}</span>`;
+      }
+
+      const btnsHtml = `
+        <div class="fmenu-proj-btns">
+          <button class="fmenu-icon-btn" data-act="dup" title="تكرار المشروع (نسخة)">
+            <svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
+          </button>
+          <button class="fmenu-icon-btn danger" data-act="del" title="إغلاق المشروع">
+            <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
       `;
-      b.onclick=()=>{if(p.id!==pid){openP(p.id);nm.value=pname();fill()}};
-      pl.append(b);
+
+      row.innerHTML = ico + nameHtml + btnsHtml;
+
+      const inp = row.querySelector('.fmenu-proj-input');
+      if(inp){
+        inp.oninput=(e)=>{
+          p.name=e.target.value;
+          save();
+          $('#pn').textContent=pname();
+        };
+      }
+
+      const nameSpan = row.querySelector('.fmenu-proj-name');
+      if(nameSpan){
+        nameSpan.onclick=()=>{
+          openP(p.id);
+          fill();
+        };
+      }
+
+      const btnDup = row.querySelector('[data-act="dup"]');
+      if(btnDup)btnDup.onclick=(e)=>{e.stopPropagation();dupProject(p.id)};
+
+      const btnDel = row.querySelector('[data-act="del"]');
+      if(btnDel)btnDel.onclick=(e)=>{e.stopPropagation();closeProject(p.id)};
+
+      pl.append(row);
     });
   };
-  nm.value=pname();fill();
-  nm.oninput=()=>{const p=PJ.find(x=>x.id===pid);if(p){p.name=nm.value;save();$('#pn').textContent=pname();fill()}};
-  $('#pnew').onclick=()=>{sh.classList.remove('on','is-file-menu');newP()};
-  $('#popen').onclick=()=>{sh.classList.remove('on','is-file-menu');fileOpen()};
-  $('#psave').onclick=()=>{sh.classList.remove('on','is-file-menu');fileSave()};
-  $('#psaveas').onclick=()=>{sh.classList.remove('on','is-file-menu');fileSaveAs()};
-  $('#pexport').onclick=()=>{sh.classList.remove('is-file-menu');exportChoice()};
-  $('#pprint').onclick=()=>{sh.classList.remove('on','is-file-menu');$('#shot').click()};
-  $('#pdup').onclick=()=>{newP(pname()+' (نسخة)',copy(shapes),{LY:copy(LY),cl},{...metaGet(),date:todayStr()});nm.value=pname();fill()};
-  $('#pdel').onclick=()=>{closeP();nm.value=pname();fill()};
-  $('#ok').onclick=()=>{sh.classList.remove('on','is-file-menu');upd()};
+
+  fill();
+
+  $('#pnew').onclick=()=>{closeFileMenu();newP()};
+  $('#popen').onclick=()=>{closeFileMenu();fileOpen()};
+  $('#psave').onclick=()=>{closeFileMenu();fileSave()};
+  $('#psaveas').onclick=()=>{closeFileMenu();fileSaveAs()};
+  $('#pexport').onclick=()=>{closeFileMenu();exportChoice()};
+  $('#pimport').onclick=()=>{closeFileMenu();importChoice()};
+  $('#pprint').onclick=()=>{closeFileMenu();$('#shot').click()};
   sh.classList.add('on');$('#ctx').style.display='none';
 }
 
 $('#finjson').onchange=e=>handleImportFile(e.target.files&&e.target.files[0],e.target);
 
-$('#pj').onclick=projSheet;
+$('#pj').onclick=toggleFileMenu;
