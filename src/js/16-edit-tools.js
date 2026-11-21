@@ -8,7 +8,7 @@
  *        moveShapesBy، moveFlowStart، moveFlowPanel، moveFlowPoint، moveFlowPreview، moveFlowCommit،
  *        moveFlowSubmit، closeMoveFlow، reindexVertexLinks، vertexInsert، vertexDeleteActive، gripInsert، arcGripDrag،
  *        stretchShape، stretchHits، stretchAffected، stretchApply، stretchStart، stretchWindowDrag، stretchWindowDone،
- *        pathNearest، pathPoint، pathSlice، breakPieces، applyBreak، breakPick، breakStart
+ *        pathNearest، pathPoint، pathSlice، breakPieces، applyBreak، breakPick، breakStart، alignSel، alignSheet
  * يعتمد على: 01-core.js، 02-geometry.js، 03-snap.js، 04-selection.js،
  *            05-persistence.js، 06-layers.js، 09-render.js، 10-dimensions.js،
  *            22-toolbar.js
@@ -97,6 +97,7 @@ function opAction(a){
     sh.querySelectorAll('[data-m]').forEach(b=>{b.onclick=()=>{mirrorSel(b.dataset.m);sh.classList.remove('on');save();upd();draw()}});
   }else if(a==='explode'){explodeSel();editAction=null;save();upd();draw()}
   else if(a==='join'){joinSel();editAction=null;save();upd();draw()}
+  else if(a==='align'){alignSheet();editAction=null;}
   else if(a==='bmove'||a==='bcopy')moveFlowStart(a==='bmove'?'move':'copy');
   else if(a==='array'){
     const BB=bounds(sel.map(i=>shapes[i])),w=BB.X-BB.x,h=BB.Y-BB.y;
@@ -709,3 +710,59 @@ function breakPick(p){
   if(b-a<1e-6){toast('النقطتان متطابقتان؛ اختر نقطة أخرى');return}
   if(applyBreak(i,a,b)){breakFirst=null;toast('تم حذف الجزء بين النقطتين')}
 }
+
+function alignSel(type){
+  if(sel.length<2){toast('حدّد عنصرين أو أكثر للمحاذاة');return}
+  const selShapes=sel.map(i=>shapes[i]),BB=bounds(selShapes);
+  const cxGroup=(BB.x+BB.X)/2,cyGroup=(BB.y+BB.Y)/2;
+  snap();
+  sel.forEach(i=>{
+    const s=shapes[i];
+    if(!ed(s))return;
+    const b=bx(s);
+    let dx=0,dy=0;
+    if(type==='top')dy=BB.y-b.y;
+    else if(type==='bottom')dy=BB.Y-b.Y;
+    else if(type==='center-v')dy=cyGroup-(b.y+b.Y)/2;
+    else if(type==='center-h')dx=cxGroup-(b.x+b.X)/2;
+    else if(type==='center'){dx=cxGroup-(b.x+b.X)/2;dy=cyGroup-(b.y+b.Y)/2;}
+    else if(type==='right')dx=BB.X-b.X;
+    else if(type==='left')dx=BB.x-b.x;
+    if(dx!==0||dy!==0)moveShapesBy([s],[copy(s)],dx,dy);
+  });
+  save();upd();draw();toast('تمت محاذاة العناصر');
+}
+
+function alignSheet(){
+  if(sel.length<2){toast('حدّد عنصرين أو أكثر أولاً للمحاذاة');return}
+  const sh=$('#sheet');
+  sh.classList.remove('is-file-menu');
+  sh.innerHTML=`
+    <b>محاذاة العناصر المحددة</b>
+    <p style="color:var(--dim);font-size:12px;margin:4px 0 10px">اختر اتجاه المحاذاة بالنسبة لحدود التحديد المشتركة:</p>
+    <div class="row">
+      <button class="fl" data-align="top">محاذاة للأعلى</button>
+      <button class="fl" data-align="bottom">محاذاة للأسفل</button>
+    </div>
+    <div class="row">
+      <button class="fl" data-align="center-v">محاذاة للمركز (رأسي)</button>
+      <button class="fl" data-align="center-h">محاذاة للمركز (أفقي)</button>
+    </div>
+    <div class="row">
+      <button class="fl" data-align="right">محاذاة لليمين</button>
+      <button class="fl" data-align="center">المركز الكامل</button>
+      <button class="fl" data-align="left">محاذاة لليسار</button>
+    </div>
+    <button id="ok">إلغاء</button>
+  `;
+  sh.querySelectorAll('[data-align]').forEach(b=>{
+    b.onclick=()=>{alignSel(b.dataset.align);sh.classList.remove('on');upd()};
+  });
+  $('#ok').onclick=()=>{sh.classList.remove('on');upd()};
+  sh.classList.add('on');
+  $('#ctx').style.display='none';
+}
+
+const alignBtnEl=$('#alignBtn');
+if(alignBtnEl)alignBtnEl.onclick=alignSheet;
+

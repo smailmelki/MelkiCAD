@@ -1,9 +1,9 @@
 /* ==================================================================
  * 06-layers.js
  * الطبقات: بنية الطبقات وقواعد الظهور والقفل، ولوحة إدارة الطبقات (إضافة، نقل،
- * دمج، حذف).
+ * دمج، حذف، وتحديد عناصر الطبقة).
  *
- * يعرّف: setLY، layerOf، shown، ed، layerSheet
+ * يعرّف: setLY، layerOf، shown، ed، selectLayer، layerSheet
  * يعتمد على: 01-core.js، 05-persistence.js، 09-render.js، 22-toolbar.js
  * ================================================================== */
 
@@ -17,9 +17,22 @@ function setLY(d){
 
 const layerOf=s=>LY.find(l=>l.id===s.ly)||LY[0]||{vis:1,lock:0},shown=s=>layerOf(s).vis!==0,ed=s=>{const l=layerOf(s);return l.vis!==0&&!l.lock};
 
+function selectLayer(layerId){
+  const lid=layerId||cl,first=LY[0].id;
+  sel=shapes.map((s,i)=>{
+    const sLid=(s.ly&&LY.some(l=>l.id===s.ly))?s.ly:first;
+    return (sLid===lid&&ed(s))?i:-1;
+  }).filter(i=>i>=0);
+  const l=LY.find(x=>x.id===lid),name=l?l.name:'الطبقة';
+  tool='select';
+  if(sel.length){toast(`تم تحديد ${sel.length} عنصر في «${name}»`)}
+  else{toast(`لا توجد عناصر قابلة للتعديل في «${name}»`)}
+  upd();draw();
+}
+
 function layerSheet(){
   const sh=$('#sheet');
-  sh.innerHTML='<div class="pl"></div><div class="row"><button class="fl" id="lnew">طبقة جديدة</button><button class="fl" id="lmv">نقل المحدد هنا</button><button class="fl" id="ldel">حذف الحالية</button></div><div class="row"><button class="fl" id="lmg">دمج الطبقات</button><button class="fl" id="lmc" hidden>إلغاء</button></div><button id="ok">تم</button>';
+  sh.innerHTML='<div class="pl"></div><div class="row"><button class="fl" id="lnew">طبقة جديدة</button><button class="fl" id="lmv">نقل المحدد هنا</button><button class="fl" id="lsel">تحديد عناصر الطبقة</button><button class="fl" id="ldel">حذف الحالية</button></div><div class="row"><button class="fl" id="lmg">دمج الطبقات</button><button class="fl" id="lmc" hidden>إلغاء</button></div><button id="ok">تم</button>';
   let mm=0;const mg=new Set();
   const pl=sh.querySelector('.pl'),ch=()=>{const c0=LY.find(l=>l.id===cl);if(c0)c0.vis=1;sel=sel.filter(i=>ed(shapes[i]));save();upd();draw();fill()},
     btn=(t,fn)=>{const b=document.createElement('button');b.textContent=t;b.onclick=fn;return b};
@@ -51,11 +64,12 @@ function layerSheet(){
       snap();
       l.vis=l.vis!==0?0:1;
       ch()
-    }),btn(l.lock?'مقفلة':'مفتوحة',()=>{snap();l.lock=l.lock?0:1;ch()}));
+    }),btn(l.lock?'مقفلة':'مفتوحة',()=>{snap();l.lock=l.lock?0:1;ch()}),btn('تحديد',()=>{sh.classList.remove('on');selectLayer(l.id)}));
     pl.append(r)})};
   fill();
   $('#lnew').onclick=()=>{snap();LY.push({id:uid(),name:`طبقة ${LY.length+1}`,vis:1,lock:0,col:'#15324b'});cl=LY[LY.length-1].id;save();fill()};
   $('#lmv').onclick=()=>{if(!sel.length){toast('حدّد أشكالًا أولًا');return}snap();sel.forEach(i=>{shapes[i].ly=cl});toast('تم النقل إلى الطبقة الحالية');ch()};
+  $('#lsel').onclick=()=>{sh.classList.remove('on');selectLayer(cl);};
   let armed=0;
   // دمج: اختر طبقات لتنتقل أشكالها إلى الطبقة الحالية ثم تُحذف هي
   const mgUi=()=>{$('#lmg').textContent=mm?`دمج (${mg.size}) في الطبقة الحالية`:'دمج الطبقات';$('#lmc').hidden=!mm;fill()};

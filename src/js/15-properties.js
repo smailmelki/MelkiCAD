@@ -23,6 +23,7 @@ function opts(){
   }
   sh.innerHTML=`<b>اللون</b><div class="sws">${COLS.map(c=>`<button class="sw${c?'':' auto'}${c===(first.col||'')?' on':''}" data-c="${c}" style="${c?'background:'+c:''}" aria-label="لون"></button>`).join('')}</div>`
     +`<label>الطبقة<select id="elementLayer">${LY.map(l=>`<option value="${esc(l.id)}" ${l.id===(first.ly||LY[0]?.id)?'selected':''}>${esc(l.name)}</option>`).join('')}</select></label>`
+    +`<div class="row" style="margin-top:-4px"><button type="button" class="fl" id="selLayerAll" style="font-size:12px;min-height:36px">تحديد كل عناصر هذه الطبقة</button></div>`
     +`<label>السُّمك<input type="range" id="lw" min="1" max="10" step=".5"><b id="lwv"></b></label>`
     +(sel.some(i=>['rect','circle','ellipse','tri','polygon'].includes(shapes[i].t))
       ?`<b>التعبئة</b><div class="chips" id="fk">${[['','بدون'],['solid','لون'],['tile','بلاط'],['wood','خشب'],['hatch','تهشير'],['dots','نقاط']].map(([v,l])=>`<button class="chip${(first.fk||'')===v?' on':''}" data-v="${v}">${l}</button>`).join('')}</div><div class="sws" id="fc">${COLS.map(c=>`<button class="sw${c?'':' auto'}${c===(first.fc||'')?' on':''}" data-c="${c}" style="${c?'background:'+c:''}" aria-label="لون التعبئة"></button>`).join('')}</div>`
@@ -39,6 +40,7 @@ function opts(){
     +(s1&&s1.t==='rect'?'<button class="fl" id="tw">إضافة جدران حولها</button>':'')+'<button id="ok">تم</button>';
   F.forEach(x=>sh.querySelector(`[data-k="${x[0]}"]`).value=x[2]);
   $('#elementLayer').onchange=e=>{once();const id=e.target.value;sel.forEach(i=>{shapes[i].ly=id});save();draw()};
+  const sb=$('#selLayerAll');if(sb)sb.onclick=()=>{sh.classList.remove('on');selectLayer($('#elementLayer').value);};
   if(drawingSelection){const lt=$('#propLineType'),dl=$('#propDoubleLine'),dg=$('#propDoubleGap');if(s1){
     lt.value=s1.linetype||'';
     dl.checked=!!s1.doubleLine;

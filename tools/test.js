@@ -1234,6 +1234,45 @@ t('التحريك والتدوير والتحجيم يحافظ على هندسة
   ok(R(`shapes[0].p.length>4&&shapes.length===1`),'التدوير لا يفكك الشكل');
 });
 
+t('محاذاة العناصر المحددة: للأعلى وللأسفل وللمركز ولليمين ولليسار', () => {
+  resetB2();
+  R(`shapes=[{t:'rect',x:0,y:0,w:2,h:2,ly:cl},{t:'rect',x:10,y:4,w:4,h:6,ly:cl}];sel=[0,1]`);
+  R(`alignSel('top')`);
+  near(R(`shapes[0].y`), 0);
+  near(R(`shapes[1].y`), 0);
+  R(`alignSel('bottom')`);
+  near(R(`shapes[0].y+shapes[0].h`), R(`shapes[1].y+shapes[1].h`));
+  R(`alignSel('center-v')`);
+  near(R(`shapes[0].y+shapes[0].h/2`), R(`shapes[1].y+shapes[1].h/2`));
+  R(`alignSel('center-h')`);
+  near(R(`shapes[0].x+shapes[0].w/2`), R(`shapes[1].x+shapes[1].w/2`));
+  R(`alignSel('left')`);
+  near(R(`shapes[0].x`), R(`shapes[1].x`));
+  R(`alignSel('right')`);
+  near(R(`shapes[0].x+shapes[0].w`), R(`shapes[1].x+shapes[1].w`));
+});
+
+t('تحديد عناصر الطبقة: يختار العناصر التابعة للطبقة فقط ويتجاوز المقفلة والمخفية', () => {
+  resetB2();
+  R(`LY=[{id:'l1',name:'طبقة 1',vis:1,lock:0},{id:'l2',name:'طبقة 2',vis:1,lock:0},{id:'l3',name:'طبقة مقفلة',vis:1,lock:1}];cl='l1'`);
+  R(`shapes=[
+    {t:'rect',x:0,y:0,w:2,h:2,ly:'l1'},
+    {t:'rect',x:5,y:5,w:2,h:2,ly:'l2'},
+    {t:'rect',x:10,y:10,w:2,h:2,ly:'l1'},
+    {t:'rect',x:15,y:15,w:2,h:2,ly:'l3'}
+  ]`);
+  R(`selectLayer('l1')`);
+  eq(R(`sel.length`), 2);
+  eq(R(`sel[0]`), 0);
+  eq(R(`sel[1]`), 2);
+  eq(R(`tool`), 'select');
+  R(`selectLayer('l2')`);
+  eq(R(`sel.length`), 1);
+  eq(R(`sel[0]`), 1);
+  R(`selectLayer('l3')`);
+  eq(R(`sel.length`), 0);
+});
+
 (async () => {
   for (const [name, fn] of queue) {
     try { await fn(); pass++; console.log('✓ ' + name); }

@@ -13,6 +13,7 @@ function upd(){
   const n=sel.length;$('#pn').textContent=pname();
   $('#undo').disabled=!hist.length;$('#redo').disabled=!redo.length;$('#ctx').style.display=drawFlow||moveFlow?'none':(tool==='select'||n?'flex':'none');
   $('#op').disabled=$('#cp').disabled=$('#del').disabled=$('#rt').disabled=$('#scale').disabled=!n;$('#ps').disabled=!clip.length;
+  const ab=$('#alignBtn');if(ab)ab.disabled=n<2;
   $$('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tool));
   $$('[data-fk]').forEach(b=>b.classList.toggle('on',tool==='furn'&&b.dataset.fk===furnKind));
   $$('[data-dm]').forEach(b=>b.classList.toggle('on',tool==='dim'&&b.dataset.dm===dimMode));
@@ -137,6 +138,7 @@ DIM_TOOLS.forEach(([mode,label,icon])=>{
 [
   ['offset','إزاحة','<path d="M4 8h16M4 16h16"/><path d="M12 8v8M9 13l3 3 3-3"/>'],
   ['mirror','انعكاس','<path d="M12 3v18M7 7l-4 5 4 5zM17 7l4 5-4 5z"/>'],
+  ['align','محاذاة','<line x1="4" y1="4" x2="20" y2="4"/><rect x="6" y="8" width="4" height="10"/><rect x="14" y="8" width="4" height="6"/>'],
   [
     'array',
     'تكرار',
