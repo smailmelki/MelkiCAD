@@ -1149,12 +1149,12 @@ t('شريط الاختصارات: S شدّ وB كسر وDelete للرأس، وق
 // ---------- الملفات: saveBlob ----------
 t('saveBlob: مسار التنزيل الاحتياطي يعمل عند غياب نافذة الحفظ والمشاركة', async () => {
   const r = await A.ctx.saveBlob('x.json', new Blob(['{}']));
-  ok(r === 'ok' || r === 'err', 'نتيجة معروفة: ' + r);
+  ok((r?.status || r) === 'ok' || (r?.status || r) === 'err', 'نتيجة معروفة: ' + r);
 });
 t('saveBlob: إلغاء المستخدم لنافذة الحفظ يُرجع no ولا ينزّل ملفًا', async () => {
   A.ctx.window.showSaveFilePicker = async () => { const e = new Error('x'); e.name = 'AbortError'; throw e; };
   const r = await A.ctx.saveBlob('x.dxf', new Blob(['0']));
-  eq(r, 'no'); delete A.ctx.window.showSaveFilePicker;
+  eq(r?.status || r, 'no'); delete A.ctx.window.showSaveFilePicker;
 });
 t('saveBlob: وصف نوع الملف يتبع الامتداد (وليس DXF دائمًا)', async () => {
   let got = null;
@@ -1171,7 +1171,7 @@ t('saveBlob auto: لا نافذة اختيار ولا مشاركة، تنزيل 
   const nav = A.ctx.navigator; const oldShare = nav && nav.share, oldCan = nav && nav.canShare;
   if (nav) { nav.canShare = () => true; nav.share = async () => { shared = true; }; }
   const r = await A.ctx.saveBlob('مشروعي.json', new Blob(['{}']), { auto: true });
-  ok(r === 'ok' || r === 'err', 'نتيجة معروفة: ' + r); ok(!picked, 'لا نافذة اختيار'); ok(!shared, 'لا قائمة مشاركة');
+  ok((r?.status || r) === 'ok' || (r?.status || r) === 'err', 'نتيجة معروفة: ' + r); ok(!picked, 'لا نافذة اختيار'); ok(!shared, 'لا قائمة مشاركة');
   delete A.ctx.window.showSaveFilePicker; if (nav) { nav.share = oldShare; nav.canShare = oldCan; }
 });
 t('fileBase: اسم الملف بلا امتداد ولا مسار', () => {

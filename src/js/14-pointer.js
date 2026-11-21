@@ -191,7 +191,7 @@ cv.addEventListener('pointerdown',e=>{
     draw();
     return
   }
-  $('#sheet').classList.remove('on');
+  $('#sheet').classList.remove('on','is-file-menu');
   $('#smenu').classList.remove('on');
   $$('.gm').forEach(m=>m.classList.remove('on'));
   if(tool==='polyline'){

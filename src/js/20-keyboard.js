@@ -35,7 +35,11 @@ const KEY_HELP=[
   ['G','مضلع'],['P','متعدد POLYLINE'],['F','رسم حر'],['T','نص'],['D','بُعد'],['M','تحريك المحدد'],['X','تفكيك المحدد'],['J','ربط المحدد'],['S','شدّ (Stretch) بإطار'],['B','كسر عند نقطة'],
   ['F3','تشغيل/إيقاف الالتقاط بالنقاط'],['F8','تعامد أفقي / رأسي'],['F9','شبكة'],['F10','زاوية 45°'],['F11','تتبع النقاط OTRACK'],
   ['الأسهم','تحريك العرض (Shift أسرع)'],['+ / -','تكبير / تصغير'],['0 أو Home','ملاءمة الرسم'],
-  ['Ctrl+S','حفظ المشروع JSON'],['Ctrl+P','طباعة / تصدير'],['?','هذه القائمة']
+  ['Ctrl+N','مشروع جديد'],
+  ['Ctrl+O','فتح ملف مشروع'],
+  ['Ctrl+S','حفظ (مباشر إن كان الملف مفتوحاً، وإلا حفظ باسم)'],
+  ['Ctrl+Shift+S','حفظ باسم — اختيار الموقع والاسم'],
+  ['Ctrl+P','طباعة / تصدير'],['?','هذه القائمة']
 ];
 
 function keysSheet(){
@@ -76,7 +80,7 @@ function escapeStep(){
   if(drawFlow){press('#diClose');return}
   if(polyDraft){press('#polycancel');return}
   if($$('.gm.on').length||$('#smenu').classList.contains('on')){$$('.gm').forEach(m=>m.classList.remove('on'));$('#smenu').classList.remove('on');upd();return}
-  if($('#sheet').classList.contains('on')){$('#sheet').classList.remove('on');upd();return}
+  if($('#sheet').classList.contains('on')){$('#sheet').classList.remove('on','is-file-menu');upd();return}
   if(moveArmed){setMoveMode(false);upd();return}
   if(sel.length){sel=[];upd();draw();return}
   if(tool!=='select'&&tool!=='pan')press('[data-t="select"]');
@@ -95,7 +99,9 @@ function onKey(e){
     else if(k==='KeyX'){if(sel.length){stop();press('#cp');press('#del')}}
     else if(k==='KeyV'){if(clip.length){stop();press('#ps')}}
     else if(k==='KeyA'){stop();if(tool!=='select')press('[data-t="select"]');press('#all')}
-    else if(k==='KeyS'){stop();exportFile()}
+    else if(k==='KeyN'){stop();newP()}
+    else if(k==='KeyS'){stop();e.shiftKey?fileSaveAs():fileSave()}
+    else if(k==='KeyO'){stop();fileOpen()}
     else if(k==='KeyP'){stop();press('#shot')}
     return;
   }

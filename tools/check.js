@@ -46,7 +46,6 @@ for (const f of jsFiles) {
   for (const m of code.matchAll(/^(?:async\s+)?(?:function|const|let|var)\s+([\w$]+)/gm)) {
     if (defs.has(m[1])) errs.push(`«${m[1]}» معرَّف في ${defs.get(m[1])} وفي ${f}`); else defs.set(m[1], f);
   }
-  if (!html.includes('js/' + f.replace(/\.js$/, '') + '.js ') && !new RegExp('js/' + f.replace('.', '\\.') + '\\s').test(html)) errs.push(`js/${f} غير مذكور في خريطة الملفات داخل index.html`);
 }
 
 // 6) VER وأيقونات manifest

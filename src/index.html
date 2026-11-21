@@ -21,7 +21,11 @@
 <body>
 <header>
   <button id="pj"><b id="pn"></b> ▾</button>
-  <button id="undo" aria-label="تراجع" title="تراجع"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3"/></svg></button><button id="redo" aria-label="إعادة" title="إعادة"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 000 12h3"/></svg></button><button id="fit" aria-label="ملاءمة" title="ملاءمة"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button><button id="shot" aria-label="طباعة" title="طباعة"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6z"/><path d="M18 12h.01"/></svg></button>
+  <button id="undo" aria-label="تراجع" title="تراجع"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3"/></svg></button><button id="redo" aria-label="إعادة" title="إعادة"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 000 12h3"/></svg></button><button id="fit" aria-label="ملاءمة" title="ملاءمة"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  <button id="hdr-open" aria-label="فتح ملف" title="فتح ملف (Ctrl+O)"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v2H3z"/><path d="M3 10h18l-2 10H5z"/></svg></button>
+  <button id="hdr-save" aria-label="حفظ" title="حفظ (Ctrl+S)"><svg viewBox="0 0 24 24"><path d="M5 3h12l4 4v14H3V3z"/><path d="M7 3v6h10V3M7 21v-7h10v7"/></svg></button>
+  <button id="hdr-saveas" aria-label="حفظ باسم" title="حفظ باسم (Ctrl+Shift+S)"><svg viewBox="0 0 24 24"><path d="M5 3h12l4 4v14H3V3z"/><path d="M7 3v6h10V3M7 21v-7h10v7"/><path d="M15 17h4M17 15v4"/></svg></button>
+  <button id="shot" aria-label="طباعة" title="طباعة"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6z"/><path d="M18 12h.01"/></svg></button>
 <button id="stg" aria-label="الإعدادات">⚙</button>
 </header>
 <main>
@@ -122,6 +126,8 @@
 <script src="js/23-main.js"></script>
 <script src="js/24-groups.js"></script>
 <script src="js/25-associative.js"></script>
+  <script src="vendor/supabase.js"></script>
+<script src="js/26-cloud-sync.js"></script>
 </body>
 </html>
 <!-- Trigger preview deployment for the latest branch revision. -->
